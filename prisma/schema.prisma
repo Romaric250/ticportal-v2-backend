@@ -1,0 +1,425 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+/// Core user and auth models
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  email       String   @unique
+  password    String
+  role        UserRole
+  firstName   String
+  lastName    String
+  phone       String?  @unique
+  isVerified  Boolean  @default(false)
+  lastLogin   DateTime?
+  squadId     String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  otps         OTP[]
+  refreshTokens RefreshToken[]
+  squadMembers  SquadMember[]
+  teamMembers   TeamMember[]
+  teamChats     TeamChat[]   @relation("UserTeamChats")
+  points        Point[]
+  userBadges    UserBadge[]
+  leaderboards  Leaderboard[]
+  notifications Notification[]
+  portfolio     Portfolio?
+}
+
+enum UserRole {
+  STUDENT
+  MENTOR
+  JUDGE
+  SQUAD_LEAD
+  ADMIN
+  SUPER_ADMIN
+}
+
+model OTP {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String          @db.ObjectId
+  code      String
+  expiresAt DateTime
+  type      OTPType
+  createdAt DateTime        @default(now())
+
+  user      User            @relation(fields: [userId], references: [id])
+}
+
+enum OTPType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model RefreshToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+/// Organizations
+model Squad {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  schoolName String
+  region     String
+  area       String
+  leadId     String        @db.ObjectId
+  status     SquadStatus   @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  lead         User        @relation(fields: [leadId], references: [id])
+  members      SquadMember[]
+  teams        Team[]
+  hackathons   Hackathon[]
+  leaderboards Leaderboard[]
+}
+
+enum SquadStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model SquadMember {
+  id       String      @id @default(auto()) @map("_id") @db.ObjectId
+  squadId  String      @db.ObjectId
+  userId   String      @db.ObjectId
+  role     SquadRole
+  joinedAt DateTime    @default(now())
+
+  squad    Squad       @relation(fields: [squadId], references: [id])
+  user     User        @relation(fields: [userId], references: [id])
+
+  @@unique([squadId, userId])
+}
+
+enum SquadRole {
+  STUDENT
+  SQUAD_LEAD
+}
+
+/// Teams & Collaboration
+model Team {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  squadId      String        @db.ObjectId
+  projectTitle String?
+  description  String?
+  createdAt    DateTime      @default(now())
+
+  squad        Squad         @relation(fields: [squadId], references: [id])
+  members      TeamMember[]
+  chats        TeamChat[]
+  submissions  Submission[]
+  mentorRequests MentorRequest[]
+  mentorAssignments MentorAssignment[]
+  mentorSessions    MentorSession[]
+  leaderboards      Leaderboard[]
+}
+
+model TeamMember {
+  id       String       @id @default(auto()) @map("_id") @db.ObjectId
+  teamId   String       @db.ObjectId
+  userId   String       @db.ObjectId
+  role     TeamRole
+  joinedAt DateTime     @default(now())
+
+  team     Team         @relation(fields: [teamId], references: [id])
+  user     User         @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+enum TeamRole {
+  MEMBER
+  LEAD
+}
+
+model TeamChat {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId      String   @db.ObjectId
+  senderId    String   @db.ObjectId
+  message     String
+  attachments String[] @db.Array
+  createdAt   DateTime @default(now())
+
+  team        Team     @relation(fields: [teamId], references: [id])
+  sender      User     @relation("UserTeamChats", fields: [senderId], references: [id])
+}
+
+/// Learning Path
+model Stage {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  order          Int
+  unlockCriteria String?
+  description    String?
+
+  resources      Resource[]
+  quizzes        Quiz[]
+  progress       UserProgress[]
+
+  @@unique([order])
+}
+
+model Resource {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  stageId  String   @db.ObjectId
+  title    String
+  type     ResourceType
+  url      String
+  duration Int?
+  order    Int
+
+  stage    Stage    @relation(fields: [stageId], references: [id])
+
+  @@unique([stageId, order])
+}
+
+enum ResourceType {
+  VIDEO
+  DOCUMENT
+  QUIZ
+  ASSIGNMENT
+}
+
+model Quiz {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  stageId      String         @db.ObjectId
+  title        String
+  passingScore Int
+
+  stage        Stage          @relation(fields: [stageId], references: [id])
+  questions    QuizQuestion[]
+}
+
+model QuizQuestion {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  quizId        String   @db.ObjectId
+  question      String
+  options       String[] @db.Array
+  correctAnswer String
+  points        Int      @default(1)
+
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
+}
+
+model UserProgress {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String           @db.ObjectId
+  stageId     String           @db.ObjectId
+  status      ProgressStatus
+  score       Int?
+  completedAt DateTime?
+
+  user        User             @relation(fields: [userId], references: [id])
+  stage       Stage            @relation(fields: [stageId], references: [id])
+
+  @@unique([userId, stageId])
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Hackathons
+model Hackathon {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  level     HackathonLevel
+  squadId   String?         @db.ObjectId
+  startDate DateTime
+  endDate   DateTime
+  status    HackathonStatus @default(UPCOMING)
+
+  squad       Squad?        @relation(fields: [squadId], references: [id])
+  submissions Submission[]
+}
+
+enum HackathonLevel {
+  SCHOOL
+  AREA
+  REGIONAL
+  NATIONAL
+}
+
+enum HackathonStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
+
+model Submission {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hackathonId String   @db.ObjectId
+  teamId      String   @db.ObjectId
+  title       String
+  description String
+  fileUrls    String[] @db.Array
+  submittedAt DateTime @default(now())
+
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
+  team        Team      @relation(fields: [teamId], references: [id])
+  scores      Score[]
+}
+
+model Score {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId String  @db.ObjectId
+  judgeId     String   @db.ObjectId
+  criteria    String
+  score       Int
+  feedback    String?
+
+  submission  Submission @relation(fields: [submissionId], references: [id])
+  judge       User       @relation(fields: [judgeId], references: [id])
+}
+
+/// Mentorship
+model MentorRequest {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String            @db.ObjectId
+  mentorId  String?           @db.ObjectId
+  status    MentorRequestStatus @default(PENDING)
+  priority  Int               @default(0)
+  message   String?
+  createdAt DateTime          @default(now())
+
+  team      Team              @relation(fields: [teamId], references: [id])
+  mentor    User?             @relation(fields: [mentorId], references: [id])
+}
+
+enum MentorRequestStatus {
+  PENDING
+  ASSIGNED
+  REJECTED
+}
+
+model MentorAssignment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  mentorId  String   @db.ObjectId
+  teamId    String   @db.ObjectId
+  startDate DateTime
+  endDate   DateTime?
+
+  mentor    User     @relation(fields: [mentorId], references: [id])
+  team      Team     @relation(fields: [teamId], references: [id])
+  sessions  MentorSession[]
+
+  @@unique([mentorId, teamId])
+}
+
+model MentorSession {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  assignmentId String   @db.ObjectId
+  date         DateTime
+  duration     Int
+  notes        String?
+
+  assignment   MentorAssignment @relation(fields: [assignmentId], references: [id])
+}
+
+/// Gamification
+model Point {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Badge {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String      @unique
+  description String
+  imageUrl    String?
+  criteria    String?
+
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  badgeId   String   @db.ObjectId
+  earnedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model Leaderboard {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String?  @db.ObjectId
+  teamId   String?  @db.ObjectId
+  squadId  String?  @db.ObjectId
+  points   Int
+  rank     Int
+  period   String
+
+  user     User?    @relation(fields: [userId], references: [id])
+  team     Team?    @relation(fields: [teamId], references: [id])
+  squad    Squad?   @relation(fields: [squadId], references: [id])
+}
+
+/// Notifications
+model Notification {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String          @db.ObjectId
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean         @default(false)
+  createdAt DateTime        @default(now())
+
+  user      User            @relation(fields: [userId], references: [id])
+}
+
+enum NotificationType {
+  STAGE_REMINDER
+  MENTOR_REQUEST
+  HACKATHON_UPDATE
+  SQUAD_ANNOUNCEMENT
+  SUBMISSION_DEADLINE
+  GENERAL
+}
+
+/// Portfolio
+model Portfolio {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  bio             String?
+  skills          String[] @db.Array
+  achievements    String[] @db.Array
+  certificateUrls String[] @db.Array
+  generatedAt     DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
+}
+
