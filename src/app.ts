@@ -6,6 +6,12 @@ import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
+import authRoutes from "./modules/auth/routes";
+import userRoutes from "./modules/users/routes";
+import squadRoutes from "./modules/squads/routes";
+import teamRoutes from "./modules/teams/routes";
+import hackathonRoutes from "./modules/hackathons/routes";
+import { authenticate } from "./shared/middleware/auth";
 
 const app = express();
 
@@ -24,6 +30,13 @@ app.use(cookieParser());
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+// API routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", authenticate, userRoutes);
+app.use("/api/squads", squadRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/hackathons", hackathonRoutes);
 
 // Swagger setup (minimal for now)
 const swaggerSpec = swaggerJsdoc({

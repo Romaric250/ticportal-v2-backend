@@ -21,6 +21,7 @@ model User {
   password    String
   role        UserRole
   firstName   String
+  schoolName String
   lastName    String
   phone       String?  @unique
   isVerified  Boolean  @default(false)
@@ -406,6 +407,7 @@ enum NotificationType {
   MENTOR_REQUEST
   HACKATHON_UPDATE
   SQUAD_ANNOUNCEMENT
+  BADGE_NOTIFICATION
   SUBMISSION_DEADLINE
   GENERAL
 }
