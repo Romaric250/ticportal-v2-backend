@@ -12,6 +12,7 @@ import squadRoutes from "./modules/squads/routes";
 import teamRoutes from "./modules/teams/routes";
 import hackathonRoutes from "./modules/hackathons/routes";
 import { authenticate } from "./shared/middleware/auth";
+import { generalRateLimit } from "./shared/middleware/rateLimit";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(
   }),
 );
 app.use(helmet());
+app.use(generalRateLimit);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -38,7 +40,7 @@ app.use("/api/squads", squadRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/hackathons", hackathonRoutes);
 
-// Swagger setup (minimal for now)
+// Swagger setup
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
@@ -46,8 +48,22 @@ const swaggerSpec = swaggerJsdoc({
       title: "TIC Summit Portal V2 API",
       version: "1.0.0",
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: [],
+  apis: ["./src/modules/**/*.ts"], // Include route files
 });
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

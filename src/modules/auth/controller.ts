@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { AuthService } from "./service";
-import { RegisterSchema, LoginSchema, RefreshTokenSchema } from "./types";
+import { RegisterSchema, LoginSchema, RefreshTokenSchema, SendOtpSchema, VerifyOtpSchema, ResetPasswordSchema } from "./types";
 
 export class AuthController {
   static async register(req: Request, res: Response) {
@@ -38,6 +38,36 @@ export class AuthController {
       const token = req.body.refreshToken;
       await AuthService.logout(token);
       res.json({ success: true, message: "Logged out" });
+    } catch (error) {
+      res.status(400).json({ success: false, error: { message: (error as Error).message } });
+    }
+  }
+
+  static async sendOtp(req: Request, res: Response) {
+    try {
+      const input = SendOtpSchema.parse(req.body);
+      await AuthService.sendOtp(input);
+      res.json({ success: true, message: "OTP sent" });
+    } catch (error) {
+      res.status(400).json({ success: false, error: { message: (error as Error).message } });
+    }
+  }
+
+  static async verifyOtp(req: Request, res: Response) {
+    try {
+      const input = VerifyOtpSchema.parse(req.body);
+      await AuthService.verifyOtp(input);
+      res.json({ success: true, message: "OTP verified" });
+    } catch (error) {
+      res.status(400).json({ success: false, error: { message: (error as Error).message } });
+    }
+  }
+
+  static async resetPassword(req: Request, res: Response) {
+    try {
+      const input = ResetPasswordSchema.parse(req.body);
+      await AuthService.resetPassword(input);
+      res.json({ success: true, message: "Password reset successful" });
     } catch (error) {
       res.status(400).json({ success: false, error: { message: (error as Error).message } });
     }
