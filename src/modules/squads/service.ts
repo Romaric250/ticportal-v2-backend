@@ -1,4 +1,4 @@
-import { prisma } from "../../config/database";
+import { db } from "../../config/database";
 
 export class SquadService {
   static async getSquads() {

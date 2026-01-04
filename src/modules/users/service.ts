@@ -1,4 +1,4 @@
-import { prisma } from "../../config/database";
+import { db } from "../../config/database";
 import type { UpdateUserInput } from "./types";
 
 export class UserService {

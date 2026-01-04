@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { prisma } from "../../config/database";
+import { db } from "../../config/database";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt";
 import { sendEmail } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
