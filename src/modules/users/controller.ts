@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { UserService } from "./service";
 import { UpdateUserSchema, UpdateProfilePhotoSchema } from "./types";
+import { logger } from "../../shared/utils/logger";
 
 export class UserController {
   static async getProfile(req: Request, res: Response) {
@@ -30,10 +31,20 @@ export class UserController {
   static async updateProfilePhoto(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
+      
+      logger.info({ userId }, "Starting profile photo update");
+      
       const input = UpdateProfilePhotoSchema.parse(req.body);
+      
+      logger.info({ userId, inputLength: input.profilePhoto?.length }, "Input parsed, uploading to UploadThing");
+      
       const user = await UserService.updateProfilePhoto(userId, input);
+      
+      logger.info({ userId, profilePhoto: user.profilePhoto }, "Profile photo updated successfully");
+      
       res.json({ success: true, data: user });
     } catch (error) {
+      logger.error({ error, userId: (req as any).user?.userId }, "Profile photo update failed");
       res.status(400).json({ success: false, message: (error as Error).message });
     }
   }

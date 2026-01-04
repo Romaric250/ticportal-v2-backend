@@ -1,0 +1,1 @@
+{"version":3,"file":"uploadthing.d.ts","sourceRoot":"","sources":["../../../src/shared/utils/uploadthing.ts"],"names":[],"mappings":"AAgBA;;;;GAIG;AACH,wBAAgB,mBAAmB,CAAC,YAAY,EAAE,MAAM,GAAG,OAAO,CA2CjE;AAED;;;;GAIG;AACH,wBAAgB,4BAA4B,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,CAGnE;AAED;;;;;GAKG;AACH,wBAAsB,yBAAyB,CAC7C,YAAY,EAAE,MAAM,EACpB,QAAQ,EAAE,MAAM,GACf,OAAO,CAAC,MAAM,CAAC,CAyDjB"}

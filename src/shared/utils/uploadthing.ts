@@ -1,7 +1,9 @@
 import { env } from "../../config/env";
 import { logger } from "./logger";
+import { UTApi } from "uploadthing/server";
 
-const UPLOADTHING_API_URL = "https://api.uploadthing.com/v6";
+// Initialize UTApi with your token
+const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
 
 interface UploadThingResponse {
   data: {
@@ -47,6 +49,7 @@ export function validateBase64Image(base64String: string): boolean {
     "ffd8ffe0", // JPEG
     "ffd8ffe1", // JPEG
     "ffd8ffe2", // JPEG
+    "ffd8ffe8", // JPEG
     "47494638", // GIF
   ];
 
@@ -72,7 +75,7 @@ export function generateProfilePhotoFilename(userId: string): string {
 }
 
 /**
- * Uploads a base64 image to UploadThing
+ * Uploads a base64 image to UploadThing using UTApi
  * @param base64String The base64 image string
  * @param filename The filename to use
  * @returns The uploaded file URL
@@ -85,47 +88,54 @@ export async function uploadBase64ToUploadThing(
     // Validate the image
     validateBase64Image(base64String);
 
+    logger.info({ filename }, "Starting UploadThing upload");
+
     // Remove data URL prefix if present
     const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
 
     // Convert to buffer
     const buffer = Buffer.from(base64Data, "base64");
+    
+    logger.info({ filename, size: buffer.length }, "Image converted to buffer");
 
-    // Create form data
-    const formData = new FormData();
-    const blob = new Blob([buffer], { type: "image/jpeg" });
-    formData.append("files", blob, filename);
-
-    // Upload to UploadThing
-    const response = await fetch(`${UPLOADTHING_API_URL}/uploadFiles`, {
-      method: "POST",
-      headers: {
-        "X-Uploadthing-Api-Key": env.UPLOADTHING_TOKEN,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error(
-        { status: response.status, error: errorText },
-        "UploadThing upload failed",
-      );
-      throw new Error(`Upload failed: ${response.statusText}`);
+    // Determine content type from magic bytes
+    const magicBytes = buffer.slice(0, 4).toString("hex");
+    let contentType = "image/jpeg";
+    if (magicBytes.startsWith("89504e47")) {
+      contentType = "image/png";
+    } else if (magicBytes.startsWith("47494638")) {
+      contentType = "image/gif";
     }
 
-    const result = (await response.json()) as UploadThingResponse;
+    logger.info({ filename, contentType }, "Uploading to UploadThing via UTApi");
 
-    if (!result.data?.url) {
+    // Create a File from the buffer using the UTApi
+    const file = new File([buffer], filename, { type: contentType });
+
+    // Upload using UTApi
+    const response = await utapi.uploadFiles(file);
+
+    logger.info({ filename, response }, "UploadThing response received");
+
+    if (response.error) {
+      logger.error(
+        { error: response.error, filename },
+        "UploadThing upload failed",
+      );
+      throw new Error(`Upload failed: ${response.error.message}`);
+    }
+
+    if (!response.data?.url) {
+      logger.error({ filename, response }, "No URL in UploadThing response");
       throw new Error("No URL returned from UploadThing");
     }
 
     logger.info(
-      { filename, url: result.data.url },
+      { filename, url: response.data.url },
       "Successfully uploaded to UploadThing",
     );
 
-    return result.data.url;
+    return response.data.url;
   } catch (error) {
     logger.error({ error, filename }, "Failed to upload to UploadThing");
     throw error;
