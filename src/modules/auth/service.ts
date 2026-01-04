@@ -17,7 +17,6 @@ export class AuthService {
         password: hashedPassword,
         firstName: input.firstName,
         lastName: input.lastName,
-        schoolName: input.schoolName,
         phone: input.phone ?? null,
         role: input.role,
       },
