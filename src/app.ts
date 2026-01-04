@@ -13,6 +13,7 @@ import userRoutes from "./modules/users/routes";
 import squadRoutes from "./modules/squads/routes";
 import teamRoutes from "./modules/teams/routes";
 import hackathonRoutes from "./modules/hackathons/routes";
+import defaultsRoutes from "./modules/defaults/routes";
 import { authenticate } from "./shared/middleware/auth";
 import { generalRateLimit } from "./shared/middleware/rateLimit";
 
@@ -62,6 +63,7 @@ app.get("/health", (_req, res) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+app.use("/api/defaults", defaultsRoutes);
 
 app.use("/api/users", authenticate, userRoutes);
 app.use("/api/squads", squadRoutes);

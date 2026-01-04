@@ -28,6 +28,7 @@ model User {
   school       String?
   grade        String?
   country      String?
+  region       String?
   gradDate     DateTime?
   isVerified   Boolean   @default(false)
   lastLogin    DateTime?
@@ -458,4 +459,24 @@ model Portfolio {
   generatedAt     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+/// Default Data
+model DefaultSchool {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  region    String?
+  country   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DefaultRegion {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  country   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

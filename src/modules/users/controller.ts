@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { UserService } from "./service";
-import { UpdateUserSchema } from "./types";
+import { UpdateUserSchema, UpdateProfilePhotoSchema } from "./types";
 
 export class UserController {
   static async getProfile(req: Request, res: Response) {
@@ -24,6 +24,27 @@ export class UserController {
       res.json({ success: true, data: user });
     } catch (error) {
       res.status(400).json({ success: false, error: { message: (error as Error).message } });
+    }
+  }
+
+  static async updateProfilePhoto(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const input = UpdateProfilePhotoSchema.parse(req.body);
+      const user = await UserService.updateProfilePhoto(userId, input);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async deleteProfilePhoto(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const user = await UserService.deleteProfilePhoto(userId);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, message: (error as Error).message });
     }
   }
 }

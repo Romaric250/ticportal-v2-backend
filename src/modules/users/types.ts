@@ -9,6 +9,7 @@ export const UpdateUserSchema = z.object({
   school: z.string().optional(),
   grade: z.string().optional(),
   country: z.string().optional(),
+  region: z.string().optional(),
   gradDate: z.string().datetime().optional(),
 });
 

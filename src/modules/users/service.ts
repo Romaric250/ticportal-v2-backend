@@ -24,6 +24,7 @@ export class UserService {
         school: true,
         grade: true,
         country: true,
+        region: true,
         gradDate: true,
         role: true,
         isVerified: true,
@@ -55,6 +56,7 @@ export class UserService {
         school: true,
         grade: true,
         country: true,
+        region: true,
         gradDate: true,
         role: true,
         isVerified: true,
@@ -73,17 +75,14 @@ export class UserService {
     userId: string,
     input: UpdateProfilePhotoInput,
   ) {
-    // Validate base64 image
-    const validation = validateBase64Image(input.profilePhoto);
-    if (!validation.valid) {
-      throw new Error(validation.error || "Invalid image");
-    }
+    // Validate base64 image (throws error if invalid)
+    validateBase64Image(input.profilePhoto);
 
     // Generate filename
     const filename = generateProfilePhotoFilename(userId);
 
     // Upload to UploadThing
-    const uploadResult = await uploadBase64ToUploadThing(
+    const photoUrl = await uploadBase64ToUploadThing(
       input.profilePhoto,
       filename,
     );
@@ -91,7 +90,7 @@ export class UserService {
     // Update user with new profile photo URL
     const updatedUser = await db.user.update({
       where: { id: userId },
-      data: { profilePhoto: uploadResult.url },
+      data: { profilePhoto: photoUrl },
       select: {
         id: true,
         email: true,
@@ -102,6 +101,7 @@ export class UserService {
         school: true,
         grade: true,
         country: true,
+        region: true,
         role: true,
         isVerified: true,
         lastLogin: true,
@@ -114,7 +114,7 @@ export class UserService {
       action: "profile_photo_updated",
     });
 
-    logger.info({ userId, photoUrl: uploadResult.url }, "Profile photo updated");
+    logger.info({ userId, photoUrl }, "Profile photo updated");
 
     return updatedUser;
   }
