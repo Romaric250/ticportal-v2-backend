@@ -7,6 +7,7 @@ import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
+import { trackActivity } from "./shared/middleware/activityTracker";
 import authRoutes from "./modules/auth/routes";
 import userRoutes from "./modules/users/routes";
 import squadRoutes from "./modules/squads/routes";
@@ -51,6 +52,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Activity tracking middleware (tracks all authenticated requests)
+app.use(trackActivity);
+
 // Basic health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -58,6 +62,7 @@ app.get("/health", (_req, res) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+
 app.use("/api/users", authenticate, userRoutes);
 app.use("/api/squads", squadRoutes);
 app.use("/api/teams", teamRoutes);

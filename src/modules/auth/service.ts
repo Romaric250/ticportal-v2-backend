@@ -3,6 +3,7 @@ import { db } from "../../config/database";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt";
 import { sendEmail } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
+import { activityService } from "../../shared/services/activity";
 import type { RegisterInput, LoginInput, SendOtpInput, VerifyOtpInput, ResetPasswordInput } from "./types";
 
 export class AuthService {
@@ -52,6 +53,12 @@ export class AuthService {
 
     logger.info({ userId: user.id, email: user.email }, "User registered, OTP sent");
 
+    // Track registration activity
+    await activityService.trackAuthActivity(user.id, "REGISTER", {
+      email: user.email,
+      role: user.role,
+    });
+
     return {
       message: "Registration successful! Please check your email for verification code.",
       email: user.email,
@@ -83,6 +90,9 @@ export class AuthService {
     });
 
     logger.info({ userId: user.id }, "User logged in successfully");
+
+    // Track login activity
+    await activityService.trackAuthActivity(user.id, "LOGIN");
 
     return { user, accessToken, refreshToken };
   }
@@ -190,6 +200,9 @@ export class AuthService {
       });
 
       logger.info({ userId: user.id }, "Email verified successfully");
+
+      // Track email verification activity
+      await activityService.trackAuthActivity(user.id, "EMAIL_VERIFICATION");
 
       return { 
         message: "Email verified successfully",

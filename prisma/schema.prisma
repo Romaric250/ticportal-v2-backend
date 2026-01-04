@@ -353,9 +353,32 @@ model Point {
   userId    String   @db.ObjectId
   amount    Int
   reason    String
+  activity  String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model UserActivity {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String       @db.ObjectId
+  type          ActivityType
+  action        String
+  metadata      Json?
+  pointsAwarded Int          @default(0)
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+enum ActivityType {
+  AUTH
+  LEARNING
+  HACKATHON
+  MENTORSHIP
+  COLLABORATION
+  GAMIFICATION
 }
 
 model Badge {

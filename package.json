@@ -13,7 +13,10 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push",
+    "prisma:reset": "prisma migrate reset --force",
+    "db:format": "prisma format && prisma generate"
   },
   "repository": {
     "type": "git",
