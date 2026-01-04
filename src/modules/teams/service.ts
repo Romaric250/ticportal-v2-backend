@@ -2,7 +2,7 @@ import { db } from "../../config/database";
 
 export class TeamService {
   static async getTeams() {
-    return await prisma.team.findMany({
+    return await db.team.findMany({
       select: {
         id: true,
         name: true,

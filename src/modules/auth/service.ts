@@ -11,13 +11,14 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
-    const user = await prisma.user.create({
+    const user = await db.user.create({
       data: {
         email: input.email,
         password: hashedPassword,
         firstName: input.firstName,
         lastName: input.lastName,
-        phone: input.phone,
+        schoolName: input.schoolName,
+        phone: input.phone ?? null,
         role: input.role,
       },
     });
@@ -25,10 +26,15 @@ export class AuthService {
     const accessToken = generateAccessToken({ userId: user.id, role: user.role });
     const refreshToken = generateRefreshToken({ userId: user.id });
 
-    await prisma.refreshToken.create({
+    // Refresh token expires in 7 days
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await db.refreshToken.create({
       data: {
         userId: user.id,
         token: refreshToken,
+        expiresAt,
       },
     });
 
@@ -40,7 +46,7 @@ export class AuthService {
   static async login(input: LoginInput) {
     logger.info({ email: input.email }, "User login attempt");
 
-    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    const user = await db.user.findUnique({ where: { email: input.email } });
     if (!user || !(await bcrypt.compare(input.password, user.password))) {
       logger.warn({ email: input.email }, "Invalid login credentials");
       throw new Error("Invalid credentials");
@@ -49,10 +55,15 @@ export class AuthService {
     const accessToken = generateAccessToken({ userId: user.id, role: user.role });
     const refreshToken = generateRefreshToken({ userId: user.id });
 
-    await prisma.refreshToken.create({
+    // Refresh token expires in 7 days
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await db.refreshToken.create({
       data: {
         userId: user.id,
         token: refreshToken,
+        expiresAt,
       },
     });
 
@@ -63,7 +74,7 @@ export class AuthService {
 
   static async refreshToken(token: string) {
     const payload = verifyRefreshToken(token);
-    const refreshTokenRecord = await prisma.refreshToken.findUnique({ where: { token } });
+    const refreshTokenRecord = await db.refreshToken.findUnique({ where: { token } });
     if (!refreshTokenRecord) {
       throw new Error("Invalid refresh token");
     }
@@ -73,7 +84,7 @@ export class AuthService {
   }
 
   static async logout(token: string) {
-    await prisma.refreshToken.delete({ where: { token } });
+    await db.refreshToken.delete({ where: { token } });
   }
 
   static generateOtp(): string {
@@ -81,7 +92,7 @@ export class AuthService {
   }
 
   static async sendOtp(input: SendOtpInput) {
-    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    const user = await db.user.findUnique({ where: { email: input.email } });
     if (!user && input.type === "PASSWORD_RESET") {
       throw new Error("User not found");
     }
@@ -92,7 +103,7 @@ export class AuthService {
     const code = this.generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-    await prisma.oTP.create({
+    await db.oTP.create({
       data: {
         userId: user?.id || "",
         code,
@@ -105,7 +116,7 @@ export class AuthService {
   }
 
   static async verifyOtp(input: VerifyOtpInput) {
-    const otp = await prisma.oTP.findFirst({
+    const otp = await db.oTP.findFirst({
       where: {
         code: input.code,
         type: input.type,
@@ -119,20 +130,20 @@ export class AuthService {
     }
 
     if (input.type === "EMAIL_VERIFICATION") {
-      await prisma.user.update({
+      await db.user.update({
         where: { id: otp.userId },
         data: { isVerified: true },
       });
     }
 
-    await prisma.oTP.delete({ where: { id: otp.id } });
+    await db.oTP.delete({ where: { id: otp.id } });
   }
 
   static async resetPassword(input: ResetPasswordInput) {
     await this.verifyOtp({ email: input.email, code: input.code, type: "PASSWORD_RESET" });
 
     const hashedPassword = await bcrypt.hash(input.newPassword, 10);
-    await prisma.user.update({
+    await db.user.update({
       where: { email: input.email },
       data: { password: hashedPassword },
     });

@@ -10,6 +10,7 @@ generator client {
 
 datasource db {
   provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 /// Core user and auth models
@@ -19,7 +20,6 @@ model User {
   password   String
   role       UserRole
   firstName  String
-  schoolName String
   lastName   String
   phone      String?   @unique
   isVerified Boolean   @default(false)

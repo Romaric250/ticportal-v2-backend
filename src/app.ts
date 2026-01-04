@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import { env } from "./config/env";
@@ -15,6 +16,28 @@ import { authenticate } from "./shared/middleware/auth";
 import { generalRateLimit } from "./shared/middleware/rateLimit";
 
 const app = express();
+
+// HTTP request logger - simplified logging
+app.use(
+  pinoHttp({
+    logger: logger,
+    autoLogging: true,
+    customLogLevel: (req, res, err) => {
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        return "warn";
+      } else if (res.statusCode >= 500 || err) {
+        return "error";
+      }
+      return "info";
+    },
+    customSuccessMessage: (req, res) => {
+      return `${req.method} ${req.url} - ${res.statusCode}`;
+    },
+    customErrorMessage: (req, res, err) => {
+      return `${req.method} ${req.url} - ${res.statusCode} - Error: ${err?.message || "Unknown error"}`;
+    },
+  }),
+);
 
 app.use(
   cors({

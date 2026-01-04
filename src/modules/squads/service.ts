@@ -2,7 +2,7 @@ import { db } from "../../config/database";
 
 export class SquadService {
   static async getSquads() {
-    return await prisma.squad.findMany({
+    return await db.squad.findMany({
       select: {
         id: true,
         name: true,
@@ -15,7 +15,7 @@ export class SquadService {
   }
 
   static async getSquadById(id: string) {
-    return await prisma.squad.findUnique({
+    return await db.squad.findUnique({
       where: { id },
       include: { members: true, teams: true },
     });

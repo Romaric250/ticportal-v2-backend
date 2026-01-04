@@ -2,7 +2,7 @@ import { db } from "../../config/database";
 
 export class HackathonService {
   static async getHackathons() {
-    return await prisma.hackathon.findMany({
+    return await db.hackathon.findMany({
       select: {
         id: true,
         name: true,

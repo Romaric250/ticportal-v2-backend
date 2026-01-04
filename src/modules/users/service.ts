@@ -3,7 +3,7 @@ import type { UpdateUserInput } from "./types";
 
 export class UserService {
   static async getProfile(userId: string) {
-    return await prisma.user.findUnique({
+    return await db.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -20,7 +20,7 @@ export class UserService {
   }
 
   static async updateProfile(userId: string, input: UpdateUserInput) {
-    return await prisma.user.update({
+    return await db.user.update({
       where: { id: userId },
       data: input,
       select: {

@@ -21,6 +21,7 @@ const port = env.port;
 
 server.listen(port, () => {
   logger.info(`Server listening on port ${port}`);
+  logger.info(`http://localhost:${port}`)
 });
 
 export { io };
