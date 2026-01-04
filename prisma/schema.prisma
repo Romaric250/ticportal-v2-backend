@@ -15,18 +15,25 @@ datasource db {
 
 /// Core user and auth models
 model User {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  email      String    @unique
-  password   String
-  role       UserRole
-  firstName  String
-  lastName   String
-  phone      String?   @unique
-  isVerified Boolean   @default(false)
-  lastLogin  DateTime?
-  squadId    String?   @db.ObjectId
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  email        String    @unique
+  username     String?   @unique
+  password     String
+  role         UserRole
+  firstName    String
+  lastName     String
+  bio          String?
+  phone        String?   @unique
+  profilePhoto String?
+  school       String?
+  grade        String?
+  country      String?
+  gradDate     DateTime?
+  isVerified   Boolean   @default(false)
+  lastLogin    DateTime?
+  squadId      String?   @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   otps              OTP[]
   refreshTokens     RefreshToken[]

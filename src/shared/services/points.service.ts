@@ -1,7 +1,7 @@
 import { db } from "../../config/database";
 import { logger } from "../utils/logger";
 import { POINTS_CONFIG, ACTIVITY_COOLDOWN, DAILY_LIMITS } from "../constants/points";
-import type { ActivityType } from "../../generated/prisma";
+import type { ActivityType } from "@prisma/client";
 
 interface AwardPointsParams {
   userId: string;
@@ -184,8 +184,8 @@ export class PointsService {
     return this.awardPoints({
       userId,
       activityType: "AUTH",
-      action: "DAILY_LOGIN",
-      points: POINTS_CONFIG.AUTH.DAILY_LOGIN,
+      action: "LOGIN",
+      points: POINTS_CONFIG.AUTH.LOGIN,
       reason: "Daily login bonus",
     });
   }
@@ -214,8 +214,8 @@ export class PointsService {
     return this.awardPoints({
       userId,
       activityType: "LEARNING",
-      action: "STAGE_COMPLETED",
-      points: POINTS_CONFIG.LEARNING.STAGE_COMPLETED,
+      action: "STAGE_COMPLETE",
+      points: POINTS_CONFIG.LEARNING.STAGE_COMPLETE,
       reason: `Completed stage: ${stageName}`,
       metadata: { stageId, stageName },
     });
@@ -233,12 +233,12 @@ export class PointsService {
     const isPerfect = score === maxScore;
     const points = isPerfect
       ? POINTS_CONFIG.LEARNING.QUIZ_PERFECT_SCORE
-      : POINTS_CONFIG.LEARNING.QUIZ_PASSED;
+      : POINTS_CONFIG.LEARNING.QUIZ_PASS;
 
     return this.awardPoints({
       userId,
       activityType: "LEARNING",
-      action: isPerfect ? "QUIZ_PERFECT_SCORE" : "QUIZ_PASSED",
+      action: isPerfect ? "QUIZ_PERFECT_SCORE" : "QUIZ_PASS",
       points,
       reason: isPerfect ? "Perfect quiz score!" : "Quiz passed",
       metadata: { quizId, score, maxScore },
@@ -271,14 +271,14 @@ export class PointsService {
     hackathonId: string,
     isOnTime: boolean,
   ): Promise<boolean> {
-    const basePoints = POINTS_CONFIG.HACKATHON.SUBMISSION_UPLOADED;
+    const basePoints = POINTS_CONFIG.HACKATHON.SUBMISSION;
     const bonusPoints = isOnTime ? POINTS_CONFIG.HACKATHON.SUBMISSION_ON_TIME : 0;
     const totalPoints = basePoints + bonusPoints;
 
     return this.awardPoints({
       userId,
       activityType: "HACKATHON",
-      action: "SUBMISSION_UPLOADED",
+      action: "SUBMISSION",
       points: totalPoints,
       reason: isOnTime
         ? "Hackathon submission (on time bonus!)"

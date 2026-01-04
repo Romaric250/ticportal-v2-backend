@@ -15,6 +15,7 @@ export const env = {
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:3000",
   emailFrom: process.env.EMAIL_FROM ?? "no-reply@ticsummit.org",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
+  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN ?? "",
 };
 
 
