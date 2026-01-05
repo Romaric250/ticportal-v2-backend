@@ -547,41 +547,8 @@ export class TeamService {
    * Remove a team member
    */
   static async removeTeamMember(userId: string, teamId: string, memberId: string) {
-    // Verify user is team lead or removing themselves
-    const userMember = await db.teamMember.findFirst({
-      where: {
-        teamId,
-        userId,
-      },
-    });
-
-    if (!userMember) {
-      throw new Error("You are not a member of this team");
-    }
-
-    const isLead = userMember.role === TeamRole.LEAD;
-    const isSelf = userId === memberId;
-
-    if (!isLead && !isSelf) {
-      throw new Error("Only team leads can remove other members");
-    }
-
-    // Don't allow removing the only lead
-    if (isSelf && isLead) {
-      const leadCount = await db.teamMember.count({
-        where: {
-          teamId,
-          role: TeamRole.LEAD,
-        },
-      });
-
-      if (leadCount === 1) {
-        throw new Error("Cannot remove the only team lead");
-      }
-    }
-
-    // Try to find member by TeamMember ID first, then by userId
-    let memberToRemove = await db.teamMember.findFirst({
+    // First, find the member to be removed (supports both TeamMember ID and User ID)
+    const memberToRemove = await db.teamMember.findFirst({
       where: {
         OR: [
           {
@@ -613,11 +580,41 @@ export class TeamService {
       throw new Error("Member not found");
     }
 
-    // Use the actual userId for deletion
+    // Get the actual userId of the member to be removed
     const actualUserId = memberToRemove.userId;
 
-    // Check if user is removing themselves (compare with actual userId)
-    const isActuallySelf = userId === actualUserId;
+    // Verify user is team lead or removing themselves
+    const userMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!userMember) {
+      throw new Error("You are not a member of this team");
+    }
+
+    const isLead = userMember.role === TeamRole.LEAD;
+    const isSelf = userId === actualUserId; // Compare with actual userId
+
+    if (!isLead && !isSelf) {
+      throw new Error("Only team leads can remove other members");
+    }
+
+    // Don't allow removing the only lead
+    if (isSelf && isLead) {
+      const leadCount = await db.teamMember.count({
+        where: {
+          teamId,
+          role: TeamRole.LEAD,
+        },
+      });
+
+      if (leadCount === 1) {
+        throw new Error("Cannot remove the only team lead");
+      }
+    }
 
     // Remove member
     await db.teamMember.delete({
@@ -630,7 +627,7 @@ export class TeamService {
     });
 
     // Send email notification if not self-removal
-    if (!isActuallySelf) {
+    if (!isSelf) {
       await sendTeamRemovalEmail(
         memberToRemove.user.email,
         memberToRemove.user.firstName,
@@ -642,13 +639,13 @@ export class TeamService {
     await Promise.all([
       activityService.trackActivity({
         userId,
-        action: isActuallySelf ? "TEAM_LEFT" : "TEAM_MEMBER_REMOVED",
+        action: isSelf ? "TEAM_LEFT" : "TEAM_MEMBER_REMOVED",
         metadata: {
           teamId,
           memberId: actualUserId,
         },
       }),
-      isActuallySelf
+      isSelf
         ? null
         : activityService.trackActivity({
             userId: actualUserId,
