@@ -4,7 +4,8 @@ import { TeamRole } from "@prisma/client";
 // Create Team Schema
 export const CreateTeamSchema = z.object({
   name: z.string().min(3, "Team name must be at least 3 characters").max(100),
-  squadId: z.string().min(1, "Squad ID is required"),
+  school: z.string().min(1, "School is required"),
+  profileImage: z.string().url().optional(),
   projectTitle: z.string().max(200).optional(),
   description: z.string().max(1000).optional(),
 });
@@ -14,6 +15,7 @@ export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
 // Update Team Schema
 export const UpdateTeamSchema = z.object({
   name: z.string().min(3).max(100).optional(),
+  profileImage: z.string().url().optional(),
   projectTitle: z.string().max(200).optional(),
   description: z.string().max(1000).optional(),
 });

@@ -50,7 +50,8 @@ Content-Type: application/json
 
 {
   "name": "Team Alpha",
-  "squadId": "squad_id",
+  "school": "University of Buea",
+  "profileImage": "https://utfs.io/f/abc123.jpg",
   "projectTitle": "AI Chatbot",
   "description": "Optional description"
 }
@@ -59,7 +60,8 @@ Creates a new team. Creator becomes team lead automatically.
 
 **Validation:**
 - `name`: 3-100 characters (required)
-- `squadId`: valid squad ID (required)
+- `school`: school name (required)
+- `profileImage`: valid URL (optional)
 - `projectTitle`: max 200 characters (optional)
 - `description`: max 1000 characters (optional)
 
@@ -73,6 +75,7 @@ Content-Type: application/json
 
 {
   "name": "Updated Name",
+  "profileImage": "https://utfs.io/f/xyz789.jpg",
   "projectTitle": "Updated Title",
   "description": "Updated description"
 }
@@ -295,7 +298,8 @@ const team = await fetch('/api/teams', {
   },
   body: JSON.stringify({
     name: 'Team Alpha',
-    squadId: 'squad_123',
+    school: 'University of Buea',
+    profileImage: 'https://utfs.io/f/abc123.jpg',
     projectTitle: 'AI Chatbot'
   })
 }).then(r => r.json());

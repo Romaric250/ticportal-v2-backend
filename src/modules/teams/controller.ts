@@ -55,8 +55,22 @@ export class TeamController {
   static async createTeam(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
-      const input = CreateTeamSchema.parse(req.body);
-      const team = await TeamService.createTeam(userId, input);
+      
+      // Validate input with better error handling
+      const parseResult = CreateTeamSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map((err: any) => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        return res.status(400).json({ 
+          success: false, 
+          message: "Validation failed", 
+          errors 
+        });
+      }
+      
+      const team = await TeamService.createTeam(userId, parseResult.data);
       res.status(201).json({ success: true, data: team });
     } catch (error) {
       const status = (error as Error).message.includes("must be a member") ? 403 : 400;

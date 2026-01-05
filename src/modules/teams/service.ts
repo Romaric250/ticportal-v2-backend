@@ -23,13 +23,6 @@ export class TeamService {
         skip,
         take: limit,
         include: {
-          squad: {
-            select: {
-              id: true,
-              name: true,
-              schoolName: true,
-            },
-          },
           members: {
             include: {
               user: {
@@ -76,14 +69,6 @@ export class TeamService {
     const team = await db.team.findUnique({
       where: { id: teamId },
       include: {
-        squad: {
-          select: {
-            id: true,
-            name: true,
-            schoolName: true,
-            region: true,
-          },
-        },
         members: {
           include: {
             user: {
@@ -161,13 +146,6 @@ export class TeamService {
       include: {
         team: {
           include: {
-            squad: {
-              select: {
-                id: true,
-                name: true,
-                schoolName: true,
-              },
-            },
             _count: {
               select: {
                 members: true,
@@ -193,23 +171,12 @@ export class TeamService {
    * Create a new team
    */
   static async createTeam(userId: string, input: CreateTeamInput) {
-    // Verify user is part of the squad
-    const squadMember = await db.squadMember.findFirst({
-      where: {
-        userId,
-        squadId: input.squadId,
-      },
-    });
-
-    if (!squadMember) {
-      throw new Error("You must be a member of the squad to create a team");
-    }
-
     // Create team and add creator as team lead
     const team = await db.team.create({
       data: {
         name: input.name,
-        squadId: input.squadId,
+        school: input.school,
+        profileImage: input.profileImage || null,
         projectTitle: input.projectTitle || null,
         description: input.description || null,
         members: {
@@ -220,13 +187,6 @@ export class TeamService {
         },
       },
       include: {
-        squad: {
-          select: {
-            id: true,
-            name: true,
-            schoolName: true,
-          },
-        },
         members: {
           include: {
             user: {
@@ -250,7 +210,7 @@ export class TeamService {
       metadata: {
         teamId: team.id,
         teamName: team.name,
-        squadId: team.squadId,
+        school: team.school,
       },
     });
 
@@ -280,17 +240,11 @@ export class TeamService {
       where: { id: teamId },
       data: {
         ...(input.name && { name: input.name }),
+        ...(input.profileImage !== undefined && { profileImage: input.profileImage || null }),
         ...(input.projectTitle !== undefined && { projectTitle: input.projectTitle || null }),
         ...(input.description !== undefined && { description: input.description || null }),
       },
       include: {
-        squad: {
-          select: {
-            id: true,
-            name: true,
-            schoolName: true,
-          },
-        },
         members: {
           include: {
             user: {
@@ -383,11 +337,7 @@ export class TeamService {
         role: TeamRole.LEAD,
       },
       include: {
-        team: {
-          include: {
-            squad: true,
-          },
-        },
+        team: true,
         user: {
           select: {
             firstName: true,
@@ -413,19 +363,20 @@ export class TeamService {
       throw new Error("User is already a team member");
     }
 
-    // Verify user is in the same squad
-    const squadMember = await db.squadMember.findFirst({
+    // Get user details for email
+    const user = await db.user.findUnique({
       where: {
-        userId: input.userId,
-        squadId: inviter.team.squadId,
+        id: input.userId,
       },
-      include: {
-        user: true,
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
       },
     });
 
-    if (!squadMember) {
-      throw new Error("User must be in the same squad");
+    if (!user) {
+      throw new Error("User not found");
     }
 
     // Add member
@@ -450,8 +401,8 @@ export class TeamService {
 
     // Send email notification
     await sendTeamInviteEmail(
-      squadMember.user.email,
-      squadMember.user.firstName,
+      user.email,
+      user.firstName,
       inviter.team.name,
       `${inviter.user.firstName} ${inviter.user.lastName}`,
     );

@@ -101,7 +101,6 @@ model Squad {
 
   lead         User          @relation(fields: [leadId], references: [id])
   members      SquadMember[]
-  teams        Team[]
   hackathons   Hackathon[]
   leaderboards Leaderboard[]
 }
@@ -134,12 +133,12 @@ enum SquadRole {
 model Team {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  squadId      String   @db.ObjectId
+  school       String
+  profileImage String?
   projectTitle String?
   description  String?
   createdAt    DateTime @default(now())
 
-  squad             Squad              @relation(fields: [squadId], references: [id])
   members           TeamMember[]
   chats             TeamChat[]
   submissions       Submission[]

@@ -1,10 +1,12 @@
 import { redis } from "../../config/redis";
 
 export const getCache = async (key: string): Promise<string | null> => {
+  if (!redis) return null;
   return await redis.get(key);
 };
 
 export const setCache = async (key: string, value: string, ttl?: number): Promise<void> => {
+  if (!redis) return;
   if (ttl) {
     await redis.setex(key, ttl, value);
   } else {
@@ -13,5 +15,6 @@ export const setCache = async (key: string, value: string, ttl?: number): Promis
 };
 
 export const deleteCache = async (key: string): Promise<void> => {
+  if (!redis) return;
   await redis.del(key);
 };

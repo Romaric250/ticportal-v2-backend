@@ -21,27 +21,48 @@ import { uploadRouter } from "./config/uploadthing";
 
 const app = express();
 
-// HTTP request logger - simplified logging
-app.use(
-  pinoHttp({
-    logger: logger,
-    autoLogging: true,
-    customLogLevel: (req, res, err) => {
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        return "warn";
-      } else if (res.statusCode >= 500 || err) {
-        return "error";
+// Simplified logging middleware - only log errors
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  const originalSend = res.send.bind(res);
+  
+  // Store request body
+  const requestBody = req.body;
+  
+  // Override res.json to capture response
+  res.json = function(body: any) {
+    if (res.statusCode >= 400) {
+      logger.warn({
+        url: `${req.method} ${req.url}`,
+        body: requestBody,
+        response: body,
+        statusCode: res.statusCode,
+      });
+    }
+    return originalJson(body);
+  };
+  
+  // Override res.send to capture response
+  res.send = function(body: any) {
+    if (res.statusCode >= 400) {
+      let responseBody = body;
+      try {
+        responseBody = typeof body === 'string' ? JSON.parse(body) : body;
+      } catch (e) {
+        // If not JSON, use as is
       }
-      return "info";
-    },
-    customSuccessMessage: (req, res) => {
-      return `${req.method} ${req.url} - ${res.statusCode}`;
-    },
-    customErrorMessage: (req, res, err) => {
-      return `${req.method} ${req.url} - ${res.statusCode} - Error: ${err?.message || "Unknown error"}`;
-    },
-  }),
-);
+      logger.warn({
+        url: `${req.method} ${req.url}`,
+        body: requestBody,
+        response: responseBody,
+        statusCode: res.statusCode,
+      });
+    }
+    return originalSend(body);
+  };
+  
+  next();
+});
 
 app.use(
   cors({
