@@ -469,11 +469,33 @@ export class TeamService {
       }
     }
 
+    // Find member by TeamMember ID or userId
+    const existingMember = await db.teamMember.findFirst({
+      where: {
+        OR: [
+          {
+            id: memberId,
+            teamId,
+          },
+          {
+            teamId,
+            userId: memberId,
+          },
+        ],
+      },
+    });
+
+    if (!existingMember) {
+      throw new Error("Member not found");
+    }
+
+    const actualUserId = existingMember.userId;
+
     const teamMember = await db.teamMember.update({
       where: {
         teamId_userId: {
           teamId,
-          userId: memberId,
+          userId: actualUserId,
         },
       },
       data: {
@@ -511,12 +533,12 @@ export class TeamService {
       action: "TEAM_MEMBER_ROLE_UPDATED",
       metadata: {
         teamId,
-        memberId,
+        memberId: actualUserId,
         newRole: input.role,
       },
     });
 
-    logger.info({ userId, teamId, memberId, newRole: input.role }, "Team member role updated");
+    logger.info({ userId, teamId, memberId: actualUserId, newRole: input.role }, "Team member role updated");
 
     return teamMember;
   }
@@ -558,12 +580,19 @@ export class TeamService {
       }
     }
 
-    const memberToRemove = await db.teamMember.findUnique({
+    // Try to find member by TeamMember ID first, then by userId
+    let memberToRemove = await db.teamMember.findFirst({
       where: {
-        teamId_userId: {
-          teamId,
-          userId: memberId,
-        },
+        OR: [
+          {
+            id: memberId,
+            teamId,
+          },
+          {
+            teamId,
+            userId: memberId,
+          },
+        ],
       },
       include: {
         user: {
@@ -584,18 +613,24 @@ export class TeamService {
       throw new Error("Member not found");
     }
 
+    // Use the actual userId for deletion
+    const actualUserId = memberToRemove.userId;
+
+    // Check if user is removing themselves (compare with actual userId)
+    const isActuallySelf = userId === actualUserId;
+
     // Remove member
     await db.teamMember.delete({
       where: {
         teamId_userId: {
           teamId,
-          userId: memberId,
+          userId: actualUserId,
         },
       },
     });
 
     // Send email notification if not self-removal
-    if (!isSelf) {
+    if (!isActuallySelf) {
       await sendTeamRemovalEmail(
         memberToRemove.user.email,
         memberToRemove.user.firstName,
@@ -607,16 +642,16 @@ export class TeamService {
     await Promise.all([
       activityService.trackActivity({
         userId,
-        action: isSelf ? "TEAM_LEFT" : "TEAM_MEMBER_REMOVED",
+        action: isActuallySelf ? "TEAM_LEFT" : "TEAM_MEMBER_REMOVED",
         metadata: {
           teamId,
-          memberId,
+          memberId: actualUserId,
         },
       }),
-      isSelf
+      isActuallySelf
         ? null
         : activityService.trackActivity({
-            userId: memberId,
+            userId: actualUserId,
             action: "REMOVED_FROM_TEAM",
             metadata: {
               teamId,
@@ -625,12 +660,12 @@ export class TeamService {
           }),
     ]);
 
-    logger.info({ userId, teamId, memberId }, "Team member removed");
+    logger.info({ userId, teamId, memberId: actualUserId }, "Team member removed");
 
     return { 
       success: true, 
       message: "Member removed successfully",
-      userId: memberId,
+      userId: actualUserId,
       userName: `${memberToRemove.user.firstName}`,
     };
   }

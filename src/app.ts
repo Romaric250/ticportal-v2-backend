@@ -72,8 +72,8 @@ app.use(
 );
 app.use(helmet());
 app.use(generalRateLimit);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Activity tracking middleware (tracks all authenticated requests)
