@@ -27,7 +27,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       }
 
       // Verify user is a team member
-      const isMember = await teamService.isTeamMember(teamId, socket.userId);
+      const isMember = await TeamService.isTeamMember(teamId, socket.userId);
       if (!isMember) {
         logger.warn(
           { userId: socket.userId, teamId, socketId: socket.id },
@@ -140,7 +140,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       }
 
       // Verify user is a team member
-      const isMember = await teamService.isTeamMember(teamId, socket.userId);
+      const isMember = await TeamService.isTeamMember(teamId, socket.userId);
       if (!isMember) {
         logger.warn(
           { userId: socket.userId, teamId, userName: socket.user.fullName },
@@ -237,7 +237,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       if (!socket.userId || !socket.user) return;
 
       // Verify user is a team member
-      const isMember = await teamService.isTeamMember(teamId, socket.userId);
+      const isMember = await TeamService.isTeamMember(teamId, socket.userId);
       if (!isMember) return;
 
       // Broadcast typing indicator to team room (except sender)
@@ -272,7 +272,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       if (!socket.userId || !socket.user) return;
 
       // Verify user is a team member
-      const isMember = await teamService.isTeamMember(teamId, socket.userId);
+      const isMember = await TeamService.isTeamMember(teamId, socket.userId);
       if (!isMember) return;
 
       // Broadcast typing indicator to team room (except sender)

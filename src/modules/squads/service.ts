@@ -17,7 +17,7 @@ export class SquadService {
   static async getSquadById(id: string) {
     return await db.squad.findUnique({
       where: { id },
-      include: { members: true, teams: true },
+      include: { members: true },
     });
   }
 }

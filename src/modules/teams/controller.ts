@@ -6,6 +6,9 @@ import {
   AddTeamMemberSchema,
   UpdateTeamMemberRoleSchema,
   SendTeamChatMessageSchema,
+  SearchTeamsSchema,
+  RequestToJoinTeamSchema,
+  HandleJoinRequestSchema,
 } from "./types";
 import { io } from "../../server";
 import {
@@ -221,6 +224,81 @@ export class TeamController {
     } catch (error) {
       const status = (error as Error).message.includes("not a member") ? 403 : 400;
       res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async searchTeams(req: Request, res: Response) {
+    try {
+      const query = req.query.q as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Search query is required" });
+      }
+
+      const input = SearchTeamsSchema.parse({ query, page, limit });
+      const result = await TeamService.searchTeams(input);
+      res.json({ success: true, data: result.teams, pagination: result.pagination });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async requestToJoinTeam(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { teamId } = req.params;
+      if (!teamId) {
+        return res.status(400).json({ success: false, message: "Team ID is required" });
+      }
+      const input = RequestToJoinTeamSchema.parse(req.body);
+      const joinRequest = await TeamService.requestToJoinTeam(userId, teamId, input);
+      res.status(201).json({ success: true, data: joinRequest, message: "Join request sent successfully" });
+    } catch (error) {
+      const status = (error as Error).message.includes("already") ? 400 : 500;
+      res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async handleJoinRequest(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { teamId, requestId } = req.params;
+      if (!teamId || !requestId) {
+        return res.status(400).json({ success: false, message: "Team ID and Request ID are required" });
+      }
+      const input = HandleJoinRequestSchema.parse(req.body);
+      const result = await TeamService.handleJoinRequest(userId, teamId, requestId, input);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      const status = (error as Error).message.includes("Only team leads") ? 403 : 400;
+      res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async getTeamJoinRequests(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { teamId } = req.params;
+      if (!teamId) {
+        return res.status(400).json({ success: false, message: "Team ID is required" });
+      }
+      const requests = await TeamService.getTeamJoinRequests(userId, teamId);
+      res.json({ success: true, data: requests });
+    } catch (error) {
+      const status = (error as Error).message.includes("Only team leads") ? 403 : 500;
+      res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async getUserJoinRequests(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const requests = await TeamService.getUserJoinRequests(userId);
+      res.json({ success: true, data: requests });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
     }
   }
 }

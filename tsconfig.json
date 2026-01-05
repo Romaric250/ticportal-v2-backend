@@ -44,5 +44,10 @@
 
     "esModuleInterop": true,
     "resolveJsonModule": true,
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "prisma/seed.ts"
+  ]
 }

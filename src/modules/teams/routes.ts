@@ -82,6 +82,38 @@ router.post("/", authenticate, TeamController.createTeam);
 
 /**
  * @swagger
+ * /api/teams/search:
+ *   get:
+ *     summary: Search teams by name, school, or project
+ *     tags: [Teams]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: school
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Teams found
+ */
+router.get("/search", authenticate, TeamController.searchTeams);
+
+/**
+ * @swagger
  * /api/teams/{teamId}:
  *   get:
  *     summary: Get team by ID
@@ -332,5 +364,114 @@ router.get("/:teamId/chats", authenticate, TeamController.getTeamChats);
  *         description: Not a team member
  */
 router.post("/:teamId/chats", authenticate, TeamController.sendTeamChatMessage);
+
+/**
+ * @swagger
+ * /api/teams/join-requests/my:
+ *   get:
+ *     summary: Get user's own join requests
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User join requests retrieved successfully
+ */
+router.get("/join-requests/my", authenticate, TeamController.getUserJoinRequests);
+
+/**
+ * @swagger
+ * /api/teams/{teamId}/join-request:
+ *   post:
+ *     summary: Request to join a team
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 maxLength: 500
+ *     responses:
+ *       201:
+ *         description: Join request sent successfully
+ *       400:
+ *         description: Already a member or pending request exists
+ */
+router.post("/:teamId/join-request", authenticate, TeamController.requestToJoinTeam);
+
+/**
+ * @swagger
+ * /api/teams/{teamId}/join-requests:
+ *   get:
+ *     summary: Get pending join requests for a team (team leads only)
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Join requests retrieved successfully
+ *       403:
+ *         description: Only team leads can view requests
+ */
+router.get("/:teamId/join-requests", authenticate, TeamController.getTeamJoinRequests);
+
+/**
+ * @swagger
+ * /api/teams/{teamId}/join-requests/{requestId}:
+ *   post:
+ *     summary: Accept or reject a join request (team leads only)
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - action
+ *             properties:
+ *               action:
+ *                 type: string
+ *                 enum: [accept, reject]
+ *               message:
+ *                 type: string
+ *                 maxLength: 500
+ *     responses:
+ *       200:
+ *         description: Request handled successfully
+ *       403:
+ *         description: Only team leads can handle requests
+ */
+router.post("/:teamId/join-requests/:requestId", authenticate, TeamController.handleJoinRequest);
 
 export default router;

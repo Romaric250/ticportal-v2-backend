@@ -1,7 +1,14 @@
 import { db } from "../../config/database";
 import { TeamRole } from "@prisma/client";
 import { activityService } from "../../shared/services/activity";
-import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail } from "../../shared/utils/email";
+import { 
+  sendTeamInviteEmail, 
+  sendTeamRoleUpdateEmail, 
+  sendTeamRemovalEmail,
+  sendTeamJoinRequestEmail,
+  sendJoinRequestAcceptedEmail,
+  sendJoinRequestRejectedEmail
+} from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import type {
   CreateTeamInput,
@@ -9,6 +16,9 @@ import type {
   AddTeamMemberInput,
   UpdateTeamMemberRoleInput,
   SendTeamChatMessageInput,
+  SearchTeamsInput,
+  RequestToJoinTeamInput,
+  HandleJoinRequestInput,
 } from "./types";
 
 export class TeamService {
@@ -819,9 +829,389 @@ export class TeamService {
   }
 
   /**
-   * Check if user is team member (non-static version for socket handlers)
+   * Search teams by name, school, or project title
    */
-  async isTeamMember(teamId: string, userId: string): Promise<boolean> {
-    return TeamService.isTeamMember(teamId, userId);
+  static async searchTeams(input: SearchTeamsInput) {
+    const { query, page = 1, limit = 20 } = input;
+    const skip = (page - 1) * limit;
+
+    // Trim the query to remove extra spaces
+    const trimmedQuery = query.trim();
+
+    logger.info({ originalQuery: query, trimmedQuery, page, limit }, "Search params received");
+
+    const [teams, total] = await Promise.all([
+      db.team.findMany({
+        where: {
+          OR: [
+            { name: { contains: trimmedQuery, mode: "insensitive" } },
+            { school: { contains: trimmedQuery, mode: "insensitive" } },
+            { projectTitle: { contains: trimmedQuery, mode: "insensitive" } },
+            { description: { contains: trimmedQuery, mode: "insensitive" } },
+          ],
+        },
+        skip,
+        take: limit,
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhoto: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              members: true,
+              chats: true,
+              submissions: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      db.team.count({
+        where: {
+          OR: [
+            { name: { contains: trimmedQuery, mode: "insensitive" } },
+            { school: { contains: trimmedQuery, mode: "insensitive" } },
+            { projectTitle: { contains: trimmedQuery, mode: "insensitive" } },
+            { description: { contains: trimmedQuery, mode: "insensitive" } },
+          ],
+        },
+      }),
+    ]);
+
+    logger.info({ query: trimmedQuery, page, limit, total, teamsFound: teams.length }, "Teams searched");
+
+    // Debug: Log team names for troubleshooting
+    if (teams.length > 0) {
+      logger.info({ 
+        teamNames: teams.map(t => ({ name: t.name, school: t.school, projectTitle: t.projectTitle })) 
+      }, "Found teams");
+    } else {
+      logger.warn({ query: trimmedQuery }, "No teams found for query");
+    }
+
+    return {
+      teams,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Request to join a team
+   */
+  static async requestToJoinTeam(userId: string, teamId: string, input: RequestToJoinTeamInput) {
+    // Check if team exists
+    const team = await db.team.findUnique({
+      where: { id: teamId },
+      include: {
+        members: {
+          where: { role: TeamRole.LEAD },
+          include: {
+            user: {
+              select: {
+                email: true,
+                firstName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    // Check if user is already a member
+    const existingMember = await db.teamMember.findFirst({
+      where: { teamId, userId },
+    });
+
+    if (existingMember) {
+      throw new Error("You are already a member of this team");
+    }
+
+    // Check if user already has a pending request
+    const existingRequest = await db.teamJoinRequest.findFirst({
+      where: {
+        teamId,
+        userId,
+        status: "PENDING",
+      },
+    });
+
+    if (existingRequest) {
+      throw new Error("You already have a pending join request for this team");
+    }
+
+    // Get user details
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Create join request
+    const joinRequest = await db.teamJoinRequest.create({
+      data: {
+        teamId,
+        userId,
+        ...(input.message ? { message: input.message } : {}),
+        status: "PENDING",
+      },
+    });
+
+    // Send email to team leads
+    const teamLeads = team.members.filter((m) => m.role === TeamRole.LEAD);
+    await Promise.all(
+      teamLeads.map((lead) =>
+        sendTeamJoinRequestEmail(
+          lead.user.email,
+          lead.user.firstName,
+          team.name,
+          `${user.firstName} ${user.lastName}`,
+          input.message
+        )
+      )
+    );
+
+    // Track activity
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_JOIN_REQUESTED",
+      metadata: {
+        teamId,
+        requestId: joinRequest.id,
+      },
+    });
+
+    logger.info({ userId, teamId, requestId: joinRequest.id }, "Team join request created");
+
+    return joinRequest;
+  }
+
+  /**
+   * Handle join request (accept/reject)
+   */
+  static async handleJoinRequest(
+    userId: string,
+    teamId: string,
+    requestId: string,
+    input: HandleJoinRequestInput
+  ) {
+    // Verify user is team lead
+    const userMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+        role: TeamRole.LEAD,
+      },
+    });
+
+    if (!userMember) {
+      throw new Error("Only team leads can handle join requests");
+    }
+
+    // Get the join request
+    const joinRequest = await db.teamJoinRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!joinRequest) {
+      throw new Error("Join request not found");
+    }
+
+    if (joinRequest.teamId !== teamId) {
+      throw new Error("Join request does not belong to this team");
+    }
+
+    if (joinRequest.status !== "PENDING") {
+      throw new Error("Join request has already been handled");
+    }
+
+    if (input.action === "accept") {
+      // Add user as team member
+      await db.teamMember.create({
+        data: {
+          teamId,
+          userId: joinRequest.userId,
+          role: TeamRole.MEMBER,
+        },
+      });
+
+      // Update request status
+      await db.teamJoinRequest.update({
+        where: { id: requestId },
+        data: { status: "ACCEPTED" },
+      });
+
+      // Send acceptance email
+      await sendJoinRequestAcceptedEmail(
+        joinRequest.user.email,
+        joinRequest.user.firstName,
+        joinRequest.team.name,
+        input.message
+      );
+
+      // Track activity
+      await Promise.all([
+        activityService.trackActivity({
+          userId,
+          action: "TEAM_JOIN_REQUEST_ACCEPTED",
+          metadata: {
+            teamId,
+            requestId,
+            newMemberId: joinRequest.userId,
+          },
+        }),
+        activityService.trackActivity({
+          userId: joinRequest.userId,
+          action: "TEAM_JOIN_ACCEPTED",
+          metadata: {
+            teamId,
+            requestId,
+          },
+        }),
+      ]);
+
+      logger.info({ userId, teamId, requestId, newMemberId: joinRequest.userId }, "Join request accepted");
+
+      return { success: true, message: "Join request accepted", member: joinRequest.user };
+    } else {
+      // Update request status
+      await db.teamJoinRequest.update({
+        where: { id: requestId },
+        data: { status: "REJECTED" },
+      });
+
+      // Send rejection email
+      await sendJoinRequestRejectedEmail(
+        joinRequest.user.email,
+        joinRequest.user.firstName,
+        joinRequest.team.name,
+        input.message
+      );
+
+      // Track activity
+      await activityService.trackActivity({
+        userId,
+        action: "TEAM_JOIN_REQUEST_REJECTED",
+        metadata: {
+          teamId,
+          requestId,
+          rejectedUserId: joinRequest.userId,
+        },
+      });
+
+      logger.info({ userId, teamId, requestId }, "Join request rejected");
+
+      return { success: true, message: "Join request rejected" };
+    }
+  }
+
+  /**
+   * Get pending join requests for a team
+   */
+  static async getTeamJoinRequests(userId: string, teamId: string) {
+    // Verify user is team lead
+    const userMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+        role: TeamRole.LEAD,
+      },
+    });
+
+    if (!userMember) {
+      throw new Error("Only team leads can view join requests");
+    }
+
+    const requests = await db.teamJoinRequest.findMany({
+      where: {
+        teamId,
+        status: "PENDING",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePhoto: true,
+            school: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return requests;
+  }
+
+  /**
+   * Get user's own join requests
+   */
+  static async getUserJoinRequests(userId: string) {
+    const requests = await db.teamJoinRequest.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            school: true,
+            profileImage: true,
+            projectTitle: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return requests;
   }
 }

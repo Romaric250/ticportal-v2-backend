@@ -50,7 +50,7 @@ const emailTemplate = (content: string) => `
       padding: 14px 28px;
       margin: 20px 0;
       background-color: #111827;
-      color: #ffffff;
+      color: #ffffff !important;
       text-decoration: none;
       border-radius: 4px;
       font-weight: 600;
@@ -333,6 +333,74 @@ export const sendMentorAssignmentEmail = async (
   await sendEmail(
     email,
     "Mentor Assigned to Your Team",
+    emailTemplate(content),
+  );
+};
+
+// Email: Team Join Request Sent
+export const sendTeamJoinRequestEmail = async (
+  email: string,
+  firstName: string,
+  teamName: string,
+  requesterName: string,
+  message?: string,
+) => {
+  const content = `
+    <p>Hello ${firstName},</p>
+    <p><strong>${requesterName}</strong> has requested to join your team <strong>${teamName}</strong>.</p>
+    ${message ? `<div class="info-box"><p><strong>Message from ${requesterName}:</strong></p><p>"${message}"</p></div>` : ""}
+    <p>Please review this request and take action.</p>
+    <a href="${env.clientUrl}/teams/${teamName}/requests" class="button">Review Request</a>
+  `;
+
+  await sendEmail(
+    email,
+    `Join Request for ${teamName}`,
+    emailTemplate(content),
+  );
+};
+
+// Email: Join Request Accepted
+export const sendJoinRequestAcceptedEmail = async (
+  email: string,
+  firstName: string,
+  teamName: string,
+  message?: string,
+) => {
+  const content = `
+    <p>Hello ${firstName},</p>
+    <p>Great news! Your request to join <strong>${teamName}</strong> has been accepted! 🎉</p>
+    ${message ? `<div class="info-box"><p><strong>Message from team lead:</strong></p><p>"${message}"</p></div>` : ""}
+    <p>You can now collaborate with your team members and access team resources.</p>
+    <a href="${env.clientUrl}/teams/${teamName}" class="button">Go to Team</a>
+  `;
+
+  await sendEmail(
+    email,
+    `Welcome to ${teamName}!`,
+    emailTemplate(content),
+  );
+};
+
+// Email: Join Request Rejected
+export const sendJoinRequestRejectedEmail = async (
+  email: string,
+  firstName: string,
+  teamName: string,
+  message?: string,
+) => {
+  const content = `
+    <p>Hello ${firstName},</p>
+    <p>Thank you for your interest in joining <strong>${teamName}</strong>.</p>
+    <p>Unfortunately, your join request has not been accepted at this time.</p>
+    ${message ? `<div class="info-box"><p><strong>Message from team lead:</strong></p><p>"${message}"</p></div>` : ""}
+    <p>Don't be discouraged! There are many other teams you can join or you can create your own team.</p>
+    <a href="${env.clientUrl}/teams" class="button">Browse Teams</a>
+  `;
+
+  await sendEmail(
+    email,
+    `Join Request Update - ${teamName}`,
     emailTemplate(content),
   );
 };

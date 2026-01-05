@@ -114,8 +114,8 @@ export class DefaultsService {
     return await db.defaultSchool.create({
       data: {
         name: data.name,
-        region: data.region,
-        country: data.country,
+        ...(data.region ? { region: data.region } : {}),
+        ...(data.country ? { country: data.country } : {}),
       },
     });
   }
@@ -127,7 +127,7 @@ export class DefaultsService {
     return await db.defaultRegion.create({
       data: {
         name: data.name,
-        country: data.country,
+        ...(data.country ? { country: data.country } : {}),
       },
     });
   }

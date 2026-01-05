@@ -41,6 +41,7 @@ model User {
   squadMembers      SquadMember[]
   teamMembers       TeamMember[]
   teamChats         TeamChat[]         @relation("UserTeamChats")
+  teamJoinRequests  TeamJoinRequest[]  @relation("UserTeamJoinRequests")
   points            Point[]
   userBadges        UserBadge[]
   leaderboards      Leaderboard[]
@@ -141,6 +142,7 @@ model Team {
 
   members           TeamMember[]
   chats             TeamChat[]
+  joinRequests      TeamJoinRequest[]
   submissions       Submission[]
   mentorRequests    MentorRequest[]
   mentorAssignments MentorAssignment[]
@@ -176,6 +178,27 @@ model TeamChat {
 
   team   Team @relation(fields: [teamId], references: [id])
   sender User @relation("UserTeamChats", fields: [senderId], references: [id])
+}
+
+model TeamJoinRequest {
+  id        String                 @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String                 @db.ObjectId
+  userId    String                 @db.ObjectId
+  message   String?
+  status    TeamJoinRequestStatus  @default(PENDING)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+  user User @relation("UserTeamJoinRequests", fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+enum TeamJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 /// Learning Path

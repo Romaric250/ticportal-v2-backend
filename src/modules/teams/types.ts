@@ -44,3 +44,27 @@ export const SendTeamChatMessageSchema = z.object({
 });
 
 export type SendTeamChatMessageInput = z.infer<typeof SendTeamChatMessageSchema>;
+
+// Search Teams Schema
+export const SearchTeamsSchema = z.object({
+  query: z.string().min(1, "Search query is required"),
+  page: z.number().int().positive().optional().default(1),
+  limit: z.number().int().positive().max(100).optional().default(20),
+});
+
+export type SearchTeamsInput = z.infer<typeof SearchTeamsSchema>;
+
+// Request to Join Team Schema
+export const RequestToJoinTeamSchema = z.object({
+  message: z.string().max(500).optional(),
+});
+
+export type RequestToJoinTeamInput = z.infer<typeof RequestToJoinTeamSchema>;
+
+// Handle Join Request Schema
+export const HandleJoinRequestSchema = z.object({
+  action: z.enum(["accept", "reject"]),
+  message: z.string().max(500).optional(),
+});
+
+export type HandleJoinRequestInput = z.infer<typeof HandleJoinRequestSchema>;
