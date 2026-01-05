@@ -1,15 +1,844 @@
 import { db } from "../../config/database";
+import { TeamRole } from "@prisma/client";
+import { activityService } from "../../shared/services/activity";
+import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail } from "../../shared/utils/email";
+import { logger } from "../../shared/utils/logger";
+import type {
+  CreateTeamInput,
+  UpdateTeamInput,
+  AddTeamMemberInput,
+  UpdateTeamMemberRoleInput,
+  SendTeamChatMessageInput,
+} from "./types";
 
 export class TeamService {
-  static async getTeams() {
-    return await db.team.findMany({
-      select: {
-        id: true,
-        name: true,
-        projectTitle: true,
-        description: true,
-        squadId: true,
+  /**
+   * Get all teams with pagination
+   */
+  static async getTeams(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const [teams, total] = await Promise.all([
+      db.team.findMany({
+        skip,
+        take: limit,
+        include: {
+          squad: {
+            select: {
+              id: true,
+              name: true,
+              schoolName: true,
+            },
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePhoto: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              members: true,
+              chats: true,
+              submissions: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      db.team.count(),
+    ]);
+
+    return {
+      teams,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get a single team by ID
+   */
+  static async getTeamById(teamId: string) {
+    const team = await db.team.findUnique({
+      where: { id: teamId },
+      include: {
+        squad: {
+          select: {
+            id: true,
+            name: true,
+            schoolName: true,
+            region: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhoto: true,
+                bio: true,
+                school: true,
+              },
+            },
+          },
+          orderBy: {
+            joinedAt: "asc",
+          },
+        },
+        submissions: {
+          select: {
+            id: true,
+            title: true,
+            submittedAt: true,
+            hackathon: {
+              select: {
+                id: true,
+                name: true,
+                level: true,
+              },
+            },
+          },
+          orderBy: {
+            submittedAt: "desc",
+          },
+        },
+        mentorAssignments: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhoto: true,
+              },
+            },
+          },
+          where: {
+            endDate: null, // Active assignments
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            chats: true,
+            submissions: true,
+          },
+        },
       },
     });
+
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    return team;
+  }
+
+  /**
+   * Get teams for a specific user
+   */
+  static async getUserTeams(userId: string) {
+    const teamMembers = await db.teamMember.findMany({
+      where: { userId },
+      include: {
+        team: {
+          include: {
+            squad: {
+              select: {
+                id: true,
+                name: true,
+                schoolName: true,
+              },
+            },
+            _count: {
+              select: {
+                members: true,
+                chats: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        joinedAt: "desc",
+      },
+    });
+
+    return teamMembers.map((tm) => ({
+      ...tm.team,
+      userRole: tm.role,
+      joinedAt: tm.joinedAt,
+    }));
+  }
+
+  /**
+   * Create a new team
+   */
+  static async createTeam(userId: string, input: CreateTeamInput) {
+    // Verify user is part of the squad
+    const squadMember = await db.squadMember.findFirst({
+      where: {
+        userId,
+        squadId: input.squadId,
+      },
+    });
+
+    if (!squadMember) {
+      throw new Error("You must be a member of the squad to create a team");
+    }
+
+    // Create team and add creator as team lead
+    const team = await db.team.create({
+      data: {
+        name: input.name,
+        squadId: input.squadId,
+        projectTitle: input.projectTitle || null,
+        description: input.description || null,
+        members: {
+          create: {
+            userId,
+            role: TeamRole.LEAD,
+          },
+        },
+      },
+      include: {
+        squad: {
+          select: {
+            id: true,
+            name: true,
+            schoolName: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhoto: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Track activity
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_CREATED",
+      metadata: {
+        teamId: team.id,
+        teamName: team.name,
+        squadId: team.squadId,
+      },
+    });
+
+    logger.info({ userId, teamId: team.id }, "Team created");
+
+    return team;
+  }
+
+  /**
+   * Update team details
+   */
+  static async updateTeam(userId: string, teamId: string, input: UpdateTeamInput) {
+    // Verify user is team lead
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+        role: TeamRole.LEAD,
+      },
+    });
+
+    if (!member) {
+      throw new Error("Only team leads can update team details");
+    }
+
+    const team = await db.team.update({
+      where: { id: teamId },
+      data: {
+        ...(input.name && { name: input.name }),
+        ...(input.projectTitle !== undefined && { projectTitle: input.projectTitle || null }),
+        ...(input.description !== undefined && { description: input.description || null }),
+      },
+      include: {
+        squad: {
+          select: {
+            id: true,
+            name: true,
+            schoolName: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePhoto: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Track activity
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_UPDATED",
+      metadata: {
+        teamId,
+        updates: input,
+      },
+    });
+
+    logger.info({ userId, teamId }, "Team updated");
+
+    return team;
+  }
+
+  /**
+   * Delete a team
+   */
+  static async deleteTeam(userId: string, teamId: string) {
+    // Verify user is team lead
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+        role: TeamRole.LEAD,
+      },
+    });
+
+    if (!member) {
+      throw new Error("Only team leads can delete teams");
+    }
+
+    // Check if team has submissions
+    const submissionCount = await db.submission.count({
+      where: { teamId },
+    });
+
+    if (submissionCount > 0) {
+      throw new Error("Cannot delete team with existing submissions");
+    }
+
+    // Delete team (cascade will handle members, chats, etc.)
+    await db.team.delete({
+      where: { id: teamId },
+    });
+
+    // Track activity
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_DELETED",
+      metadata: {
+        teamId,
+      },
+    });
+
+    logger.info({ userId, teamId }, "Team deleted");
+
+    return { success: true, message: "Team deleted successfully" };
+  }
+
+  /**
+   * Add a member to a team
+   */
+  static async addTeamMember(
+    inviterId: string,
+    teamId: string,
+    input: AddTeamMemberInput,
+  ) {
+    // Verify inviter is team lead
+    const inviter = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId: inviterId,
+        role: TeamRole.LEAD,
+      },
+      include: {
+        team: {
+          include: {
+            squad: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!inviter) {
+      throw new Error("Only team leads can add members");
+    }
+
+    // Check if user is already a member
+    const existingMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId: input.userId,
+      },
+    });
+
+    if (existingMember) {
+      throw new Error("User is already a team member");
+    }
+
+    // Verify user is in the same squad
+    const squadMember = await db.squadMember.findFirst({
+      where: {
+        userId: input.userId,
+        squadId: inviter.team.squadId,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!squadMember) {
+      throw new Error("User must be in the same squad");
+    }
+
+    // Add member
+    const teamMember = await db.teamMember.create({
+      data: {
+        teamId,
+        userId: input.userId,
+        role: input.role,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePhoto: true,
+          },
+        },
+      },
+    });
+
+    // Send email notification
+    await sendTeamInviteEmail(
+      squadMember.user.email,
+      squadMember.user.firstName,
+      inviter.team.name,
+      `${inviter.user.firstName} ${inviter.user.lastName}`,
+    );
+
+    // Track activity for both inviter and new member
+    await Promise.all([
+      activityService.trackActivity({
+        userId: inviterId,
+        action: "TEAM_MEMBER_ADDED",
+        metadata: {
+          teamId,
+          newMemberId: input.userId,
+          role: input.role,
+        },
+      }),
+      activityService.trackActivity({
+        userId: input.userId,
+        action: "TEAM_JOINED",
+        metadata: {
+          teamId,
+          role: input.role,
+        },
+      }),
+    ]);
+
+    logger.info({ inviterId, teamId, newMemberId: input.userId }, "Team member added");
+
+    return teamMember;
+  }
+
+  /**
+   * Update team member role
+   */
+  static async updateTeamMemberRole(
+    userId: string,
+    teamId: string,
+    memberId: string,
+    input: UpdateTeamMemberRoleInput,
+  ) {
+    // Verify user is team lead
+    const userMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+        role: TeamRole.LEAD,
+      },
+    });
+
+    if (!userMember) {
+      throw new Error("Only team leads can update member roles");
+    }
+
+    // Don't allow changing own role if you're the only lead
+    if (userId === memberId && input.role !== TeamRole.LEAD) {
+      const leadCount = await db.teamMember.count({
+        where: {
+          teamId,
+          role: TeamRole.LEAD,
+        },
+      });
+
+      if (leadCount === 1) {
+        throw new Error("Cannot demote the only team lead");
+      }
+    }
+
+    const teamMember = await db.teamMember.update({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId: memberId,
+        },
+      },
+      data: {
+        role: input.role,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePhoto: true,
+          },
+        },
+        team: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Send email notification
+    await sendTeamRoleUpdateEmail(
+      teamMember.user.email,
+      teamMember.user.firstName,
+      teamMember.team.name,
+      input.role,
+    );
+
+    // Track activity
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_MEMBER_ROLE_UPDATED",
+      metadata: {
+        teamId,
+        memberId,
+        newRole: input.role,
+      },
+    });
+
+    logger.info({ userId, teamId, memberId, newRole: input.role }, "Team member role updated");
+
+    return teamMember;
+  }
+
+  /**
+   * Remove a team member
+   */
+  static async removeTeamMember(userId: string, teamId: string, memberId: string) {
+    // Verify user is team lead or removing themselves
+    const userMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!userMember) {
+      throw new Error("You are not a member of this team");
+    }
+
+    const isLead = userMember.role === TeamRole.LEAD;
+    const isSelf = userId === memberId;
+
+    if (!isLead && !isSelf) {
+      throw new Error("Only team leads can remove other members");
+    }
+
+    // Don't allow removing the only lead
+    if (isSelf && isLead) {
+      const leadCount = await db.teamMember.count({
+        where: {
+          teamId,
+          role: TeamRole.LEAD,
+        },
+      });
+
+      if (leadCount === 1) {
+        throw new Error("Cannot remove the only team lead");
+      }
+    }
+
+    const memberToRemove = await db.teamMember.findUnique({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId: memberId,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+          },
+        },
+        team: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!memberToRemove) {
+      throw new Error("Member not found");
+    }
+
+    // Remove member
+    await db.teamMember.delete({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId: memberId,
+        },
+      },
+    });
+
+    // Send email notification if not self-removal
+    if (!isSelf) {
+      await sendTeamRemovalEmail(
+        memberToRemove.user.email,
+        memberToRemove.user.firstName,
+        memberToRemove.team.name,
+      );
+    }
+
+    // Track activity
+    await Promise.all([
+      activityService.trackActivity({
+        userId,
+        action: isSelf ? "TEAM_LEFT" : "TEAM_MEMBER_REMOVED",
+        metadata: {
+          teamId,
+          memberId,
+        },
+      }),
+      isSelf
+        ? null
+        : activityService.trackActivity({
+            userId: memberId,
+            action: "REMOVED_FROM_TEAM",
+            metadata: {
+              teamId,
+              removedBy: userId,
+            },
+          }),
+    ]);
+
+    logger.info({ userId, teamId, memberId }, "Team member removed");
+
+    return { 
+      success: true, 
+      message: "Member removed successfully",
+      userId: memberId,
+      userName: `${memberToRemove.user.firstName}`,
+    };
+  }
+
+  /**
+   * Get team chat messages
+   */
+  static async getTeamChats(userId: string, teamId: string, page: number = 1, limit: number = 50) {
+    // Verify user is a team member
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new Error("You are not a member of this team");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [chats, total] = await Promise.all([
+      db.teamChat.findMany({
+        where: { teamId },
+        skip,
+        take: limit,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePhoto: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      db.teamChat.count({
+        where: { teamId },
+      }),
+    ]);
+
+    return {
+      chats: chats.reverse(), // Reverse to show oldest first
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Send a team chat message
+   */
+  static async sendTeamChatMessage(
+    userId: string,
+    teamId: string,
+    input: SendTeamChatMessageInput,
+  ) {
+    // Verify user is a team member
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new Error("You are not a member of this team");
+    }
+
+    const chat = await db.teamChat.create({
+      data: {
+        teamId,
+        senderId: userId,
+        message: input.message,
+        attachments: input.attachments || [],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profilePhoto: true,
+          },
+        },
+      },
+    });
+
+    // Track activity (no points for chat messages to avoid spam)
+    await activityService.trackActivity({
+      userId,
+      action: "TEAM_MESSAGE_SENT",
+      metadata: {
+        teamId,
+        messageId: chat.id,
+      },
+      awardPoints: false,
+    });
+
+    logger.info({ userId, teamId, chatId: chat.id }, "Team chat message sent");
+
+    return chat;
+  }
+
+  /**
+   * Check if a user is a member of a team
+   */
+  static async isTeamMember(teamId: string, userId: string): Promise<boolean> {
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+    return !!member;
+  }
+
+  /**
+   * Get a team member by team and user ID
+   */
+  static async getTeamMember(teamId: string, userId: string) {
+    return await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePhoto: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Send a team chat message (non-static version for socket handlers)
+   */
+  async sendTeamChatMessage(teamId: string, userId: string, message: string, attachments?: string[]) {
+    return TeamService.sendTeamChatMessage(teamId, userId, { message, attachments });
+  }
+
+  /**
+   * Check if user is team member (non-static version for socket handlers)
+   */
+  async isTeamMember(teamId: string, userId: string): Promise<boolean> {
+    return TeamService.isTeamMember(teamId, userId);
   }
 }

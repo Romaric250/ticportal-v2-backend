@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import app from "./app";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
+import { initializeSocket } from "./socket";
 
 const server = http.createServer(app);
 
@@ -13,9 +14,8 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  logger.info({ socketId: socket.id }, "New socket connection");
-});
+// Initialize Socket.io with authentication and event handlers
+initializeSocket(io);
 
 const port = env.port;
 
