@@ -692,8 +692,8 @@ export class TeamService {
    * Send a team chat message
    */
   static async sendTeamChatMessage(
-    userId: string,
     teamId: string,
+    userId: string,
     input: SendTeamChatMessageInput,
   ) {
     // Verify user is a team member

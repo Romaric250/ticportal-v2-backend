@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIC Portal Socket.io Test Client</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid;
+        }
+        .log-info { border-color: #4CAF50; }
+        .log-error { border-color: #f44336; }
+        .log-event { border-color: #2196F3; }
+        .log-emit { border-color: #FF9800; }
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+        }
+        .message-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .message.own {
+            background: #e3f2fd;
+        }
+        .message-meta {
+            font-size: 11px;
+            color: #666;
+            margin-top: 3px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 TIC Portal Socket.io Test Client</h1>
+    
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="status" class="status disconnected">❌ Disconnected</div>
+        <p><strong>Socket ID:</strong> <span id="socketId">-</span></p>
+        <p><strong>User ID:</strong> <span id="userId">-</span></p>
+    </div>
+
+    <div class="container">
+        <h2>Configuration</h2>
+        <div class="controls">
+            <div>
+                <label>Server URL:</label><br>
+                <input type="text" id="serverUrl" value="http://localhost:5000" style="width: 100%;">
+            </div>
+            <div>
+                <label>JWT Token:</label><br>
+                <input type="text" id="token" placeholder="Paste your JWT token here" style="width: 100%;">
+            </div>
+            <div>
+                <label>Team ID:</label><br>
+                <input type="text" id="teamId" placeholder="Enter team ID">
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button onclick="connect()" id="connectBtn" style="width: 100%;">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Team Chat Controls</h2>
+        <div class="controls">
+            <button onclick="joinTeam()" id="joinBtn" disabled>Join Team</button>
+            <button onclick="leaveTeam()" id="leaveBtn" disabled>Leave Team</button>
+        </div>
+        <div style="margin-top: 15px;">
+            <label>Message:</label><br>
+            <input type="text" id="message" placeholder="Type a message..." style="width: calc(100% - 120px);">
+            <button onclick="sendMessage()" id="sendBtn" disabled style="width: 100px;">Send</button>
+        </div>
+        <div style="margin-top: 15px;">
+            <button onclick="startTyping()" id="typingStartBtn" disabled>Start Typing</button>
+            <button onclick="stopTyping()" id="typingStopBtn" disabled>Stop Typing</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📨 Team Messages</h2>
+        <div class="message-list" id="messageList">
+            <em>No messages yet. Join a team and send a message!</em>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Event Log</h2>
+        <button onclick="clearLog()" style="margin-bottom: 10px;">Clear Log</button>
+        <div class="log-container" id="logContainer"></div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentUserId = null;
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        function updateStatus(connected, socketId = '-') {
+            const statusEl = document.getElementById('status');
+            const socketIdEl = document.getElementById('socketId');
+            
+            if (connected) {
+                statusEl.textContent = '✅ Connected';
+                statusEl.className = 'status connected';
+                socketIdEl.textContent = socketId;
+            } else {
+                statusEl.textContent = '❌ Disconnected';
+                statusEl.className = 'status disconnected';
+                socketIdEl.textContent = '-';
+            }
+            
+            updateButtonStates(connected);
+        }
+
+        function updateButtonStates(connected) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('joinBtn').disabled = !connected;
+            document.getElementById('leaveBtn').disabled = !connected;
+            document.getElementById('sendBtn').disabled = !connected;
+            document.getElementById('typingStartBtn').disabled = !connected;
+            document.getElementById('typingStopBtn').disabled = !connected;
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const token = document.getElementById('token').value;
+
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            log(`🔌 Connecting to ${serverUrl}...`, 'info');
+
+            socket = io(serverUrl, {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket', 'polling']
+            });
+
+            // Connection events
+            socket.on('connect', () => {
+                log(`✅ Connected! Socket ID: ${socket.id}`, 'info');
+                updateStatus(true, socket.id);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ Disconnected: ${reason}`, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`💥 Connection error: ${error.message}`, 'error');
+                updateStatus(false);
+            });
+
+            // Team chat events
+            socket.on('team:message', (data) => {
+                log(`📨 [RECEIVED] team:message - ${JSON.stringify(data)}`, 'event');
+                addMessage(data);
+            });
+
+            socket.on('team:member:online', (data) => {
+                log(`🟢 [RECEIVED] team:member:online - ${JSON.stringify(data)}`, 'event');
+            });
+
+            socket.on('team:typing', (data) => {
+                log(`⌨️ [RECEIVED] team:typing - ${JSON.stringify(data)}`, 'event');
+            });
+
+            socket.on('team:message:receipt', (data) => {
+                log(`✓✓ [RECEIVED] team:message:receipt - ${JSON.stringify(data)}`, 'event');
+            });
+
+            socket.on('error', (data) => {
+                log(`❌ [RECEIVED] error - ${JSON.stringify(data)}`, 'error');
+                alert(`Error: ${data.message}`);
+            });
+
+            // Extract user ID from JWT (basic decode - for display only)
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                currentUserId = payload.id || payload.userId;
+                document.getElementById('userId').textContent = currentUserId || 'Unknown';
+                log(`👤 User ID from token: ${currentUserId}`, 'info');
+            } catch (e) {
+                log(`⚠️ Could not decode token: ${e.message}`, 'error');
+            }
+        }
+
+        function joinTeam() {
+            const teamId = document.getElementById('teamId').value;
+            if (!teamId) {
+                alert('Please enter a team ID');
+                return;
+            }
+
+            log(`📤 [EMIT] team:join - teamId: ${teamId}`, 'emit');
+            socket.emit('team:join', { teamId });
+        }
+
+        function leaveTeam() {
+            const teamId = document.getElementById('teamId').value;
+            if (!teamId) {
+                alert('Please enter a team ID');
+                return;
+            }
+
+            log(`📤 [EMIT] team:leave - teamId: ${teamId}`, 'emit');
+            socket.emit('team:leave', { teamId });
+        }
+
+        function sendMessage() {
+            const teamId = document.getElementById('teamId').value;
+            const message = document.getElementById('message').value;
+
+            if (!teamId || !message) {
+                alert('Please enter both team ID and message');
+                return;
+            }
+
+            log(`📤 [EMIT] team:message:send - teamId: ${teamId}, message: "${message}"`, 'emit');
+            socket.emit('team:message:send', { 
+                teamId, 
+                message,
+                attachments: []
+            });
+
+            document.getElementById('message').value = '';
+        }
+
+        function startTyping() {
+            const teamId = document.getElementById('teamId').value;
+            if (!teamId) {
+                alert('Please enter a team ID');
+                return;
+            }
+
+            log(`📤 [EMIT] team:typing:start - teamId: ${teamId}`, 'emit');
+            socket.emit('team:typing:start', { teamId });
+        }
+
+        function stopTyping() {
+            const teamId = document.getElementById('teamId').value;
+            if (!teamId) {
+                alert('Please enter a team ID');
+                return;
+            }
+
+            log(`📤 [EMIT] team:typing:stop - teamId: ${teamId}`, 'emit');
+            socket.emit('team:typing:stop', { teamId });
+        }
+
+        function addMessage(data) {
+            const messageList = document.getElementById('messageList');
+            
+            // Clear "no messages" text
+            if (messageList.querySelector('em')) {
+                messageList.innerHTML = '';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message' + (data.userId === currentUserId ? ' own' : '');
+            
+            const time = new Date(data.createdAt).toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <strong>${data.userName}</strong>
+                <div>${data.message}</div>
+                <div class="message-meta">${time} • ID: ${data.id}</div>
+            `;
+            
+            messageList.appendChild(messageDiv);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // Enable sending message with Enter key
+        document.getElementById('message').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !document.getElementById('sendBtn').disabled) {
+                sendMessage();
+            }
+        });
+
+        // Log initial state
+        log('🎯 Socket.io test client loaded and ready', 'info');
+        log('📝 Instructions:', 'info');
+        log('1. Get a JWT token from your login endpoint', 'info');
+        log('2. Paste it in the JWT Token field', 'info');
+        log('3. Click Connect', 'info');
+        log('4. Enter a Team ID and click Join Team', 'info');
+        log('5. Send messages and watch the logs!', 'info');
+    </script>
+</body>
+</html>

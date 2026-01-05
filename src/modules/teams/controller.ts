@@ -216,7 +216,7 @@ export class TeamController {
         return res.status(400).json({ success: false, message: "Team ID is required" });
       }
       const input = SendTeamChatMessageSchema.parse(req.body);
-      const chat = await TeamService.sendTeamChatMessage(userId, teamId, input);
+      const chat = await TeamService.sendTeamChatMessage(teamId, userId, input);
       res.status(201).json({ success: true, data: chat });
     } catch (error) {
       const status = (error as Error).message.includes("not a member") ? 403 : 400;
