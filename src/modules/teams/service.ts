@@ -148,7 +148,7 @@ export class TeamService {
   }
 
   /**
-   * Get teams for a specific user
+   * Get teams for a specific user with unread counts
    */
   static async getUserTeams(userId: string) {
     const teamMembers = await db.teamMember.findMany({
@@ -170,11 +170,31 @@ export class TeamService {
       },
     });
 
-    return teamMembers.map((tm) => ({
-      ...tm.team,
-      userRole: tm.role,
-      joinedAt: tm.joinedAt,
-    }));
+    // Get unread counts for all teams
+    const teamsWithUnread = await Promise.all(
+      teamMembers.map(async (tm) => {
+        const unreadCount = await db.teamChat.count({
+          where: {
+            teamId: tm.teamId,
+            senderId: { not: userId },
+            readBy: {
+              none: {
+                userId,
+              },
+            },
+          },
+        });
+
+        return {
+          ...tm.team,
+          userRole: tm.role,
+          joinedAt: tm.joinedAt,
+          unreadCount,
+        };
+      })
+    );
+
+    return teamsWithUnread;
   }
 
   /**
@@ -799,33 +819,142 @@ export class TeamService {
   }
 
   /**
-   * Get a team member by team and user ID
+   * Get unread message count for a user in a team
    */
-  static async getTeamMember(teamId: string, userId: string) {
-    return await db.teamMember.findFirst({
+  static async getUnreadMessageCount(teamId: string, userId: string): Promise<number> {
+    // Verify user is a team member
+    const isMember = await TeamService.isTeamMember(teamId, userId);
+    if (!isMember) {
+      throw new Error("You are not a member of this team");
+    }
+
+    // Count messages that are not read by this user and not sent by this user
+    const unreadCount = await db.teamChat.count({
       where: {
         teamId,
-        userId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profilePhoto: true,
+        senderId: { not: userId }, // Don't count own messages
+        readBy: {
+          none: {
+            userId,
           },
         },
       },
     });
+
+    return unreadCount;
   }
 
   /**
-   * Send a team chat message (non-static version for socket handlers)
+   * Mark messages as read
    */
-  async sendTeamChatMessage(teamId: string, userId: string, message: string, attachments?: string[]) {
-    return TeamService.sendTeamChatMessage(teamId, userId, { message, attachments });
+  static async markMessagesAsRead(teamId: string, userId: string, messageIds?: string[]) {
+    // Verify user is a team member
+    const isMember = await TeamService.isTeamMember(teamId, userId);
+    if (!isMember) {
+      throw new Error("You are not a member of this team");
+    }
+
+    // Build the where clause
+    const whereClause: any = {
+      teamId,
+      senderId: { not: userId }, // Don't mark own messages as read
+    };
+
+    if (messageIds && messageIds.length > 0) {
+      whereClause.id = { in: messageIds };
+    }
+
+    // Get unread messages
+    const unreadMessages = await db.teamChat.findMany({
+      where: {
+        ...whereClause,
+        readBy: {
+          none: {
+            userId,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (unreadMessages.length === 0) {
+      return { markedCount: 0 };
+    }
+
+    // Create read records for all unread messages
+    await db.teamChatRead.createMany({
+      data: unreadMessages.map((msg) => ({
+        chatId: msg.id,
+        userId,
+      })),
+    });
+
+    logger.info(
+      { userId, teamId, markedCount: unreadMessages.length },
+      "Messages marked as read"
+    );
+
+    return { markedCount: unreadMessages.length };
+  }
+
+  /**
+   * Get unread counts for all user's teams
+   */
+  static async getUnreadCountsForUserTeams(userId: string): Promise<Record<string, number>> {
+    // Get all teams the user is a member of
+    const userTeams = await db.teamMember.findMany({
+      where: { userId },
+      select: { teamId: true },
+    });
+
+    const teamIds = userTeams.map((tm) => tm.teamId);
+
+    if (teamIds.length === 0) {
+      return {};
+    }
+
+    // Get unread counts for each team
+    const unreadCounts: Record<string, number> = {};
+
+    for (const teamId of teamIds) {
+      const count = await TeamService.getUnreadMessageCount(teamId, userId);
+      if (count > 0) {
+        unreadCounts[teamId] = count;
+      }
+    }
+
+    return unreadCounts;
+  }
+
+  /**
+   * Get total unread message count across all teams for a user
+   */
+  static async getTotalUnreadCount(userId: string): Promise<number> {
+    const userTeams = await db.teamMember.findMany({
+      where: { userId },
+      select: { teamId: true },
+    });
+
+    const teamIds = userTeams.map((tm) => tm.teamId);
+
+    if (teamIds.length === 0) {
+      return 0;
+    }
+
+    // Count all unread messages across all teams
+    const totalUnread = await db.teamChat.count({
+      where: {
+        teamId: { in: teamIds },
+        senderId: { not: userId },
+        readBy: {
+          none: {
+            userId,
+          },
+        },
+      },
+    });
+
+    return totalUnread;
   }
 
   /**

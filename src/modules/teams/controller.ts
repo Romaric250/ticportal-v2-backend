@@ -301,4 +301,57 @@ export class TeamController {
       res.status(500).json({ success: false, message: (error as Error).message });
     }
   }
+
+  static async getUnreadMessageCount(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { teamId } = req.params;
+      if (!teamId) {
+        return res.status(400).json({ success: false, message: "Team ID is required" });
+      }
+      const count = await TeamService.getUnreadMessageCount(teamId, userId);
+      res.json({ success: true, data: { unreadCount: count } });
+    } catch (error) {
+      const status = (error as Error).message.includes("not a member") ? 403 : 500;
+      res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async markMessagesAsRead(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { teamId } = req.params;
+      const { messageIds } = req.body;
+      
+      if (!teamId) {
+        return res.status(400).json({ success: false, message: "Team ID is required" });
+      }
+
+      const result = await TeamService.markMessagesAsRead(teamId, userId, messageIds);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      const status = (error as Error).message.includes("not a member") ? 403 : 500;
+      res.status(status).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async getUnreadCountsForUserTeams(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const unreadCounts = await TeamService.getUnreadCountsForUserTeams(userId);
+      res.json({ success: true, data: unreadCounts });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  }
+
+  static async getTotalUnreadCount(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const totalUnread = await TeamService.getTotalUnreadCount(userId);
+      res.json({ success: true, data: { totalUnread } });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  }
 }

@@ -474,4 +474,100 @@ router.get("/:teamId/join-requests", authenticate, TeamController.getTeamJoinReq
  */
 router.post("/:teamId/join-requests/:requestId", authenticate, TeamController.handleJoinRequest);
 
+/**
+ * @swagger
+ * /api/teams/{teamId}/chats/unread-count:
+ *   get:
+ *     summary: Get unread message count for a team
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Unread count retrieved successfully
+ *       403:
+ *         description: Not a team member
+ */
+router.get("/:teamId/chats/unread-count", authenticate, TeamController.getUnreadMessageCount);
+
+/**
+ * @swagger
+ * /api/teams/{teamId}/chats/mark-read:
+ *   post:
+ *     summary: Mark messages as read
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messageIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of message IDs to mark as read. If not provided, all unread messages will be marked as read.
+ *     responses:
+ *       200:
+ *         description: Messages marked as read successfully
+ *       403:
+ *         description: Not a team member
+ */
+router.post("/:teamId/chats/mark-read", authenticate, TeamController.markMessagesAsRead);
+
+/**
+ * @swagger
+ * /api/teams/chats/unread-counts:
+ *   get:
+ *     summary: Get unread message counts for all user's teams
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread counts retrieved successfully
+ */
+router.get("/chats/unread-counts", authenticate, TeamController.getUnreadCountsForUserTeams);
+
+/**
+ * @swagger
+ * /api/teams/chats/total-unread:
+ *   get:
+ *     summary: Get total unread message count across all user's teams
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total unread count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalUnread:
+ *                       type: integer
+ *                       example: 15
+ */
+router.get("/chats/total-unread", authenticate, TeamController.getTotalUnreadCount);
+
 export default router;

@@ -68,3 +68,10 @@ export const HandleJoinRequestSchema = z.object({
 });
 
 export type HandleJoinRequestInput = z.infer<typeof HandleJoinRequestSchema>;
+
+// Mark Messages as Read Schema
+export const MarkMessagesAsReadSchema = z.object({
+  messageIds: z.array(z.string()).optional(), // If not provided, mark all as read
+});
+
+export type MarkMessagesAsReadInput = z.infer<typeof MarkMessagesAsReadSchema>;

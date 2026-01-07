@@ -176,8 +176,21 @@ model TeamChat {
   attachments String[]
   createdAt   DateTime @default(now())
 
-  team   Team @relation(fields: [teamId], references: [id])
-  sender User @relation("UserTeamChats", fields: [senderId], references: [id])
+  team      Team           @relation(fields: [teamId], references: [id])
+  sender    User           @relation("UserTeamChats", fields: [senderId], references: [id])
+  readBy    TeamChatRead[]
+}
+
+model TeamChatRead {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  chatId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  readAt    DateTime @default(now())
+
+  chat      TeamChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId, readAt])
 }
 
 model TeamJoinRequest {
