@@ -1121,35 +1121,30 @@ export class TeamService {
       },
     });
 
-    // Send email to team leads
+    // Send email and notifications to team leads
     const teamLeads = team.members.filter((m) => m.role === TeamRole.LEAD);
+    
     await Promise.all(
-      teamLeads.map((lead) =>
-        sendTeamJoinRequestEmail(
+      teamLeads.map(async (lead) => {
+        // Send email
+        await sendTeamJoinRequestEmail(
           lead.user.email,
           lead.user.firstName,
           team.name,
           `${user.firstName} ${user.lastName}`,
           input.message
-        )
-      )
+        );
+        
+        // Send notification
+        await NotificationService.notifyTeamJoinRequest(
+          lead.userId,
+          `${user.firstName} ${user.lastName}`,
+          team.name,
+          teamId,
+          joinRequest.id
+        );
+      })
     );
-
-    // Notify all team leads
-    const teamLeads = await db.teamMember.findMany({
-      where: { teamId, role: TeamRole.LEAD },
-      include: { user: true },
-    });
-
-    for (const lead of teamLeads) {
-      await NotificationService.notifyTeamJoinRequest(
-        lead.userId,
-        `${requester.firstName} ${requester.lastName}`,
-        team.name,
-        teamId,
-        joinRequest.id
-      );
-    }
 
     // Track activity
     await activityService.trackActivity({
@@ -1246,7 +1241,7 @@ export class TeamService {
       );
 
       // Notify the user about the accepted request
-      await NotificationService.notifyTeamJoinApproved(joinRequest.userId, team.name, teamId);
+      await NotificationService.notifyTeamJoinApproved(joinRequest.userId, joinRequest.team.name, teamId);
 
       // Track activity
       await Promise.all([
@@ -1288,7 +1283,7 @@ export class TeamService {
       );
 
       // Notify the user about the rejected request
-      await NotificationService.notifyTeamJoinRejected(joinRequest.userId, team.name);
+      await NotificationService.notifyTeamJoinRejected(joinRequest.userId, joinRequest.team.name);
 
       // Track activity
       await activityService.trackActivity({

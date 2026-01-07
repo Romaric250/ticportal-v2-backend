@@ -17,7 +17,7 @@ datasource db {
 model User {
   id           String    @id @default(auto()) @map("_id") @db.ObjectId
   email        String    @unique
-  username     String?   @unique
+  username     String?   @unique(map: "User_username_key")
   password     String
   role         UserRole
   firstName    String
@@ -52,6 +52,8 @@ model User {
   scores            Score[]
   mentorRequests    MentorRequest[]
   mentorAssignments MentorAssignment[]
+  
+  @@index([username(sort: Desc)], map: "User_username_idx")
 }
 
 enum UserRole {

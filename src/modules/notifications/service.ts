@@ -1,6 +1,7 @@
 import { db } from "../../config/database";
 import { NotificationType } from "@prisma/client";
-import { CreateNotificationInput, POINT_MILESTONES, isPointMilestone } from "./types";
+import type { CreateNotificationInput } from "./types";
+import { POINT_MILESTONES, isPointMilestone } from "./types";
 import { logger } from "../../shared/utils/logger";
 import { io } from "../../server";
 import { emitNotification, emitUnreadCountUpdate } from "../../socket/events/notifications";
@@ -13,7 +14,11 @@ export class NotificationService {
     // Calculate expiration time (30 days default for unread)
     const notification = await db.notification.create({
       data: {
-        ...input,
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        data: input.data || null,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       },
       include: {
