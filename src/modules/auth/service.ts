@@ -4,6 +4,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from ".
 import { sendEmail } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import { activityService } from "../../shared/services/activity";
+import { NotificationService } from "../notifications/service";
 import type { RegisterInput, LoginInput, SendOtpInput, VerifyOtpInput, ResetPasswordInput } from "./types";
 
 export class AuthService {
@@ -88,6 +89,9 @@ export class AuthService {
         expiresAt,
       },
     });
+
+    // Send login notification
+    await NotificationService.notifyLogin(user.id);
 
     logger.info({ userId: user.id }, "User logged in successfully");
 

@@ -398,4 +398,20 @@ export class NotificationService {
       data: { quizName, score },
     });
   }
+
+  /**
+   * Create login notification
+   */
+  static async notifyLogin(userId: string, deviceInfo?: string) {
+    await this.createNotification({
+      userId,
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: "Welcome Back!",
+      message: `You've successfully logged in${deviceInfo ? ` from ${deviceInfo}` : ''}`,
+      data: { 
+        loginTime: new Date().toISOString(),
+        deviceInfo: deviceInfo || 'Unknown device'
+      },
+    });
+  }
 }
