@@ -4,6 +4,7 @@ import app from "./app";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
 import { initializeSocket } from "./socket";
+import { startNotificationCleanup } from "./jobs/notificationCleanup";
 
 const server = http.createServer(app);
 
@@ -16,6 +17,7 @@ const io = new Server(server, {
 
 // Initialize Socket.io with authentication and event handlers
 initializeSocket(io);
+startNotificationCleanup();
 
 const port = env.port;
 

@@ -10,6 +10,7 @@ import {
   sendJoinRequestRejectedEmail
 } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
+import { NotificationService } from "../notifications/service";
 import type {
   CreateTeamInput,
   UpdateTeamInput,
@@ -437,6 +438,9 @@ export class TeamService {
       `${inviter.user.firstName} ${inviter.user.lastName}`,
     );
 
+    // Send notification to the added member
+    await NotificationService.notifyTeamMemberAdded(input.userId, inviter.team.name, teamId);
+
     // Track activity for both inviter and new member
     await Promise.all([
       activityService.trackActivity({
@@ -557,6 +561,9 @@ export class TeamService {
       input.role,
     );
 
+    // Send notification to the member
+    await NotificationService.notifyTeamRoleUpdated(actualUserId, teamMember.team.name, input.role, teamId);
+
     // Track activity
     await activityService.trackActivity({
       userId,
@@ -663,6 +670,9 @@ export class TeamService {
         memberToRemove.user.firstName,
         memberToRemove.team.name,
       );
+
+      // Notify the removed member
+      await NotificationService.notifyTeamMemberRemoved(actualUserId, memberToRemove.team.name);
     }
 
     // Track activity
@@ -1125,6 +1135,22 @@ export class TeamService {
       )
     );
 
+    // Notify all team leads
+    const teamLeads = await db.teamMember.findMany({
+      where: { teamId, role: TeamRole.LEAD },
+      include: { user: true },
+    });
+
+    for (const lead of teamLeads) {
+      await NotificationService.notifyTeamJoinRequest(
+        lead.userId,
+        `${requester.firstName} ${requester.lastName}`,
+        team.name,
+        teamId,
+        joinRequest.id
+      );
+    }
+
     // Track activity
     await activityService.trackActivity({
       userId,
@@ -1219,6 +1245,9 @@ export class TeamService {
         input.message
       );
 
+      // Notify the user about the accepted request
+      await NotificationService.notifyTeamJoinApproved(joinRequest.userId, team.name, teamId);
+
       // Track activity
       await Promise.all([
         activityService.trackActivity({
@@ -1257,6 +1286,9 @@ export class TeamService {
         joinRequest.team.name,
         input.message
       );
+
+      // Notify the user about the rejected request
+      await NotificationService.notifyTeamJoinRejected(joinRequest.userId, team.name);
 
       // Track activity
       await activityService.trackActivity({

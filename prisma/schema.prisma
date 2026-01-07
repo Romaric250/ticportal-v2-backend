@@ -467,20 +467,57 @@ model Notification {
   type      NotificationType
   title     String
   message   String
+  data      Json?            // Additional metadata
   isRead    Boolean          @default(false)
+  readAt    DateTime?
   createdAt DateTime         @default(now())
+  expiresAt DateTime?        // Auto-delete after this time
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 enum NotificationType {
-  STAGE_REMINDER
+  // Team notifications
+  TEAM_INVITE
+  TEAM_MEMBER_ADDED
+  TEAM_MEMBER_REMOVED
+  TEAM_ROLE_UPDATED
+  TEAM_MESSAGE
+  TEAM_JOIN_REQUEST
+  TEAM_JOIN_APPROVED
+  TEAM_JOIN_REJECTED
+  
+  // Points & Gamification
+  POINTS_EARNED
+  POINTS_MILESTONE
+  BADGE_EARNED
+  LEADERBOARD_UPDATE
+  
+  // Learning
+  STAGE_UNLOCKED
+  STAGE_COMPLETED
+  QUIZ_PASSED
+  COURSE_COMPLETED
+  
+  // Hackathon
+  HACKATHON_UPCOMING
+  HACKATHON_STARTED
+  HACKATHON_REMINDER
+  HACKATHON_SUBMISSION
+  HACKATHON_RESULT
+  
+  // Mentorship
+  MENTOR_ASSIGNED
   MENTOR_REQUEST
-  HACKATHON_UPDATE
-  SQUAD_ANNOUNCEMENT
-  BADGE_NOTIFICATION
-  SUBMISSION_DEADLINE
-  GENERAL
+  MENTOR_SESSION_SCHEDULED
+  
+  // System
+  SYSTEM_ANNOUNCEMENT
+  SYSTEM_UPDATE
 }
 
 /// Portfolio

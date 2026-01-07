@@ -2,6 +2,7 @@ import { db } from "../../config/database";
 import { logger } from "../utils/logger";
 import { POINTS_CONFIG, ACTIVITY_COOLDOWN, DAILY_LIMITS } from "../constants/points";
 import type { ActivityType } from "@prisma/client";
+import { NotificationService } from "../../modules/notifications/service";
 
 interface AwardPointsParams {
   userId: string;
@@ -70,6 +71,17 @@ export class PointsService {
             metadata: metadata || {},
           },
         });
+
+        // Get user's total points for milestone checking
+        const userPoints = await db.point.aggregate({
+          where: { userId },
+          _sum: { amount: true },
+        });
+        const totalPoints = userPoints._sum.amount || 0;
+
+        // Send notifications for points earned (10+) and milestones
+        await NotificationService.notifyPointsEarned(userId, points, reason);
+        await NotificationService.notifyPointMilestone(userId, totalPoints, reason);
 
         logger.info(
           `Awarded ${points} points to user ${userId} for ${action}`,

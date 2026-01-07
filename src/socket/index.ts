@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { socketAuthMiddleware } from "./middleware/auth";
 import { registerTeamChatHandlers } from "./events/teamChat";
+import { registerNotificationHandlers } from "./events/notifications";
 import { logger } from "../shared/utils/logger";
 import type { AuthenticatedSocket, ServerToClientEvents, ClientToServerEvents } from "./types";
 
@@ -26,11 +27,12 @@ export const initializeSocket = (io: Server) => {
       "🟢 [SOCKET] New client connected successfully"
     );
 
-    // Register team chat event handlers
+    // Register handlers
     registerTeamChatHandlers(io, socket);
+    registerNotificationHandlers(io, socket);
     logger.info(
       { socketId: socket.id, userId: socket.userId },
-      "✅ [SOCKET] Team chat handlers registered for client"
+      "✅ [SOCKET] Handlers registered for client"
     );
 
     // Debug: Log ALL events received from client
@@ -58,7 +60,7 @@ export const initializeSocket = (io: Server) => {
     });
   });
 
-  logger.info("✅ [SOCKET] Socket.io initialized with team chat handlers");
+  logger.info("✅ [SOCKET] Socket.io initialized with team chat and notification handlers");
 };
 
 // Export event emitters for use in controllers
@@ -68,3 +70,5 @@ export {
   emitTeamMemberRemoved,
   emitTeamMemberRoleUpdated,
 } from "./events/teamChat";
+
+export * from "./events/notifications";

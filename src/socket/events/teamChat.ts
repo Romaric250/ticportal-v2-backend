@@ -8,8 +8,6 @@ import { db } from "../../config/database";
  * Register team chat event handlers
  */
 export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket) => {
-  const teamService = new TeamService();
-
   /**
    * Join a team room
    */
@@ -156,11 +154,13 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       );
 
       // Save message to database
-      const chatMessage = await teamService.sendTeamChatMessage(
+      const chatMessage = await TeamService.sendTeamChatMessage(
         teamId,
         socket.userId,
-        message,
-        attachments
+        {
+          message,
+          attachments,
+        }
       );
 
       logger.info(
