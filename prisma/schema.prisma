@@ -15,43 +15,47 @@ datasource db {
 
 /// Core user and auth models
 model User {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  email        String    @unique
-  username     String?   @unique(map: "User_username_key")
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  email        String      @unique
+  username     String?     @unique(map: "User_username_key")
   password     String
   role         UserRole
+  status       UserStatus  @default(PENDING)
   firstName    String
   lastName     String
   bio          String?
-  phone        String?   @unique
+  phone        String?     @unique
   profilePhoto String?
   school       String?
   grade        String?
   country      String?
   region       String?
   gradDate     DateTime?
-  isVerified   Boolean   @default(false)
+  isVerified   Boolean     @default(false)
   lastLogin    DateTime?
-  squadId      String?   @db.ObjectId
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  squadId      String?     @db.ObjectId
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  otps              OTP[]
-  refreshTokens     RefreshToken[]
-  squadMembers      SquadMember[]
-  teamMembers       TeamMember[]
-  teamChats         TeamChat[]         @relation("UserTeamChats")
-  teamJoinRequests  TeamJoinRequest[]  @relation("UserTeamJoinRequests")
-  points            Point[]
-  userBadges        UserBadge[]
-  leaderboards      Leaderboard[]
-  notifications     Notification[]
-  portfolio         Portfolio?
-  squads            Squad[]
-  userProgresses    UserProgress[]
-  scores            Score[]
-  mentorRequests    MentorRequest[]
-  mentorAssignments MentorAssignment[]
+  otps                   OTP[]
+  refreshTokens          RefreshToken[]
+  squadMembers           SquadMember[]
+  teamMembers            TeamMember[]
+  teamChats              TeamChat[]                @relation("UserTeamChats")
+  teamJoinRequests       TeamJoinRequest[]         @relation("UserTeamJoinRequests")
+  points                 Point[]
+  userBadges             UserBadge[]
+  leaderboards           Leaderboard[]
+  notifications          Notification[]
+  portfolio              Portfolio?
+  squads                 Squad[]
+  userProgresses         UserProgress[]
+  scores                 Score[]
+  mentorRequests         MentorRequest[]
+  mentorAssignments      MentorAssignment[]
+  reviewedDeliverables   TeamDeliverable[]         @relation("DeliverableReviewer")
+  learningProgress       UserLearningProgress[]    @relation("UserLearningProgress")
+  moduleCompletions      ModuleCompletion[]        @relation("ModuleCompletions")
   
   @@index([username(sort: Desc)], map: "User_username_idx")
 }
@@ -63,6 +67,13 @@ enum UserRole {
   SQUAD_LEAD
   ADMIN
   SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  INACTIVE
 }
 
 model OTP {
@@ -150,6 +161,7 @@ model Team {
   mentorAssignments MentorAssignment[]
   mentorSessions    MentorSession[]
   leaderboards      Leaderboard[]
+  deliverables      TeamDeliverable[]
 }
 
 model TeamMember {
@@ -303,8 +315,9 @@ model Hackathon {
   endDate   DateTime
   status    HackathonStatus @default(UPCOMING)
 
-  squad       Squad?       @relation(fields: [squadId], references: [id])
-  submissions Submission[]
+  squad                Squad?                @relation(fields: [squadId], references: [id])
+  submissions          Submission[]
+  deliverableTemplates DeliverableTemplate[]
 }
 
 enum HackathonLevel {
@@ -553,4 +566,125 @@ model DefaultRegion {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Team Deliverables
+enum DeliverableType {
+  PROPOSAL
+  PROTOTYPE
+  FINAL_SUBMISSION
+  DOCUMENTATION
+}
+
+enum DeliverableStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model DeliverableTemplate {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  type        DeliverableType
+  hackathonId String?          @db.ObjectId
+  dueDate     DateTime
+  required    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  hackathon    Hackathon?       @relation(fields: [hackathonId], references: [id], onDelete: SetNull)
+  deliverables TeamDeliverable[]
+  
+  @@map("deliverable_templates")
+}
+
+model TeamDeliverable {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  teamId       String             @db.ObjectId
+  templateId   String             @db.ObjectId
+  type         DeliverableType
+  fileUrl      String
+  description  String?
+  status       DeliverableStatus  @default(PENDING)
+  feedback     String?
+  submittedAt  DateTime           @default(now())
+  reviewedAt   DateTime?
+  reviewedBy   String?            @db.ObjectId
+  
+  team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  template     DeliverableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  reviewer     User?              @relation("DeliverableReviewer", fields: [reviewedBy], references: [id])
+  
+  @@map("team_deliverables")
+}
+
+/// Learning Paths
+enum LearningPathAudience {
+  STUDENTS
+  MENTORS
+  EVERYONE
+}
+
+model LearningPath {
+  id          String                @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  audience    LearningPathAudience
+  isCore      Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  
+  modules     LearningModule[]
+  progress    UserLearningProgress[]
+  
+  @@map("learning_paths")
+}
+
+model LearningModule {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  pathId        String         @db.ObjectId
+  title         String
+  content       String         // JSON string from novel.sh editor
+  order         Int
+  quiz          Json?          // Array of quiz questions
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  path          LearningPath   @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  completions   ModuleCompletion[]
+  
+  @@unique([pathId, order])
+  @@map("learning_modules")
+}
+
+model UserLearningProgress {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String       @db.ObjectId
+  pathId          String       @db.ObjectId
+  completedModules Int         @default(0)
+  totalModules    Int
+  progress        Float        @default(0) // Percentage
+  startedAt       DateTime     @default(now())
+  completedAt     DateTime?
+  
+  user            User         @relation("UserLearningProgress", fields: [userId], references: [id], onDelete: Cascade)
+  path            LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, pathId])
+  @@map("user_learning_progress")
+}
+
+model ModuleCompletion {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String         @db.ObjectId
+  moduleId    String         @db.ObjectId
+  quizScore   Float?         // Percentage score on quiz
+  completedAt DateTime       @default(now())
+  
+  user        User           @relation("ModuleCompletions", fields: [userId], references: [id], onDelete: Cascade)
+  module      LearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, moduleId])
+  @@map("module_completions")
 }
