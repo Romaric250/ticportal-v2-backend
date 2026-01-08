@@ -20,6 +20,8 @@ import adminRoutes from "./modules/admin/routes";
 import { authenticate } from "./shared/middleware/auth";
 import { generalRateLimit } from "./shared/middleware/rateLimit";
 import { uploadRouter } from "./config/uploadthing";
+import deliverableRoutes from "./modules/deliverables/routes";
+import learningPathRoutes from "./modules/learning-paths/routes";
 
 const app = express();
 
@@ -104,6 +106,8 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/hackathons", hackathonRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api", deliverableRoutes);
+app.use("/api", learningPathRoutes);
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({

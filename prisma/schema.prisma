@@ -574,6 +574,13 @@ enum DeliverableType {
   PROTOTYPE
   FINAL_SUBMISSION
   DOCUMENTATION
+  CUSTOM
+}
+
+enum DeliverableContentType {
+  FILE
+  URL
+  TEXT
 }
 
 enum DeliverableStatus {
@@ -583,15 +590,17 @@ enum DeliverableStatus {
 }
 
 model DeliverableTemplate {
-  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  id          String                 @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String
-  type        DeliverableType
-  hackathonId String?          @db.ObjectId
+  type        DeliverableType        @default(CUSTOM)
+  customType  String?                // Custom type name when type is CUSTOM
+  contentType DeliverableContentType @default(TEXT)
+  hackathonId String?                @db.ObjectId
   dueDate     DateTime
-  required    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  required    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
   
   hackathon    Hackathon?       @relation(fields: [hackathonId], references: [id], onDelete: SetNull)
   deliverables TeamDeliverable[]
@@ -600,17 +609,19 @@ model DeliverableTemplate {
 }
 
 model TeamDeliverable {
-  id           String             @id @default(auto()) @map("_id") @db.ObjectId
-  teamId       String             @db.ObjectId
-  templateId   String             @db.ObjectId
+  id           String                 @id @default(auto()) @map("_id") @db.ObjectId
+  teamId       String                 @db.ObjectId
+  templateId   String                 @db.ObjectId
   type         DeliverableType
-  fileUrl      String
+  customType   String?                // Custom type name when type is CUSTOM
+  contentType  DeliverableContentType @default(TEXT)
+  content      String                 // Can be file URL, external URL, or text content
   description  String?
-  status       DeliverableStatus  @default(PENDING)
+  status       DeliverableStatus      @default(PENDING)
   feedback     String?
-  submittedAt  DateTime           @default(now())
+  submittedAt  DateTime               @default(now())
   reviewedAt   DateTime?
-  reviewedBy   String?            @db.ObjectId
+  reviewedBy   String?                @db.ObjectId
   
   team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
   template     DeliverableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
