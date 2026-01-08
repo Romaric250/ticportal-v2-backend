@@ -16,6 +16,7 @@ import teamRoutes from "./modules/teams/routes";
 import hackathonRoutes from "./modules/hackathons/routes";
 import defaultsRoutes from "./modules/defaults/routes";
 import notificationRoutes from "./modules/notifications/routes";
+import adminRoutes from "./modules/admin/routes";
 import { authenticate } from "./shared/middleware/auth";
 import { generalRateLimit } from "./shared/middleware/rateLimit";
 import { uploadRouter } from "./config/uploadthing";
@@ -102,6 +103,7 @@ app.use("/api/squads", squadRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/hackathons", hackathonRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({
