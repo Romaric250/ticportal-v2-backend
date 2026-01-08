@@ -451,4 +451,164 @@ export class AdminService {
       where: { id: teamId },
     });
   }
+
+  /**
+   * Get team members
+   */
+  static async getTeamMembers(teamId: string) {
+    const team = await db.team.findUnique({
+      where: { id: teamId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                profilePhoto: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    return team.members;
+  }
+
+  /**
+   * Add member to team
+   */
+  static async addTeamMember(teamId: string, userId: string, role: string = "MEMBER") {
+    // Check if team exists
+    const team = await db.team.findUnique({
+      where: { id: teamId },
+    });
+
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    // Check if user exists
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if already a member
+    const existingMember = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (existingMember) {
+      throw new Error("User is already a team member");
+    }
+
+    // Add member
+    const member = await db.teamMember.create({
+      data: {
+        teamId,
+        userId,
+        role,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            profilePhoto: true,
+          },
+        },
+      },
+    });
+
+    return member;
+  }
+
+  /**
+   * Remove member from team
+   */
+  static async removeTeamMember(teamId: string, userId: string) {
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new Error("Team member not found");
+    }
+
+    await db.teamMember.delete({
+      where: {
+        id: member.id,
+      },
+    });
+  }
+
+  /**
+   * Update team member role
+   */
+  static async updateTeamMemberRole(teamId: string, userId: string, role: string) {
+    const member = await db.teamMember.findFirst({
+      where: {
+        teamId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new Error("Team member not found");
+    }
+
+    const updatedMember = await db.teamMember.update({
+      where: {
+        id: member.id,
+      },
+      data: {
+        role,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            profilePhoto: true,
+          },
+        },
+      },
+    });
+
+    return updatedMember;
+  }
+
+  /**
+   * Get team submissions/projects
+   */
+  static async getTeamSubmissions(teamId: string) {
+    const submissions = await db.submission.findMany({
+      where: { teamId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return submissions;
+  }
 }

@@ -325,4 +325,129 @@ router.put("/teams/:teamId", AdminController.updateTeam);
  */
 router.delete("/teams/:teamId", AdminController.deleteTeam);
 
+/**
+ * @swagger
+ * /api/admin/teams/{teamId}/members:
+ *   get:
+ *     tags: [Admin - Teams]
+ *     summary: Get team members
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of team members
+ */
+router.get("/teams/:teamId/members", AdminController.getTeamMembers);
+
+/**
+ * @swagger
+ * /api/admin/teams/{teamId}/members:
+ *   post:
+ *     tags: [Admin - Teams]
+ *     summary: Add member to team
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 default: MEMBER
+ *     responses:
+ *       201:
+ *         description: Member added successfully
+ */
+router.post("/teams/:teamId/members", AdminController.addTeamMember);
+
+/**
+ * @swagger
+ * /api/admin/teams/{teamId}/members/{userId}:
+ *   put:
+ *     tags: [Admin - Teams]
+ *     summary: Update team member role
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - role
+ *             properties:
+ *               role:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Member role updated
+ */
+router.put("/teams/:teamId/members/:userId", AdminController.updateTeamMemberRole);
+
+/**
+ * @swagger
+ * /api/admin/teams/{teamId}/members/{userId}:
+ *   delete:
+ *     tags: [Admin - Teams]
+ *     summary: Remove member from team
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Member removed successfully
+ */
+router.delete("/teams/:teamId/members/:userId", AdminController.removeTeamMember);
+
+/**
+ * @swagger
+ * /api/admin/teams/{teamId}/submissions:
+ *   get:
+ *     tags: [Admin - Teams]
+ *     summary: Get team submissions
+ *     parameters:
+ *       - in: path
+ *         name: teamId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of submissions
+ */
+router.get("/teams/:teamId/submissions", AdminController.getTeamSubmissions);
+
 export default router;

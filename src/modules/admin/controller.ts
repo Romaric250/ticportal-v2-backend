@@ -337,4 +337,167 @@ export class AdminController {
       });
     }
   }
+
+  /**
+   * GET /api/admin/teams/:teamId/members
+   */
+  static async getTeamMembers(req: Request, res: Response) {
+    try {
+      const { teamId } = req.params;
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID is required",
+        });
+      }
+
+      const members = await AdminService.getTeamMembers(teamId);
+
+      res.json({
+        success: true,
+        data: members,
+      });
+    } catch (error: any) {
+      const statusCode = error.message === "Team not found" ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to get team members",
+      });
+    }
+  }
+
+  /**
+   * POST /api/admin/teams/:teamId/members
+   */
+  static async addTeamMember(req: Request, res: Response) {
+    try {
+      const { teamId } = req.params;
+      const { userId, role } = req.body;
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID is required",
+        });
+      }
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required",
+        });
+      }
+
+      const member = await AdminService.addTeamMember(teamId, userId, role);
+
+      res.status(201).json({
+        success: true,
+        data: member,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message.includes("not found") ? 404 :
+        error.message.includes("already a member") ? 409 : 500;
+      
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to add team member",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/admin/teams/:teamId/members/:userId
+   */
+  static async removeTeamMember(req: Request, res: Response) {
+    try {
+      const { teamId, userId } = req.params;
+
+      if (!teamId || !userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID and User ID are required",
+        });
+      }
+
+      await AdminService.removeTeamMember(teamId, userId);
+
+      res.json({
+        success: true,
+        message: "Team member removed successfully",
+      });
+    } catch (error: any) {
+      const statusCode = error.message.includes("not found") ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to remove team member",
+      });
+    }
+  }
+
+  /**
+   * PUT /api/admin/teams/:teamId/members/:userId
+   */
+  static async updateTeamMemberRole(req: Request, res: Response) {
+    try {
+      const { teamId, userId } = req.params;
+      const { role } = req.body;
+
+      if (!teamId || !userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID and User ID are required",
+        });
+      }
+
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: "Role is required",
+        });
+      }
+
+      const member = await AdminService.updateTeamMemberRole(teamId, userId, role);
+
+      res.json({
+        success: true,
+        data: member,
+      });
+    } catch (error: any) {
+      const statusCode = error.message.includes("not found") ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to update team member role",
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/teams/:teamId/submissions
+   */
+  static async getTeamSubmissions(req: Request, res: Response) {
+    try {
+      const { teamId } = req.params;
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID is required",
+        });
+      }
+
+      const submissions = await AdminService.getTeamSubmissions(teamId);
+
+      res.json({
+        success: true,
+        data: submissions,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get team submissions",
+      });
+    }
+  }
 }
