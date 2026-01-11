@@ -351,7 +351,7 @@ export class DeliverableController {
   }
 
   /**
-   * GET /api/teams/:teamId/deliverables
+   * GET /api/deliverables/team/:teamId
    */
   static async getTeamDeliverables(req: Request, res: Response) {
     try {
@@ -374,6 +374,127 @@ export class DeliverableController {
       res.status(500).json({
         success: false,
         message: error.message || "Failed to get team deliverables",
+      });
+    }
+  }
+
+  /**
+   * GET /api/deliverables/:deliverableId
+   */
+  static async getDeliverableById(req: Request, res: Response) {
+    try {
+      const { deliverableId } = req.params;
+      const { teamId } = req.query;
+
+      if (!deliverableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Deliverable ID is required",
+        });
+      }
+
+      const deliverable = await DeliverableService.getDeliverableById(
+        deliverableId,
+        teamId as string
+      );
+
+      res.json({
+        success: true,
+        data: deliverable,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message.includes("not found") ? 404 :
+        error.message.includes("Unauthorized") ? 403 : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to get deliverable",
+      });
+    }
+  }
+
+  /**
+   * POST /api/deliverables/:deliverableId/submit
+   */
+  static async submitDeliverable(req: Request, res: Response) {
+    try {
+      const { deliverableId } = req.params;
+      const { teamId, content, contentType, description } = req.body;
+
+      if (!deliverableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Deliverable ID is required",
+        });
+      }
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID is required",
+        });
+      }
+
+      if (!content) {
+        return res.status(400).json({
+          success: false,
+          message: "Content is required",
+        });
+      }
+
+      const deliverable = await DeliverableService.submitDeliverable({
+        deliverableId,
+        teamId,
+        content,
+        contentType,
+        description,
+      });
+
+      res.json({
+        success: true,
+        message: "Deliverable submitted successfully",
+        data: deliverable,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message.includes("not found") ? 404 :
+        error.message.includes("Unauthorized") ? 403 :
+        error.message.includes("Deadline") ? 400 :
+        error.message.includes("approved") ? 400 : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to submit deliverable",
+      });
+    }
+  }
+
+  /**
+   * GET /api/deliverables/:deliverableId/deadline
+   */
+  static async checkDeadline(req: Request, res: Response) {
+    try {
+      const { deliverableId } = req.params;
+
+      if (!deliverableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Deliverable ID is required",
+        });
+      }
+
+      const deadline = await DeliverableService.checkDeadline(deliverableId);
+
+      res.json({
+        success: true,
+        data: deadline,
+      });
+    } catch (error: any) {
+      const statusCode = error.message.includes("not found") ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to check deadline",
       });
     }
   }

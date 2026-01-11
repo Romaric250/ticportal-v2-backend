@@ -98,6 +98,29 @@ export class DeliverableService {
       },
     });
 
+    // Auto-create team deliverables for all teams
+    const teams = await db.team.findMany({
+      select: { id: true },
+    });
+
+    // Create empty deliverable entry for each team
+    const teamDeliverables = teams.map((team) => ({
+      teamId: team.id,
+      templateId: template.id,
+      type: template.type,
+      customType: (template as any).customType || null,
+      contentType: (template as any).contentType || "TEXT",
+      content: "", // Empty initially, teams will fill it
+      status: DeliverableStatus.PENDING,
+    }));
+
+    // Bulk create team deliverables
+    if (teamDeliverables.length > 0) {
+      await db.teamDeliverable.createMany({
+        data: teamDeliverables as any,
+      });
+    }
+
     // TODO: Notify all teams about new requirement
 
     return template;
@@ -349,5 +372,149 @@ export class DeliverableService {
     });
 
     return deliverables;
+  }
+
+  /**
+   * Submit/Update deliverable (Student/Team action)
+   */
+  static async submitDeliverable(data: {
+    deliverableId: string;
+    teamId: string;
+    content: string;
+    contentType?: string;
+    description?: string;
+  }) {
+    // Get the deliverable
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: data.deliverableId },
+      include: {
+        template: true,
+        team: true,
+      },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    // Check if deliverable belongs to the team
+    if (deliverable.teamId !== data.teamId) {
+      throw new Error("Unauthorized: This deliverable belongs to another team");
+    }
+
+    // Check if deadline has passed
+    const now = new Date();
+    if (deliverable.template.dueDate < now) {
+      throw new Error("Deadline has passed. Cannot submit or update.");
+    }
+
+    // Check if already approved
+    if (deliverable.status === DeliverableStatus.APPROVED) {
+      throw new Error("Cannot update approved deliverable");
+    }
+
+    // Determine if this is a resubmission after rejection
+    const wasRejected = deliverable.status === DeliverableStatus.REJECTED;
+    const isFirstSubmission = !deliverable.content || deliverable.content.length === 0;
+
+    // Update the deliverable
+    const updated = await db.teamDeliverable.update({
+      where: { id: data.deliverableId },
+      data: {
+        content: data.content,
+        contentType: (data.contentType as any) || deliverable.contentType,
+        description: data.description || deliverable.description,
+        status: DeliverableStatus.PENDING, // Always reset to pending on update
+        submittedAt: new Date(), // Update submission time
+        reviewedAt: wasRejected ? null : deliverable.reviewedAt, // Clear review if was rejected
+        reviewedBy: wasRejected ? null : deliverable.reviewedBy,
+        feedback: wasRejected ? null : deliverable.feedback, // Clear feedback if was rejected
+      },
+      include: {
+        template: true,
+        team: true,
+      },
+    });
+
+    // TODO: Notify team members
+    // TODO: Award 15 points to team members (first time only)
+
+    return updated;
+  }
+
+  /**
+   * Get deliverable by ID (for viewing before submission)
+   */
+  static async getDeliverableById(deliverableId: string, teamId?: string) {
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: deliverableId },
+      include: {
+        template: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        reviewer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    // If teamId is provided, verify ownership
+    if (teamId && deliverable.teamId !== teamId) {
+      throw new Error("Unauthorized: This deliverable belongs to another team");
+    }
+
+    return deliverable;
+  }
+
+  /**
+   * Check if deadline has passed
+   */
+  static async checkDeadline(deliverableId: string): Promise<{
+    passed: boolean;
+    dueDate: Date;
+    timeRemaining?: string;
+  }> {
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: deliverableId },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    const now = new Date();
+    const dueDate = deliverable.template.dueDate;
+    const passed = dueDate < now;
+
+    if (!passed) {
+      const diff = dueDate.getTime() - now.getTime();
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      
+      let timeRemaining = "";
+      if (days > 0) {
+        timeRemaining = `${days} day${days > 1 ? 's' : ''} ${hours} hour${hours > 1 ? 's' : ''}`;
+      } else {
+        timeRemaining = `${hours} hour${hours > 1 ? 's' : ''}`;
+      }
+
+      return { passed: false, dueDate, timeRemaining };
+    }
+
+    return { passed: true, dueDate };
   }
 }

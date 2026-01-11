@@ -185,7 +185,7 @@ interface TemplateForm {
   type: 'PROPOSAL' | 'PROTOTYPE' | 'FINAL_SUBMISSION' | 'DOCUMENTATION' | 'CUSTOM';
   customType?: string;
   contentType: 'TEXT' | 'FILE' | 'URL';
-  dueDate: Date;
+  dueDate: Date;r
   required: boolean;
 }
 
