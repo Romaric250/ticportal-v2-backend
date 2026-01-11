@@ -1,6 +1,6 @@
 # 📋 Deliverables API - Quick Reference
 
-## Student/Team Routes (5 endpoints)
+## Student/Team Routes (6 endpoints)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -8,6 +8,7 @@
 | GET | `/api/deliverables/team/:teamId` | View team's deliverables |
 | GET | `/api/deliverables/:deliverableId` | View single deliverable |
 | POST | `/api/deliverables/:deliverableId/submit` | Submit or update |
+| DELETE | `/api/deliverables/:deliverableId` | Delete submission |
 | GET | `/api/deliverables/:deliverableId/deadline` | Check deadline status |
 
 ---
@@ -44,7 +45,15 @@ POST /api/deliverables/DELIVERABLE_ID/submit
 }
 ```
 
-### 5. Check Deadline
+### 5. Delete Submission
+```bash
+DELETE /api/deliverables/DELIVERABLE_ID
+{
+  "teamId": "TEAM_ID"
+}
+```
+
+### 6. Check Deadline
 ```bash
 GET /api/deliverables/DELIVERABLE_ID/deadline
 ```
@@ -54,14 +63,17 @@ GET /api/deliverables/DELIVERABLE_ID/deadline
 ## Rules
 
 ✅ Can submit multiple times before deadline  
+✅ Can delete before deadline  
 ✅ Cannot submit after deadline  
+✅ Cannot delete after deadline  
 ✅ Cannot update approved deliverables  
+✅ Cannot delete approved deliverables  
 ✅ Updates reset status to PENDING  
-✅ Must be team member to submit  
+✅ Must be team member to submit/delete  
 
 ---
 
-## Admin Routes (10 endpoints)
+## Admin Routes (12 endpoints)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -73,6 +85,7 @@ GET /api/deliverables/DELIVERABLE_ID/deadline
 | POST | `/api/admin/deliverables/:teamId` | Upload for team |
 | POST | `/api/admin/deliverables/:id/approve` | Approve submission |
 | POST | `/api/admin/deliverables/:id/reject` | Reject with feedback |
+| DELETE | `/api/admin/deliverables/:id` | Delete submission |
 
 ---
 
@@ -90,10 +103,15 @@ GET /api/deliverables/DELIVERABLE_ID/deadline
 
 ```
 PENDING → (admin reviews) → APPROVED/REJECTED
-    ↑
-    └─ (team updates) ─ resets to PENDING
+    ↑                            ↓
+    └─────── (team updates/resubmits)
+
+DELETE → Resets to PENDING with empty content
 ```
 
 ---
 
-**See `docs/STUDENT_DELIVERABLES.md` for full documentation**
+**See full documentation:**
+- `docs/STUDENT_DELIVERABLES.md` - Complete guide
+- `docs/DELIVERABLES_DELETE.md` - Delete feature
+- `docs/DELIVERABLES_REJECTION_FLOW.md` - Rejection handling

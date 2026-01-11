@@ -129,23 +129,69 @@ export class DeliverableService {
   /**
    * Update deliverable template
    */
-  static async updateTemplate(
-    templateId: string,
-    data: {
-      title?: string;
-      description?: string;
-      dueDate?: Date;
-      required?: boolean;
-    }
-  ) {
-    const template = await db.deliverableTemplate.update({
+  static async updateTemplate(templateId: string, data: {
+    title?: string;
+    description?: string;
+    type?: DeliverableType;
+    customType?: string;
+    contentType?: string;
+    dueDate?: Date;
+    required?: boolean;
+  }) {
+    const template = await db.deliverableTemplate.findUnique({
       where: { id: templateId },
-      data,
+      include: {
+        deliverables: {
+          where: {
+            content: {
+              not: "", // Check if any team has submitted content
+            },
+          },
+        },
+      },
     });
 
-    // TODO: Notify teams about changes
+    if (!template) {
+      throw new Error("Template not found");
+    }
 
-    return template;
+    // Check if contentType is being changed and there are submissions
+    if (data.contentType && data.contentType !== (template as any).contentType) {
+      if (template.deliverables.length > 0) {
+        throw new Error("Cannot change content type - teams have already submitted content");
+      }
+    }
+
+    const updated = await db.deliverableTemplate.update({
+      where: { id: templateId },
+      data: {
+        ...(data.title && { title: data.title }),
+        ...(data.description && { description: data.description }),
+        ...(data.type && { type: data.type }),
+        ...(data.customType !== undefined && { customType: data.customType }),
+        ...(data.contentType && { contentType: data.contentType as any }),
+        ...(data.dueDate && { dueDate: data.dueDate }),
+        ...(data.required !== undefined && { required: data.required }),
+      },
+      include: {
+        hackathon: true,
+      },
+    });
+
+    // If contentType changed, update all empty team deliverables
+    if (data.contentType && data.contentType !== (template as any).contentType) {
+      await db.teamDeliverable.updateMany({
+        where: {
+          templateId: templateId,
+          content: "", // Only update empty submissions
+        },
+        data: {
+          contentType: data.contentType as any,
+        },
+      });
+    }
+
+    return updated;
   }
 
   /**
@@ -298,18 +344,35 @@ export class DeliverableService {
   /**
    * Approve deliverable
    */
-  static async approveDeliverable(deliverableId: string, reviewerId: string) {
-    const deliverable = await db.teamDeliverable.update({
+  static async approveDeliverable(deliverableId: string, reviewerId?: string) {
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: deliverableId },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    // Validate reviewer ID (must be valid MongoDB ObjectID or null)
+    let validReviewerId: string | null = null;
+    if (reviewerId && reviewerId.length === 24) {
+      // MongoDB ObjectID is exactly 24 characters (12 bytes hex)
+      validReviewerId = reviewerId;
+    }
+
+    const approved = await db.teamDeliverable.update({
       where: { id: deliverableId },
       data: {
         status: DeliverableStatus.APPROVED,
         reviewedAt: new Date(),
-        reviewedBy: reviewerId,
+        reviewedBy: validReviewerId,
       },
       include: {
         team: {
-          include: {
-            members: true,
+          select: {
+            id: true,
+            name: true,
+            school: true,
           },
         },
         template: true,
@@ -317,40 +380,61 @@ export class DeliverableService {
     });
 
     // TODO: Notify team members
-    // TODO: Award 25 points to all team members
-    // TODO: Check if submitted early (>3 days before) and award +10 bonus
+    // TODO: Award 25 points to team members
 
-    return deliverable;
+    return approved;
   }
 
   /**
-   * Reject deliverable
+   * Reject deliverable with feedback
    */
   static async rejectDeliverable(
     deliverableId: string,
-    reviewerId: string,
-    reason: string
+    reason: string,
+    reviewerId?: string
   ) {
-    const deliverable = await db.teamDeliverable.update({
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: deliverableId },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    if (!reason || reason.trim().length === 0) {
+      throw new Error("Rejection reason is required");
+    }
+
+    // Validate reviewer ID (must be valid MongoDB ObjectID or null)
+    let validReviewerId: string | null = null;
+    if (reviewerId && reviewerId.length === 24) {
+      // MongoDB ObjectID is exactly 24 characters (12 bytes hex)
+      validReviewerId = reviewerId;
+    }
+
+    const rejected = await db.teamDeliverable.update({
       where: { id: deliverableId },
       data: {
         status: DeliverableStatus.REJECTED,
         feedback: reason,
         reviewedAt: new Date(),
-        reviewedBy: reviewerId,
+        reviewedBy: validReviewerId,
       },
       include: {
         team: {
-          include: {
-            members: true,
+          select: {
+            id: true,
+            name: true,
+            school: true,
           },
         },
+        template: true,
       },
     });
 
-    // TODO: Notify team members with feedback
+    // TODO: Notify team members about rejection
 
-    return deliverable;
+    return rejected;
   }
 
   /**
@@ -418,6 +502,7 @@ export class DeliverableService {
     const isFirstSubmission = !deliverable.content || deliverable.content.length === 0;
 
     // Update the deliverable
+    // Update the deliverable
     const updated = await db.teamDeliverable.update({
       where: { id: data.deliverableId },
       data: {
@@ -432,7 +517,13 @@ export class DeliverableService {
       },
       include: {
         template: true,
-        team: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            school: true,
+          },
+        },
       },
     });
 
@@ -516,5 +607,72 @@ export class DeliverableService {
     }
 
     return { passed: true, dueDate };
+  }
+
+  /**
+   * Delete deliverable submission (reset to empty)
+   * Admin or team can delete before deadline
+   */
+  static async deleteDeliverableSubmission(data: {
+    deliverableId: string;
+    teamId?: string;
+    isAdmin?: boolean;
+  }) {
+    // Get the deliverable
+    const deliverable = await db.teamDeliverable.findUnique({
+      where: { id: data.deliverableId },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!deliverable) {
+      throw new Error("Deliverable not found");
+    }
+
+    // If not admin, check team ownership
+    if (!data.isAdmin && data.teamId && deliverable.teamId !== data.teamId) {
+      throw new Error("Unauthorized: This deliverable belongs to another team");
+    }
+
+    // If not admin, check deadline and approval status
+    if (!data.isAdmin) {
+      const now = new Date();
+      if (deliverable.template.dueDate < now) {
+        throw new Error("Deadline has passed. Cannot delete submission.");
+      }
+      
+      // Students cannot delete approved deliverables
+      if (deliverable.status === DeliverableStatus.APPROVED) {
+        throw new Error("Cannot delete approved deliverable");
+      }
+    }
+
+    // Admin can delete any deliverable (even approved ones)
+    // Reset the deliverable to empty state (don't actually delete the record)
+    const reset = await db.teamDeliverable.update({
+      where: { id: data.deliverableId },
+      data: {
+        content: "",
+        description: null,
+        status: DeliverableStatus.PENDING,
+        feedback: null,
+        reviewedAt: null,
+        reviewedBy: null,
+        submittedAt: new Date(), // Update timestamp
+      },
+      include: {
+        template: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            school: true,
+          },
+        },
+      },
+    });
+
+    return reset;
   }
 }

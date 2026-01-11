@@ -244,19 +244,13 @@ export class DeliverableController {
   static async approveDeliverable(req: Request, res: Response) {
     try {
       const { deliverableId } = req.params;
-      const reviewerId = (req as any).user?.id; // Get from auth middleware
+      // Reviewer ID is optional - will be from auth when implemented
+      const reviewerId = (req as any).user?.id;
 
       if (!deliverableId) {
         return res.status(400).json({
           success: false,
           message: "Deliverable ID is required",
-        });
-      }
-
-      if (!reviewerId) {
-        return res.status(401).json({
-          success: false,
-          message: "Reviewer ID not found",
         });
       }
 
@@ -271,7 +265,8 @@ export class DeliverableController {
         data: deliverable,
       });
     } catch (error: any) {
-      res.status(500).json({
+      const statusCode = error.message.includes("not found") ? 404 : 500;
+      res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to approve deliverable",
       });
@@ -285,7 +280,8 @@ export class DeliverableController {
     try {
       const { deliverableId } = req.params;
       const { reason } = req.body;
-      const reviewerId = (req as any).user?.id; // Get from auth middleware
+      // Reviewer ID is optional - will be from auth when implemented
+      const reviewerId = (req as any).user?.id;
 
       if (!deliverableId) {
         return res.status(400).json({
@@ -301,17 +297,10 @@ export class DeliverableController {
         });
       }
 
-      if (!reviewerId) {
-        return res.status(401).json({
-          success: false,
-          message: "Reviewer ID not found",
-        });
-      }
-
       const deliverable = await DeliverableService.rejectDeliverable(
         deliverableId,
-        reviewerId,
-        reason
+        reason,
+        reviewerId
       );
 
       res.json({
@@ -320,7 +309,8 @@ export class DeliverableController {
         data: deliverable,
       });
     } catch (error: any) {
-      res.status(500).json({
+      const statusCode = error.message.includes("not found") ? 404 : 500;
+      res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to reject deliverable",
       });
@@ -495,6 +485,89 @@ export class DeliverableController {
       res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to check deadline",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/deliverables/:deliverableId (Student/Team)
+   */
+  static async deleteSubmission(req: Request, res: Response) {
+    try {
+      const { deliverableId } = req.params;
+      const { teamId } = req.body;
+
+      if (!deliverableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Deliverable ID is required",
+        });
+      }
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Team ID is required",
+        });
+      }
+
+      const deliverable = await DeliverableService.deleteDeliverableSubmission({
+        deliverableId,
+        teamId,
+        isAdmin: false,
+      });
+
+      res.json({
+        success: true,
+        message: "Submission deleted successfully",
+        data: deliverable,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message.includes("not found") ? 404 :
+        error.message.includes("Unauthorized") ? 403 :
+        error.message.includes("Deadline") ? 400 :
+        error.message.includes("approved") ? 400 : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to delete submission",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/admin/deliverables/:deliverableId (Admin)
+   */
+  static async adminDeleteSubmission(req: Request, res: Response) {
+    try {
+      const { deliverableId } = req.params;
+
+      if (!deliverableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Deliverable ID is required",
+        });
+      }
+
+      const deliverable = await DeliverableService.deleteDeliverableSubmission({
+        deliverableId,
+        isAdmin: true,
+      });
+
+      res.json({
+        success: true,
+        message: "Submission deleted successfully",
+        data: deliverable,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message.includes("not found") ? 404 :
+        error.message.includes("approved") ? 400 : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to delete submission",
       });
     }
   }

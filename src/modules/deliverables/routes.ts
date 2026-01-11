@@ -20,12 +20,14 @@ router.get("/admin/deliverables", DeliverableController.getDeliverables);
 router.post("/admin/deliverables/:teamId", DeliverableController.uploadDeliverable);
 router.post("/admin/deliverables/:deliverableId/approve", DeliverableController.approveDeliverable);
 router.post("/admin/deliverables/:deliverableId/reject", DeliverableController.rejectDeliverable);
+router.delete("/admin/deliverables/:deliverableId", DeliverableController.adminDeleteSubmission);
 
 // Admin - Deliverable Submissions Management (Old Routes - For Backward Compatibility)
 router.get("/admin/teams/deliverables", DeliverableController.getDeliverables);
 router.post("/admin/teams/:teamId/deliverables", DeliverableController.uploadDeliverable);
 router.post("/admin/teams/deliverables/:deliverableId/approve", DeliverableController.approveDeliverable);
 router.post("/admin/teams/deliverables/:deliverableId/reject", DeliverableController.rejectDeliverable);
+router.delete("/admin/teams/deliverables/:deliverableId", DeliverableController.adminDeleteSubmission);
 
 // ==================== STUDENT/TEAM ROUTES ====================
 
@@ -40,6 +42,9 @@ router.get("/deliverables/:deliverableId", DeliverableController.getDeliverableB
 
 // Submit or update deliverable (before deadline)
 router.post("/deliverables/:deliverableId/submit", DeliverableController.submitDeliverable);
+
+// Delete submission (reset to empty)
+router.delete("/deliverables/:deliverableId", DeliverableController.deleteSubmission);
 
 // Check if deadline has passed
 router.get("/deliverables/:deliverableId/deadline", DeliverableController.checkDeadline);

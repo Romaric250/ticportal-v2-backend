@@ -583,7 +583,12 @@ enum DeliverableContentType {
   TEXT
 }
 
-enum DeliverableStatus {
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+}
+
+enum ReviewStatus {
   PENDING
   APPROVED
   REJECTED
@@ -609,19 +614,20 @@ model DeliverableTemplate {
 }
 
 model TeamDeliverable {
-  id           String                 @id @default(auto()) @map("_id") @db.ObjectId
-  teamId       String                 @db.ObjectId
-  templateId   String                 @db.ObjectId
-  type         DeliverableType
-  customType   String?                // Custom type name when type is CUSTOM
-  contentType  DeliverableContentType @default(TEXT)
-  content      String                 // Can be file URL, external URL, or text content
-  description  String?
-  status       DeliverableStatus      @default(PENDING)
-  feedback     String?
-  submittedAt  DateTime               @default(now())
-  reviewedAt   DateTime?
-  reviewedBy   String?                @db.ObjectId
+  id               String                 @id @default(auto()) @map("_id") @db.ObjectId
+  teamId           String                 @db.ObjectId
+  templateId       String                 @db.ObjectId
+  type             DeliverableType
+  customType       String?                // Custom type name when type is CUSTOM
+  contentType      DeliverableContentType @default(TEXT)
+  content          String                 // Can be file URL, external URL, or text content
+  description      String?
+  submissionStatus SubmissionStatus       @default(NOT_SUBMITTED)
+  reviewStatus     ReviewStatus           @default(PENDING)
+  feedback         String?
+  submittedAt      DateTime               @default(now())
+  reviewedAt       DateTime?
+  reviewedBy       String?                @db.ObjectId
   
   team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
   template     DeliverableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
