@@ -22,6 +22,8 @@ import { generalRateLimit } from "./shared/middleware/rateLimit";
 import { uploadRouter } from "./config/uploadthing";
 import deliverableRoutes from "./modules/deliverables/routes";
 import learningPathRoutes from "./modules/learning-paths/routes";
+import submissionRoutes from "./modules/submission/routes";
+import uploadRoutes from "./modules/upload/routes";
 
 const app = express();
 
@@ -108,6 +110,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", deliverableRoutes);
 app.use("/api", learningPathRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/f", uploadRoutes); // Global file upload
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({
@@ -164,6 +168,12 @@ app.use(
     });
   },
 );
+
+const PORT = env.PORT || 5000;
+
+app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+});
 
 export default app;
 

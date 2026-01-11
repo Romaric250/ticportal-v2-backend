@@ -1,7 +1,17 @@
 import { Router } from "express";
 import { DeliverableController } from "./controller";
+import { DeliverableFileController } from "./file-controller";
+import multer from "multer";
 
 const router = Router();
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 // TEMPORARY: No authentication for testing
 // TODO: Add authentication middleware
@@ -48,5 +58,24 @@ router.delete("/deliverables/:deliverableId", DeliverableController.deleteSubmis
 
 // Check if deadline has passed
 router.get("/deliverables/:deliverableId/deadline", DeliverableController.checkDeadline);
+
+// ============================================
+// FILE UPLOAD ROUTES
+// ============================================
+
+// General file upload endpoint
+router.post("/deliverables/upload", upload.single("file"), DeliverableFileController.uploadFile);
+
+// Student: Upload file and submit deliverable in one request
+router.post("/deliverables/:deliverableId/upload-and-submit", 
+  upload.single("file"), 
+  DeliverableFileController.uploadAndSubmit
+);
+
+// Admin: Upload file for team
+router.post("/admin/deliverables/:teamId/upload-and-submit", 
+  upload.single("file"), 
+  DeliverableFileController.adminUploadAndSubmit
+);
 
 export default router;

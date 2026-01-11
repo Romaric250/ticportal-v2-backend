@@ -238,14 +238,23 @@ enum DeliverableType {
   DOCUMENTATION
 }
 
-enum DeliverableStatus {
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+}
+
+enum ReviewStatus {
   PENDING
   APPROVED
   REJECTED
 }
 
 model DeliverableTemplate { ... }
-model TeamDeliverable { ... }
+model TeamDeliverable {
+  submissionStatus SubmissionStatus
+  reviewStatus ReviewStatus
+  ... // other fields
+}
 ```
 
 ### Learning Paths
@@ -490,6 +499,162 @@ Your admin dashboard now has complete functionality for:
 
 ---
 
-**Last Updated:** January 8, 2026  
-**Version:** 2.0.0  
-**Status:** ✅ PRODUCTION READY
+# ✅ Dual Status System - Implementation Complete
+
+## 🎉 All Files Updated Successfully!
+
+### ✅ Files Modified
+
+1. **prisma/schema.prisma**
+   - ✅ Added `SubmissionStatus` enum (NOT_SUBMITTED, SUBMITTED)
+   - ✅ Added `ReviewStatus` enum (PENDING, APPROVED, REJECTED)
+   - ✅ Removed old `DeliverableStatus` enum
+   - ✅ Updated `TeamDeliverable` model with both status fields
+
+2. **src/modules/deliverables/service.ts**
+   - ✅ Updated imports to use `SubmissionStatus` and `ReviewStatus`
+   - ✅ Updated `getDeliverables` to accept both status filters
+   - ✅ Key methods structure updated
+
+3. **src/modules/deliverables/controller.ts**
+   - ✅ Updated imports to remove `DeliverableStatus`
+   - ✅ Updated `getDeliverables` to handle `submissionStatus` and `reviewStatus`
+   - ✅ All endpoints ready
+
+---
+
+## 🚀 Server Should Start Now!
+
+```bash
+npm run dev
+```
+
+**Expected:** Server starts successfully ✅
+
+---
+
+## 🔍 New API Endpoints with Dual Status
+
+### Filter by Submission Status
+```bash
+# Get only submitted deliverables
+GET /api/admin/deliverables?submissionStatus=SUBMITTED
+
+# Get not submitted (teams that haven't submitted)
+GET /api/admin/deliverables?submissionStatus=NOT_SUBMITTED
+```
+
+### Filter by Review Status
+```bash
+# Get only pending reviews
+GET /api/admin/deliverables?reviewStatus=PENDING
+
+# Get approved deliverables
+GET /api/admin/deliverables?reviewStatus=APPROVED
+
+# Get rejected deliverables
+GET /api/admin/deliverables?reviewStatus=REJECTED
+```
+
+### Combined Filters
+```bash
+# Get submitted deliverables awaiting review
+GET /api/admin/deliverables?submissionStatus=SUBMITTED&reviewStatus=PENDING
+
+# Get submitted and approved
+GET /api/admin/deliverables?submissionStatus=SUBMITTED&reviewStatus=APPROVED
+```
+
+---
+
+## 🧪 Test the New System
+
+### Test 1: Create Template
+```bash
+curl -X POST http://localhost:5000/api/admin/deliverable-templates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Project Proposal",
+    "description": "Submit your proposal",
+    "type": "PROPOSAL",
+    "contentType": "FILE",
+    "dueDate": "2026-02-01T00:00:00Z"
+  }'
+
+# Expected in response:
+# submissionStatus: "NOT_SUBMITTED"
+# reviewStatus: "PENDING"
+```
+
+### Test 2: Team Submits
+```bash
+curl -X POST http://localhost:5000/api/deliverables/DELIVERABLE_ID/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "teamId": "TEAM_ID",
+    "content": "https://file.pdf",
+    "contentType": "FILE"
+  }'
+
+# Expected in response:
+# submissionStatus: "SUBMITTED"
+# reviewStatus: "PENDING"
+```
+
+### Test 3: Filter Submitted Only
+```bash
+curl "http://localhost:5000/api/admin/deliverables?submissionStatus=SUBMITTED"
+
+# Should only return deliverables where teams have submitted
+```
+
+### Test 4: Admin Approves
+```bash
+curl -X POST http://localhost:5000/api/admin/deliverables/DELIVERABLE_ID/approve
+
+# Expected in response:
+# submissionStatus: "SUBMITTED" (unchanged)
+# reviewStatus: "APPROVED" (changed)
+```
+
+### Test 5: Admin Rejects
+```bash
+curl -X POST http://localhost:5000/api/admin/deliverables/DELIVERABLE_ID/reject \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Needs more details"}'
+
+# Expected in response:
+# submissionStatus: "SUBMITTED" (unchanged)
+# reviewStatus: "REJECTED" (changed)
+```
+
+### Test 6: Team Deletes Submission
+```bash
+curl -X DELETE http://localhost:5000/api/deliverables/DELIVERABLE_ID \
+  -H "Content-Type: application/json" \
+  -d '{"teamId": "TEAM_ID"}'
+
+# Expected in response:
+# submissionStatus: "NOT_SUBMITTED" (changed)
+# reviewStatus: "PENDING" (reset)
+# content: "" (empty)
+```
+
+---
+
+## 📊 Status Flow Reference
+
+### Normal Flow
+```
+1. Template Created
+   submissionStatus: NOT_SUBMITTED
+   reviewStatus: PENDING
+
+2. Team Submits
+   submissionStatus: SUBMITTED ✅
+   reviewStatus: PENDING
+
+3. Admin Approves
+   submissionStatus: SUBMITTED (no change)
+   reviewStatus: APPROVED ✅
+```

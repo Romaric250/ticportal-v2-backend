@@ -1,14 +1,18 @@
 import { db } from "../../config/database";
-import { DeliverableType, DeliverableStatus, DeliverableContentType } from "@prisma/client";
+import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
+/**
+ * Deliverable Service
+ * Handles all deliverable template and submission operations
+ */
 export class DeliverableService {
   /**
    * Get all deliverable templates
    */
   static async getTemplates(filters?: {
-    hackathonId?: string;
     type?: DeliverableType;
+    hackathonId?: string;
   }) {
     const where: Prisma.DeliverableTemplateWhereInput = {};
 
@@ -42,7 +46,7 @@ export class DeliverableService {
   }
 
   /**
-   * Get single template
+   * Get deliverable template by ID
    */
   static async getTemplateById(templateId: string) {
     const template = await db.deliverableTemplate.findUnique({
@@ -70,14 +74,14 @@ export class DeliverableService {
   }
 
   /**
-   * Create deliverable template
+   * Create deliverable template and auto-create empty deliverables for all teams
    */
   static async createTemplate(data: {
     title: string;
     description: string;
     type: DeliverableType;
     customType?: string;
-    contentType?: string; // Will be "FILE", "URL", or "TEXT"
+    contentType: string;
     hackathonId?: string;
     dueDate: Date;
     required?: boolean;
@@ -103,23 +107,23 @@ export class DeliverableService {
       select: { id: true },
     });
 
-    // Create empty deliverable entry for each team
-    const teamDeliverables = teams.map((team) => ({
-      teamId: team.id,
-      templateId: template.id,
-      type: template.type,
-      customType: (template as any).customType || null,
-      contentType: (template as any).contentType || "TEXT",
-      content: "", // Empty initially, teams will fill it
-      status: DeliverableStatus.PENDING,
-    }));
-
-    // Bulk create team deliverables
-    if (teamDeliverables.length > 0) {
-      await db.teamDeliverable.createMany({
-        data: teamDeliverables as any,
-      });
-    }
+    // Create empty deliverable for each team
+    const deliverables = await Promise.all(
+      teams.map((team) =>
+        db.teamDeliverable.create({
+          data: {
+            teamId: team.id,
+            templateId: template.id,
+            type: template.type,
+            customType: template.customType,
+            contentType: template.contentType,
+            content: "",
+            submissionStatus: SubmissionStatus.NOT_SUBMITTED,
+            reviewStatus: ReviewStatus.PENDING,
+          },
+        })
+      )
+    );
 
     // TODO: Notify all teams about new requirement
 
@@ -215,35 +219,30 @@ export class DeliverableService {
   }
 
   /**
-   * Get all team deliverables (submissions) with filters
+   * Get all deliverables (admin view)
    */
-  static async getDeliverables(filters: {
-    status?: DeliverableStatus;
-    hackathonId?: string;
+  static async getDeliverables(filters?: {
+    submissionStatus?: SubmissionStatus;
+    reviewStatus?: ReviewStatus;
     teamId?: string;
-    search?: string;
+    templateId?: string;
   }) {
-    const where: Prisma.TeamDeliverableWhereInput = {};
-
-    if (filters.status) {
-      where.status = filters.status;
+    const where: any = {};
+    
+    if (filters?.submissionStatus) {
+      where.submissionStatus = filters.submissionStatus;
     }
-
-    if (filters.teamId) {
+    
+    if (filters?.reviewStatus) {
+      where.reviewStatus = filters.reviewStatus;
+    }
+    
+    if (filters?.teamId) {
       where.teamId = filters.teamId;
     }
-
-    if (filters.hackathonId) {
-      where.template = {
-        hackathonId: filters.hackathonId,
-      };
-    }
-
-    if (filters.search) {
-      where.OR = [
-        { team: { name: { contains: filters.search, mode: "insensitive" } } },
-        { team: { projectTitle: { contains: filters.search, mode: "insensitive" } } },
-      ];
+    
+    if (filters?.templateId) {
+      where.templateId = filters.templateId;
     }
 
     const deliverables = await db.teamDeliverable.findMany({
@@ -253,20 +252,12 @@ export class DeliverableService {
           select: {
             id: true,
             name: true,
-            projectTitle: true,
+            school: true,
           },
         },
-        template: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            dueDate: true,
-          },
-        },
+        template: true,
         reviewer: {
           select: {
-            id: true,
             firstName: true,
             lastName: true,
           },
@@ -279,13 +270,13 @@ export class DeliverableService {
   }
 
   /**
-   * Upload deliverable for team (admin upload)
+   * Upload deliverable for a team (admin action)
    */
   static async uploadDeliverable(data: {
     teamId: string;
     templateId: string;
-    content: string; // File URL, external URL, or text content
-    contentType?: string; // "FILE", "URL", or "TEXT"
+    content: string;
+    contentType: string;
     description?: string;
   }) {
     // Check if team exists
@@ -323,14 +314,21 @@ export class DeliverableService {
         teamId: data.teamId,
         templateId: data.templateId,
         type: template.type,
-        customType: (template as any).customType || null,
-        contentType: (data.contentType as any) || (template as any).contentType || "TEXT",
+        customType: template.customType,
+        contentType: (data.contentType as any) || template.contentType,
         content: data.content,
         description: data.description || null,
-        status: DeliverableStatus.PENDING,
+        submissionStatus: SubmissionStatus.SUBMITTED,
+        reviewStatus: ReviewStatus.PENDING,
       },
       include: {
-        team: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            school: true,
+          },
+        },
         template: true,
       },
     });
@@ -363,7 +361,7 @@ export class DeliverableService {
     const approved = await db.teamDeliverable.update({
       where: { id: deliverableId },
       data: {
-        status: DeliverableStatus.APPROVED,
+        reviewStatus: ReviewStatus.APPROVED,
         reviewedAt: new Date(),
         reviewedBy: validReviewerId,
       },
@@ -415,7 +413,7 @@ export class DeliverableService {
     const rejected = await db.teamDeliverable.update({
       where: { id: deliverableId },
       data: {
-        status: DeliverableStatus.REJECTED,
+        reviewStatus: ReviewStatus.REJECTED,
         feedback: reason,
         reviewedAt: new Date(),
         reviewedBy: validReviewerId,
@@ -459,7 +457,7 @@ export class DeliverableService {
   }
 
   /**
-   * Submit/Update deliverable (Student/Team action)
+   * Submit or update deliverable (student action)
    */
   static async submitDeliverable(data: {
     deliverableId: string;
@@ -493,15 +491,13 @@ export class DeliverableService {
     }
 
     // Check if already approved
-    if (deliverable.status === DeliverableStatus.APPROVED) {
+    if (deliverable.reviewStatus === ReviewStatus.APPROVED) {
       throw new Error("Cannot update approved deliverable");
     }
 
     // Determine if this is a resubmission after rejection
-    const wasRejected = deliverable.status === DeliverableStatus.REJECTED;
-    const isFirstSubmission = !deliverable.content || deliverable.content.length === 0;
+    const wasRejected = deliverable.reviewStatus === ReviewStatus.REJECTED;
 
-    // Update the deliverable
     // Update the deliverable
     const updated = await db.teamDeliverable.update({
       where: { id: data.deliverableId },
@@ -509,11 +505,12 @@ export class DeliverableService {
         content: data.content,
         contentType: (data.contentType as any) || deliverable.contentType,
         description: data.description || deliverable.description,
-        status: DeliverableStatus.PENDING, // Always reset to pending on update
-        submittedAt: new Date(), // Update submission time
-        reviewedAt: wasRejected ? null : deliverable.reviewedAt, // Clear review if was rejected
+        submissionStatus: SubmissionStatus.SUBMITTED,
+        reviewStatus: ReviewStatus.PENDING,
+        submittedAt: new Date(),
+        reviewedAt: wasRejected ? null : deliverable.reviewedAt,
         reviewedBy: wasRejected ? null : deliverable.reviewedBy,
-        feedback: wasRejected ? null : deliverable.feedback, // Clear feedback if was rejected
+        feedback: wasRejected ? null : deliverable.feedback,
       },
       include: {
         template: true,
@@ -611,7 +608,6 @@ export class DeliverableService {
 
   /**
    * Delete deliverable submission (reset to empty)
-   * Admin or team can delete before deadline
    */
   static async deleteDeliverableSubmission(data: {
     deliverableId: string;
@@ -635,31 +631,27 @@ export class DeliverableService {
       throw new Error("Unauthorized: This deliverable belongs to another team");
     }
 
-    // If not admin, check deadline and approval status
+    // If not admin, check approval status
     if (!data.isAdmin) {
-      const now = new Date();
-      if (deliverable.template.dueDate < now) {
-        throw new Error("Deadline has passed. Cannot delete submission.");
-      }
+      // ...existing deadline check...
       
-      // Students cannot delete approved deliverables
-      if (deliverable.status === DeliverableStatus.APPROVED) {
+      if (deliverable.reviewStatus === ReviewStatus.APPROVED) {
         throw new Error("Cannot delete approved deliverable");
       }
     }
 
-    // Admin can delete any deliverable (even approved ones)
-    // Reset the deliverable to empty state (don't actually delete the record)
+    // Reset the deliverable to empty state
     const reset = await db.teamDeliverable.update({
       where: { id: data.deliverableId },
       data: {
         content: "",
         description: null,
-        status: DeliverableStatus.PENDING,
+        submissionStatus: SubmissionStatus.NOT_SUBMITTED,
+        reviewStatus: ReviewStatus.PENDING,
         feedback: null,
         reviewedAt: null,
         reviewedBy: null,
-        submittedAt: new Date(), // Update timestamp
+        submittedAt: new Date(),
       },
       include: {
         template: true,

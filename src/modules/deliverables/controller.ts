@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { DeliverableService } from "./service";
-import { DeliverableType, DeliverableStatus } from "@prisma/client";
+import { DeliverableType, SubmissionStatus, ReviewStatus } from "@prisma/client";
 
 export class DeliverableController {
   /**
@@ -171,13 +171,13 @@ export class DeliverableController {
    */
   static async getDeliverables(req: Request, res: Response) {
     try {
-      const { status, hackathonId, teamId, search } = req.query;
+      const { submissionStatus, reviewStatus, teamId, templateId } = req.query;
 
       const deliverables = await DeliverableService.getDeliverables({
-        status: status as DeliverableStatus,
-        hackathonId: hackathonId as string,
+        submissionStatus: submissionStatus as SubmissionStatus,
+        reviewStatus: reviewStatus as ReviewStatus,
         teamId: teamId as string,
-        search: search as string,
+        templateId: templateId as string,
       });
 
       res.json({
