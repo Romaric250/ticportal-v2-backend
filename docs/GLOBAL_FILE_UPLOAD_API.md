@@ -8,7 +8,7 @@
 POST /api/f/upload
 ```
 
-**That's it!** One endpoint for all file uploads across the entire application.
+**Uses the same uploadthing setup as user/team profile uploads!**
 
 ---
 
@@ -18,11 +18,14 @@ POST /api/f/upload
 
 **Endpoint:** `POST /api/f/upload`
 
-**Content-Type:** `multipart/form-data`
+**Content-Type:** `application/json`
 
 **Body:**
-```
-file: [File object]
+```json
+{
+  "file": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA...",
+  "fileName": "proposal.pdf"
+}
 ```
 
 ### Response
@@ -32,10 +35,10 @@ file: [File object]
 {
   "success": true,
   "data": {
-    "url": "https://uploadthing.com/f/abc123xyz.pdf",
-    "filename": "proposal.pdf",
-    "size": 2048576,
-    "mimetype": "application/pdf"
+    "url": "https://utfs.io/f/abc123xyz.pdf",
+    "key": "abc123xyz.pdf",
+    "name": "proposal.pdf",
+    "size": 2048576
   }
 }
 ```
@@ -44,7 +47,7 @@ file: [File object]
 ```json
 {
   "success": false,
-  "message": "No file provided"
+  "message": "No file data provided"
 }
 ```
 
@@ -60,32 +63,39 @@ file: [File object]
 
 ## 🎨 Frontend Usage
 
-### React Hook
+### React Hook (Base64 Upload)
 
 ```typescript
 import { useState } from 'react';
 
 export const useFileUpload = () => {
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   const uploadFile = async (file: File): Promise<string> => {
     setUploading(true);
-    setProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Convert file to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
+      // Upload to server
       const response = await fetch('/api/f/upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file: base64,
+          fileName: file.name,
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setProgress(100);
         return data.data.url; // Return the file URL
       } else {
         throw new Error(data.message);
@@ -97,7 +107,7 @@ export const useFileUpload = () => {
     }
   };
 
-  return { uploadFile, uploading, progress };
+  return { uploadFile, uploading };
 };
 ```
 
@@ -120,7 +130,6 @@ const FileUploadComponent = () => {
       console.log('File uploaded:', url);
       
       // Now you can use this URL anywhere
-      // Save to database, display, etc.
     } catch (error) {
       alert('Upload failed');
     }
@@ -153,7 +162,7 @@ const SubmitDeliverable = ({ deliverableId, teamId }) => {
     if (!file) return;
 
     try {
-      // 1. Upload file first
+      // 1. Upload file (converts to base64 internally)
       const fileUrl = await uploadFile(file);
       
       // 2. Then submit deliverable with URL

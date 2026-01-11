@@ -1,6 +1,6 @@
 # 📤 Global File Upload - Quick Reference
 
-## One Endpoint to Rule Them All
+## One Endpoint, Base64 Upload (Like Team/User Profiles)
 
 ```bash
 POST /api/f/upload
@@ -12,28 +12,38 @@ POST /api/f/upload
 
 ### JavaScript/TypeScript
 ```typescript
-const formData = new FormData();
-formData.append('file', fileObject);
+// Convert file to base64
+const reader = new FileReader();
+reader.readAsDataURL(file);
+reader.onload = async () => {
+  const base64 = reader.result;
+  
+  // Upload
+  const response = await fetch('/api/f/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file: base64,
+      fileName: file.name,
+    }),
+  });
 
-const response = await fetch('/api/f/upload', {
-  method: 'POST',
-  body: formData,
-});
-
-const { data } = await response.json();
-console.log(data.url); // Use this URL!
+  const { data } = await response.json();
+  console.log(data.url); // Use this URL!
+};
 ```
 
 ### React Hook
 ```typescript
 const { uploadFile, uploading } = useFileUpload();
-const url = await uploadFile(file);
+const url = await uploadFile(file); // Handles base64 conversion
 ```
 
-### cURL
+### cURL (with base64 string)
 ```bash
 curl -X POST http://localhost:5000/api/f/upload \
-  -F "file=@proposal.pdf"
+  -H "Content-Type: application/json" \
+  -d '{"file":"data:text/plain;base64,SGVsbG8gV29ybGQ=","fileName":"test.txt"}'
 ```
 
 ---
@@ -44,10 +54,10 @@ curl -X POST http://localhost:5000/api/f/upload \
 {
   "success": true,
   "data": {
-    "url": "https://uploadthing.com/f/abc123.pdf",
-    "filename": "proposal.pdf",
-    "size": 123456,
-    "mimetype": "application/pdf"
+    "url": "https://utfs.io/f/abc123.pdf",
+    "key": "abc123.pdf",
+    "name": "proposal.pdf",
+    "size": 123456
   }
 }
 ```
@@ -66,26 +76,28 @@ curl -X POST http://localhost:5000/api/f/upload \
 ## 🎯 Workflow
 
 ```
-1. POST /api/f/upload (with file)
+1. Convert file to base64 (frontend)
    ↓
-2. Get URL back
+2. POST /api/f/upload with base64
    ↓
-3. Use URL in your API call
+3. Get URL back
    ↓
-4. Done! ✅
+4. Use URL in your API call
+   ↓
+5. Done! ✅
 ```
 
 ---
 
 ## 📝 Notes
 
-- **Max Size:** 10MB
+- **Format:** Base64 data URI (like team/user profile uploads)
 - **Any File Type:** Accepted
 - **URL Never Expires:** Permanent storage
-- **No Auth Required:** Public endpoint
+- **Same as:** Team profile & user profile uploads
 
 ---
 
 **Documentation:** `GLOBAL_FILE_UPLOAD_API.md`  
 **Endpoint:** `/api/f/upload`  
-**Simple:** Upload → Get URL → Use Anywhere 🎉
+**Method:** Base64 upload (like existing profile uploads) 🎉
