@@ -1,6 +1,33 @@
 import { db } from "../../config/database";
-import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
+import { POINTS_CONFIG } from "../../shared/constants/points";
+// import { sendNotification } from "../../shared/utils/notifications";
+
+// Temporary inline notification function until module is properly resolved
+async function sendNotification(data: {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: any;
+}) {
+  try {
+    const notification = await db.notification.create({
+      data: {
+        userId: data.userId,
+        type: data.type as any,
+        title: data.title,
+        message: data.message,
+      },
+    });
+    
+    console.log(`📧 Notification sent to ${data.userId}: ${data.title}`);
+    return notification;
+  } catch (error) {
+    console.error("Failed to send notification:", error);
+  }
+}
 
 /**
  * Deliverable Service
@@ -385,20 +412,41 @@ export class DeliverableService {
       });
 
       await Promise.all(
-        teamMembers.map((member) =>
-          db.point.create({
+        teamMembers.map(async (member) => {
+          // Create activity record
+          await db.userActivity.create({
             data: {
               userId: member.userId,
+              type: "HACKATHON",
               action: "DELIVERABLE_APPROVED",
-              hackathonId: updated.template.hackathonId,
-              description: `Deliverable approved: ${updated.template.title}`,
+              pointsAwarded: POINTS_CONFIG.HACKATHON.DELIVERABLE_APPROVED,
+              metadata: {
+                deliverableId: updated.id,
+                templateId: updated.templateId,
+                title: updated.template.title,
+                reviewerId,
+              },
             },
-          })
-        )
+          });
+
+          // 🔔 Send notification
+          await sendNotification({
+            userId: member.userId,
+            type: "POINTS_AWARDED",
+            title: "Bonus Points! 🌟",
+            message: `Your deliverable "${updated.template.title}" was approved! You earned ${POINTS_CONFIG.HACKATHON.DELIVERABLE_APPROVED} bonus points!`,
+            metadata: {
+              points: POINTS_CONFIG.HACKATHON.DELIVERABLE_APPROVED,
+              action: "DELIVERABLE_APPROVED",
+              deliverableId: updated.id,
+              reviewStatus: "APPROVED",
+            },
+          });
+        })
       );
-      console.log(`✅ Awarded bonus points for approved deliverable to team ${updated.teamId}`);
+      console.log(`✅ Awarded ${POINTS_CONFIG.HACKATHON.DELIVERABLE_APPROVED} bonus points to team ${updated.teamId}`);
     } catch (error) {
-      console.error("Failed to award points for approval:", error);
+      console.error("Failed to award bonus points:", error);
     }
 
     return updated;
@@ -451,7 +499,30 @@ export class DeliverableService {
       },
     });
 
-    // TODO: Notify team members about rejection
+    // 🔔 Send rejection notification to team
+    try {
+      const teamMembers = await db.teamMember.findMany({
+        where: { teamId: rejected.teamId },
+        select: { userId: true },
+      });
+
+      await Promise.all(
+        teamMembers.map((member) =>
+          sendNotification({
+            userId: member.userId,
+            type: "DELIVERABLE_REJECTED",
+            title: "Deliverable Needs Revision ⚠️",
+            message: `"${rejected.template.title}" needs revision. Reason: ${reason}`,
+            metadata: {
+              deliverableId: rejected.id,
+              reason: reason,
+            },
+          })
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send rejection notification:", error);
+    }
 
     return rejected;
   }
@@ -545,8 +616,30 @@ export class DeliverableService {
       },
     });
 
-    // TODO: Notify team members
-    // TODO: Award 15 points to team members (first time only)
+    // 📢 Send submission notification to team
+    try {
+      const teamMembers = await db.teamMember.findMany({
+        where: { teamId: data.teamId },
+        select: { userId: true },
+      });
+
+      await Promise.all(
+        teamMembers.map((member) =>
+          sendNotification({
+            userId: member.userId,
+            type: "DELIVERABLE_SUBMITTED",
+            title: "Deliverable Submitted ✅",
+            message: `Your team has submitted "${deliverable.template.title}"`,
+            metadata: {
+              deliverableId: deliverable.id,
+              templateId: deliverable.templateId,
+            },
+          })
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send submission notification:", error);
+    }
 
     // 🎯 Award points for deliverable submission (10 points per member)
     try {
@@ -556,20 +649,39 @@ export class DeliverableService {
       });
 
       await Promise.all(
-        teamMembers.map((member) =>
-          db.point.create({
+        teamMembers.map(async (member) => {
+          // Create activity record
+          await db.userActivity.create({
             data: {
               userId: member.userId,
-              action: "DELIVERABLE_SUBMISSION",
-              hackathonId: deliverable.template.hackathonId,
-              description: `Submitted deliverable: ${deliverable.template.title}`,
+              type: "HACKATHON",
+              action: "DELIVERABLE_SUBMIT",
+              pointsAwarded: POINTS_CONFIG.HACKATHON.DELIVERABLE_SUBMIT,
+              metadata: {
+                deliverableId: deliverable.id,
+                templateId: deliverable.templateId,
+                title: deliverable.template.title,
+              },
             },
-          })
-        )
+          });
+
+          // 🔔 Send notification
+          await sendNotification({
+            userId: member.userId,
+            type: "POINTS_AWARDED",
+            title: "Points Awarded! 🎉",
+            message: `You earned ${POINTS_CONFIG.HACKATHON.DELIVERABLE_SUBMIT} points for submitting "${deliverable.template.title}"`,
+            metadata: {
+              points: POINTS_CONFIG.HACKATHON.DELIVERABLE_SUBMIT,
+              action: "DELIVERABLE_SUBMIT",
+              deliverableId: deliverable.id,
+            },
+          });
+        })
       );
-      console.log(`✅ Awarded points for deliverable submission to team ${data.teamId}`);
+      console.log(`✅ Awarded ${POINTS_CONFIG.HACKATHON.DELIVERABLE_SUBMIT} points to team ${data.teamId}`);
     } catch (error) {
-      console.error("Failed to award points for submission:", error);
+      console.error("Failed to award points:", error);
     }
 
     return updated;

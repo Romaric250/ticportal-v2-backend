@@ -56,7 +56,9 @@ model User {
   reviewedDeliverables   TeamDeliverable[]         @relation("DeliverableReviewer")
   learningProgress       UserLearningProgress[]    @relation("UserLearningProgress")
   moduleCompletions      ModuleCompletion[]        @relation("ModuleCompletions")
-  
+  learningEnrollments    LearningEnrollment[]
+  learningPathCompletions LearningPathCompletion[]
+
   @@index([username(sort: Desc)], map: "User_username_idx")
 }
 
@@ -654,6 +656,8 @@ model LearningPath {
   
   modules     LearningModule[]
   progress    UserLearningProgress[]
+  enrollments LearningEnrollment[]
+  completions LearningPathCompletion[]
   
   @@map("learning_paths")
 }
@@ -673,6 +677,21 @@ model LearningModule {
   
   @@unique([pathId, order])
   @@map("learning_modules")
+}
+
+model LearningEnrollment {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  learningPathId String   @db.ObjectId
+  enrolledAt     DateTime @default(now())
+  isAutoEnrolled Boolean  @default(false)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningPathId])
+  @@index([userId])
+  @@index([learningPathId])
 }
 
 model UserLearningProgress {
@@ -698,10 +717,26 @@ model ModuleCompletion {
   moduleId    String         @db.ObjectId
   quizScore   Float?         // Percentage score on quiz
   completedAt DateTime       @default(now())
+  quizAnswers Json?
   
   user        User           @relation("ModuleCompletions", fields: [userId], references: [id], onDelete: Cascade)
   module      LearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   
   @@unique([userId, moduleId])
   @@map("module_completions")
+}
+
+model LearningPathCompletion {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  learningPathId String   @db.ObjectId
+  completedAt    DateTime @default(now())
+  totalScore     Int?
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningPathId])
+  @@index([userId])
+  @@index([learningPathId])
 }

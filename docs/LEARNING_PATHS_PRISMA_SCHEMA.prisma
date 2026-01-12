@@ -1,0 +1,83 @@
+// Learning Paths System
+model LearningPath {
+  id          String                @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  audience    LearningPathAudience
+  isCore      Boolean               @default(false) // Auto-enroll all students if true
+  order       Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  modules     LearningModule[]
+  enrollments LearningEnrollment[]
+  completions LearningPathCompletion[]
+}
+
+model LearningModule {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  learningPathId String   @db.ObjectId
+  title         String
+  content       String   // Markdown content
+  order         Int
+  quiz          Json?    // Optional quiz questions
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  learningPath  LearningPath            @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  completions   ModuleCompletion[]
+}
+
+// New: Track student enrollment
+model LearningEnrollment {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  learningPathId String   @db.ObjectId
+  enrolledAt     DateTime @default(now())
+  isAutoEnrolled Boolean  @default(false) // True if enrolled automatically (core path)
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningPathId])
+  @@index([userId])
+  @@index([learningPathId])
+}
+
+model ModuleCompletion {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  moduleId    String   @db.ObjectId
+  completedAt DateTime @default(now())
+  quizScore   Int?     // Score from 0-100
+  quizAnswers Json?    // Store user's quiz answers
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module LearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+  @@index([userId])
+  @@index([moduleId])
+}
+
+// New: Track path completion
+model LearningPathCompletion {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  learningPathId String   @db.ObjectId
+  completedAt    DateTime @default(now())
+  totalScore     Int?     // Average quiz score across all modules
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningPathId])
+  @@index([userId])
+  @@index([learningPathId])
+}
+
+enum LearningPathAudience {
+  STUDENT
+  MENTOR
+  ALL
+}

@@ -265,22 +265,26 @@ export class LearningPathController {
   static async getPathsForUser(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-      const userRole = (req as any).user?.role || "STUDENT";
 
       if (!userId) {
+        console.log("❌ No user ID found in request");
+        console.log("req.user:", (req as any).user);
         return res.status(401).json({
           success: false,
           message: "User not authenticated",
         });
       }
 
-      const paths = await LearningPathService.getPathsForUser(userId, userRole);
+      console.log("✅ User authenticated:", userId);
+
+      const paths = await LearningPathService.getPathsForUser(userId, "STUDENT");
 
       res.json({
         success: true,
         data: paths,
       });
     } catch (error: any) {
+      console.error("❌ Error in getPathsForUser:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Failed to get learning paths",
@@ -367,6 +371,112 @@ export class LearningPathController {
       res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to complete module",
+      });
+    }
+  }
+
+  /**
+   * POST /api/learning-paths/:pathId/enroll
+   */
+  static async enrollInPath(req: Request, res: Response) {
+    try {
+      const { pathId } = req.params;
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!pathId) {
+        return res.status(400).json({
+          success: false,
+          message: "Path ID is required",
+        });
+      }
+
+      const enrollment = await LearningPathService.enrollUser(userId, pathId);
+
+      res.status(201).json({
+        success: true,
+        message: "Successfully enrolled in learning path! +5 points",
+        data: enrollment,
+      });
+    } catch (error: any) {
+      const statusCode =
+        error.message === "Learning path not found"
+          ? 404
+          : error.message === "Already enrolled in this learning path"
+          ? 409
+          : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to enroll in learning path",
+      });
+    }
+  }
+
+  /**
+   * POST /api/learning-paths/:pathId/modules/:moduleId/submit-quiz
+   */
+  static async submitQuiz(req: Request, res: Response) {
+    try {
+      const { moduleId } = req.params;
+      const { answers } = req.body;
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!moduleId) {
+        return res.status(400).json({
+          success: false,
+          message: "Module ID is required",
+        });
+      }
+
+      if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({
+          success: false,
+          message: "Quiz answers are required (array of answer indices)",
+        });
+      }
+
+      const result = await LearningPathService.submitQuiz({
+        userId,
+        moduleId,
+        answers,
+      });
+
+      const message = result.passed
+        ? `Quiz passed! You scored ${result.quizScore}% and earned ${result.pointsAwarded} points! 🎉`
+        : `Quiz completed. You scored ${result.quizScore}%. You earned ${result.pointsAwarded} points.`;
+
+      res.json({
+        success: true,
+        message,
+        data: result,
+      });
+    } catch (error: any) {
+      const statusCode =
+        error.message === "Module not found"
+          ? 404
+          : error.message === "Module already completed"
+          ? 409
+          : error.message.includes("quiz")
+          ? 400
+          : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to submit quiz",
       });
     }
   }
