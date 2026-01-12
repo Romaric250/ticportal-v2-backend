@@ -11,4 +11,14 @@ router.post("/learning-paths/:pathId/enroll", authenticate, LearningPathControll
 router.post("/learning-paths/:pathId/modules/:moduleId/complete", authenticate, LearningPathController.completeModule);
 router.post("/learning-paths/:pathId/modules/:moduleId/submit-quiz", authenticate, LearningPathController.submitQuiz);
 
+// Admin routes
+router.get("/admin/learning-paths", authenticate, LearningPathController.getAllPaths);
+router.get("/admin/learning-paths/:pathId", authenticate, LearningPathController.getPathById);
+router.post("/admin/learning-paths", authenticate, LearningPathController.createPath);
+router.put("/admin/learning-paths/:pathId", authenticate, LearningPathController.updatePath);
+router.delete("/admin/learning-paths/:pathId", authenticate, LearningPathController.deletePath);
+router.post("/admin/learning-paths/:pathId/modules", authenticate, LearningPathController.addModule);
+router.put("/admin/learning-paths/:pathId/modules/:moduleId", authenticate, LearningPathController.updateModule);
+router.delete("/admin/learning-paths/:pathId/modules/:moduleId", authenticate, LearningPathController.deleteModule);
+
 export default router;

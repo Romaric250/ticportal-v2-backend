@@ -264,18 +264,15 @@ export class LearningPathController {
    */
   static async getPathsForUser(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      // Your JWT stores userId in the payload, not as user.id
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
-        console.log("❌ No user ID found in request");
-        console.log("req.user:", (req as any).user);
         return res.status(401).json({
           success: false,
           message: "User not authenticated",
         });
       }
-
-      console.log("✅ User authenticated:", userId);
 
       const paths = await LearningPathService.getPathsForUser(userId, "STUDENT");
 
@@ -298,7 +295,7 @@ export class LearningPathController {
   static async getUserProgress(req: Request, res: Response) {
     try {
       const { pathId } = req.params;
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
         return res.status(401).json({
@@ -336,7 +333,7 @@ export class LearningPathController {
     try {
       const { moduleId } = req.params;
       const { quizScore } = req.body;
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
         return res.status(401).json({
@@ -381,7 +378,7 @@ export class LearningPathController {
   static async enrollInPath(req: Request, res: Response) {
     try {
       const { pathId } = req.params;
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
         return res.status(401).json({
@@ -426,7 +423,7 @@ export class LearningPathController {
     try {
       const { moduleId } = req.params;
       const { answers } = req.body;
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
         return res.status(401).json({
