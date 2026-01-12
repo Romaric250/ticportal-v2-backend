@@ -358,7 +358,7 @@ export class DeliverableService {
       validReviewerId = reviewerId;
     }
 
-    const approved = await db.teamDeliverable.update({
+    const updated = await db.teamDeliverable.update({
       where: { id: deliverableId },
       data: {
         reviewStatus: ReviewStatus.APPROVED,
@@ -377,10 +377,31 @@ export class DeliverableService {
       },
     });
 
-    // TODO: Notify team members
-    // TODO: Award 25 points to team members
+    // 🎯 Award bonus points for approved deliverable (20 points per member)
+    try {
+      const teamMembers = await db.teamMember.findMany({
+        where: { teamId: updated.teamId },
+        select: { userId: true },
+      });
 
-    return approved;
+      await Promise.all(
+        teamMembers.map((member) =>
+          db.point.create({
+            data: {
+              userId: member.userId,
+              action: "DELIVERABLE_APPROVED",
+              hackathonId: updated.template.hackathonId,
+              description: `Deliverable approved: ${updated.template.title}`,
+            },
+          })
+        )
+      );
+      console.log(`✅ Awarded bonus points for approved deliverable to team ${updated.teamId}`);
+    } catch (error) {
+      console.error("Failed to award points for approval:", error);
+    }
+
+    return updated;
   }
 
   /**
@@ -526,6 +547,30 @@ export class DeliverableService {
 
     // TODO: Notify team members
     // TODO: Award 15 points to team members (first time only)
+
+    // 🎯 Award points for deliverable submission (10 points per member)
+    try {
+      const teamMembers = await db.teamMember.findMany({
+        where: { teamId: data.teamId },
+        select: { userId: true },
+      });
+
+      await Promise.all(
+        teamMembers.map((member) =>
+          db.point.create({
+            data: {
+              userId: member.userId,
+              action: "DELIVERABLE_SUBMISSION",
+              hackathonId: deliverable.template.hackathonId,
+              description: `Submitted deliverable: ${deliverable.template.title}`,
+            },
+          })
+        )
+      );
+      console.log(`✅ Awarded points for deliverable submission to team ${data.teamId}`);
+    } catch (error) {
+      console.error("Failed to award points for submission:", error);
+    }
 
     return updated;
   }
