@@ -12,6 +12,8 @@ router.post("/upload", async (req, res) => {
   try {
     const { file, fileName } = req.body;
 
+    console.log("file data:", fileName)
+
     if (!file) {
       return res.status(400).json({
         success: false,
@@ -19,8 +21,17 @@ router.post("/upload", async (req, res) => {
       });
     }
 
-    // Upload base64 to uploadthing (same as team profile)
-    const uploadedFile = await utapi.uploadFilesFromUrl(file);
+    // Convert base64 to File object for uploadthing
+    const base64Data = file.split(',')[1]; // Remove data:image/png;base64, prefix
+    const mimeType = file.split(';')[0].split(':')[1]; // Extract mime type
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Create a File-like object
+    const fileBlob = new File([buffer], fileName || 'upload', { type: mimeType });
+    
+    // Upload to uploadthing (same as team profile)
+    const uploadedFile = await utapi.uploadFiles(fileBlob);
+    console.log("uploaded: file", uploadedFile)
 
     if (!uploadedFile || !uploadedFile.data) {
       throw new Error("Upload failed");
