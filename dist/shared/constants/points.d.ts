@@ -28,6 +28,8 @@ export declare const POINTS_CONFIG: {
         readonly SUBMISSION: 100;
         readonly SUBMISSION_UPDATE: 10;
         readonly SUBMISSION_ON_TIME: 20;
+        readonly DELIVERABLE_SUBMIT: 10;
+        readonly DELIVERABLE_APPROVED: 20;
         readonly WIN_FIRST: 500;
         readonly WIN_SECOND: 300;
         readonly WIN_THIRD: 200;
@@ -43,6 +45,16 @@ export declare const POINTS_CONFIG: {
     readonly COLLABORATION: {
         readonly TEAM_CREATE: 15;
         readonly TEAM_JOIN: 10;
+        readonly TEAM_CREATED: 15;
+        readonly TEAM_JOINED: 10;
+        readonly TEAM_UPDATED: 5;
+        readonly TEAM_DELETED: 0;
+        readonly TEAM_MEMBER_ADDED: 5;
+        readonly TEAM_MEMBER_REMOVED: 0;
+        readonly TEAM_MEMBER_ROLE_UPDATED: 3;
+        readonly TEAM_LEFT: 0;
+        readonly REMOVED_FROM_TEAM: 0;
+        readonly TEAM_MESSAGE_SENT: 1;
         readonly SQUAD_JOIN: 15;
         readonly MESSAGE_SEND: 1;
         readonly FILE_SHARE: 5;

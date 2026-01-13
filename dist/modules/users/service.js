@@ -1,5 +1,6 @@
 import { db } from "../../config/database";
 import { activityService } from "../../shared/services/activity";
+import { UserRole } from "@prisma/client";
 import { uploadBase64ToUploadThing, validateBase64Image, generateProfilePhotoFilename, } from "../../shared/utils/uploadthing";
 import { logger } from "../../shared/utils/logger";
 export class UserService {
@@ -125,6 +126,62 @@ export class UserService {
         });
         logger.info({ userId }, "Profile photo deleted");
         return updatedUser;
+    }
+    static async searchUsers(input) {
+        const { query, type, page = 1, limit = 20 } = input;
+        const skip = (page - 1) * limit;
+        // Build the where clause
+        const whereClause = {
+            OR: [
+                { firstName: { contains: query, mode: "insensitive" } },
+                { lastName: { contains: query, mode: "insensitive" } },
+                { email: { contains: query, mode: "insensitive" } },
+                { username: { contains: query, mode: "insensitive" } },
+                { school: { contains: query, mode: "insensitive" } },
+            ],
+        };
+        // Filter by type if provided
+        if (type === "user") {
+            whereClause.role = UserRole.STUDENT;
+        }
+        else if (type === "mentor") {
+            whereClause.role = UserRole.MENTOR;
+        }
+        const [users, total] = await Promise.all([
+            db.user.findMany({
+                where: whereClause,
+                skip,
+                take: limit,
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    username: true,
+                    profilePhoto: true,
+                    bio: true,
+                    school: true,
+                    grade: true,
+                    country: true,
+                    region: true,
+                    role: true,
+                },
+                orderBy: [
+                    { firstName: "asc" },
+                    { lastName: "asc" },
+                ],
+            }),
+            db.user.count({ where: whereClause }),
+        ]);
+        return {
+            users,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 }
 //# sourceMappingURL=service.js.map

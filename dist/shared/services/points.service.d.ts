@@ -28,9 +28,9 @@ export declare class PointsService {
      * Get user's point history
      */
     static getUserPointHistory(userId: string, limit?: number): Promise<{
+        userId: string;
         id: string;
         createdAt: Date;
-        userId: string;
         amount: number;
         reason: string;
         activity: string | null;
@@ -39,13 +39,13 @@ export declare class PointsService {
      * Get user's activity history
      */
     static getUserActivityHistory(userId: string, activityType?: ActivityType, limit?: number): Promise<{
-        id: string;
-        createdAt: Date;
         userId: string;
         action: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
         type: import(".prisma/client").$Enums.ActivityType;
         pointsAwarded: number;
+        createdAt: Date;
     }[]>;
     /**
      * Award points for daily login

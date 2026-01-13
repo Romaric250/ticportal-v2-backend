@@ -1,0 +1,541 @@
+import { db } from "../../config/database";
+import { LearningPathAudience } from "@prisma/client";
+import { POINTS_CONFIG } from "../../shared/constants/points";
+export class LearningPathService {
+    /**
+     * Get all learning paths
+     */
+    static async getAllPaths(filters) {
+        const where = {};
+        if (filters?.audience) {
+            where.audience = filters.audience;
+        }
+        const paths = await db.learningPath.findMany({
+            where,
+            include: {
+                modules: {
+                    orderBy: { order: "asc" },
+                },
+                _count: {
+                    select: {
+                        modules: true,
+                        progress: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        return paths;
+    }
+    /**
+     * Get single learning path
+     */
+    static async getPathById(pathId) {
+        const path = await db.learningPath.findUnique({
+            where: { id: pathId },
+            include: {
+                modules: {
+                    orderBy: { order: "asc" },
+                },
+            },
+        });
+        if (!path) {
+            throw new Error("Learning path not found");
+        }
+        return path;
+    }
+    /**
+     * Create learning path
+     */
+    static async createPath(data) {
+        const template = await db.learningPath.create({
+            data: {
+                title: data.title,
+                description: data.description,
+                audience: data.audience,
+                isCore: data.isCore ?? false,
+            },
+        });
+        // ✅ Auto-enroll all students if core path
+        if (data.isCore) {
+            await this.autoEnrollStudents(template.id);
+        }
+        return template;
+    }
+    /**
+     * Update learning path
+     */
+    static async updatePath(pathId, data) {
+        const path = await db.learningPath.update({
+            where: { id: pathId },
+            data,
+        });
+        return path;
+    }
+    /**
+     * Delete learning path
+     */
+    static async deletePath(pathId) {
+        // Modules will be cascade deleted
+        await db.learningPath.delete({
+            where: { id: pathId },
+        });
+    }
+    /**
+     * Add module to learning path
+     */
+    static async addModule(data) {
+        // Check if path exists
+        const path = await db.learningPath.findUnique({
+            where: { id: data.pathId },
+        });
+        if (!path) {
+            throw new Error("Learning path not found");
+        }
+        // Check if order already exists
+        const existingModule = await db.learningModule.findFirst({
+            where: {
+                pathId: data.pathId,
+                order: data.order,
+            },
+        });
+        if (existingModule) {
+            throw new Error(`Module with order ${data.order} already exists`);
+        }
+        const module = await db.learningModule.create({
+            data: {
+                pathId: data.pathId,
+                title: data.title,
+                content: data.content,
+                order: data.order,
+                quiz: data.quiz || null,
+            },
+        });
+        // Update total modules for all user progress
+        await this.updateTotalModules(data.pathId);
+        return module;
+    }
+    /**
+     * Update module
+     */
+    static async updateModule(moduleId, data) {
+        const module = await db.learningModule.update({
+            where: { id: moduleId },
+            data,
+        });
+        return module;
+    }
+    /**
+     * Delete module
+     */
+    static async deleteModule(moduleId) {
+        const module = await db.learningModule.findUnique({
+            where: { id: moduleId },
+        });
+        if (!module) {
+            throw new Error("Module not found");
+        }
+        await db.learningModule.delete({
+            where: { id: moduleId },
+        });
+        // Update total modules for all user progress
+        await this.updateTotalModules(module.pathId);
+    }
+    /**
+     * Get learning paths for user (student view)
+     */
+    static async getPathsForUser(userId, userRole) {
+        // Determine audience based on role
+        const audiences = [LearningPathAudience.EVERYONE];
+        if (userRole === "STUDENT") {
+            audiences.push(LearningPathAudience.STUDENTS);
+        }
+        else if (userRole === "MENTOR") {
+            audiences.push(LearningPathAudience.MENTORS);
+        }
+        const paths = await db.learningPath.findMany({
+            where: {
+                audience: { in: audiences },
+            },
+            include: {
+                modules: {
+                    orderBy: { order: "asc" },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        // Get user's progress for each path
+        const pathsWithProgress = await Promise.all(paths.map(async (path) => {
+            const progress = await db.userLearningProgress.findUnique({
+                where: {
+                    userId_pathId: {
+                        userId,
+                        pathId: path.id,
+                    },
+                },
+            });
+            return {
+                ...path,
+                userProgress: progress || {
+                    completedModules: 0,
+                    totalModules: path.modules.length,
+                    progress: 0,
+                },
+            };
+        }));
+        return pathsWithProgress;
+    }
+    /**
+     * Get user progress for a path
+     */
+    static async getUserProgress(userId, pathId) {
+        let progress = await db.userLearningProgress.findUnique({
+            where: {
+                userId_pathId: {
+                    userId,
+                    pathId,
+                },
+            },
+        });
+        if (!progress) {
+            // Create initial progress
+            const path = await db.learningPath.findUnique({
+                where: { id: pathId },
+                include: {
+                    _count: {
+                        select: { modules: true },
+                    },
+                },
+            });
+            if (!path) {
+                throw new Error("Learning path not found");
+            }
+            progress = await db.userLearningProgress.create({
+                data: {
+                    userId,
+                    pathId,
+                    completedModules: 0,
+                    totalModules: path._count.modules,
+                    progress: 0,
+                },
+            });
+        }
+        // Get completed module IDs
+        const completions = await db.moduleCompletion.findMany({
+            where: {
+                userId,
+                module: {
+                    pathId,
+                },
+            },
+            select: {
+                moduleId: true,
+                quizScore: true,
+                completedAt: true,
+            },
+        });
+        return {
+            ...progress,
+            completedModuleIds: completions.map((c) => c.moduleId),
+            completions,
+        };
+    }
+    /**
+     * Complete module
+     */
+    static async completeModule(data) {
+        // Get module
+        const module = await db.learningModule.findUnique({
+            where: { id: data.moduleId },
+        });
+        if (!module) {
+            throw new Error("Module not found");
+        }
+        // Check if already completed
+        const existing = await db.moduleCompletion.findUnique({
+            where: {
+                userId_moduleId: {
+                    userId: data.userId,
+                    moduleId: data.moduleId,
+                },
+            },
+        });
+        if (existing) {
+            throw new Error("Module already completed");
+        }
+        // Create completion
+        const completion = await db.moduleCompletion.create({
+            data: {
+                userId: data.userId,
+                moduleId: data.moduleId,
+                quizScore: data.quizScore || null,
+            },
+        });
+        // Update user progress
+        await this.updateUserProgress(data.userId, module.pathId);
+        // TODO: Award points
+        // 10 points for completing module
+        // +5 bonus if quiz score > 80%
+        return completion;
+    }
+    /**
+     * Helper: Update user progress for a path
+     */
+    static async updateUserProgress(userId, pathId) {
+        // Count completed modules
+        const completedCount = await db.moduleCompletion.count({
+            where: {
+                userId,
+                module: {
+                    pathId,
+                },
+            },
+        });
+        // Get total modules
+        const totalModules = await db.learningModule.count({
+            where: { pathId },
+        });
+        const progress = totalModules > 0 ? (completedCount / totalModules) * 100 : 0;
+        const isCompleted = completedCount === totalModules && totalModules > 0;
+        // Update or create progress
+        await db.userLearningProgress.upsert({
+            where: {
+                userId_pathId: {
+                    userId,
+                    pathId,
+                },
+            },
+            update: {
+                completedModules: completedCount,
+                totalModules,
+                progress,
+                completedAt: isCompleted ? new Date() : null,
+            },
+            create: {
+                userId,
+                pathId,
+                completedModules: completedCount,
+                totalModules,
+                progress,
+                completedAt: isCompleted ? new Date() : null,
+            },
+        });
+        // TODO: If just completed, award 50 points
+        // TODO: If core path, award +25 bonus points
+        // TODO: Send completion notification
+    }
+    /**
+     * Helper: Update total modules for all progress records
+     */
+    static async updateTotalModules(pathId) {
+        const totalModules = await db.learningModule.count({
+            where: { pathId },
+        });
+        await db.userLearningProgress.updateMany({
+            where: { pathId },
+            data: { totalModules },
+        });
+    }
+    /**
+     * Enroll user in a learning path
+     */
+    static async enrollUser(userId, pathId) {
+        const path = await db.learningPath.findUnique({
+            where: { id: pathId },
+        });
+        if (!path) {
+            throw new Error("Learning path not found");
+        }
+        const existing = await db.learningEnrollment.findUnique({
+            where: {
+                userId_learningPathId: {
+                    userId,
+                    learningPathId: pathId,
+                },
+            },
+        });
+        if (existing) {
+            throw new Error("Already enrolled in this learning path");
+        }
+        const enrollment = await db.learningEnrollment.create({
+            data: {
+                userId,
+                learningPathId: pathId,
+                isAutoEnrolled: false,
+            },
+        });
+        // Award enrollment points
+        try {
+            await db.userActivity.create({
+                data: {
+                    userId,
+                    type: "LEARNING",
+                    action: "STAGE_START",
+                    pointsAwarded: POINTS_CONFIG.LEARNING.STAGE_START,
+                },
+            });
+        }
+        catch (error) {
+            console.error("Failed to award enrollment points:", error);
+        }
+        return enrollment;
+    }
+    /**
+     * Auto-enroll all students in a core path
+     */
+    static async autoEnrollStudents(pathId) {
+        const students = await db.user.findMany({
+            where: { role: "STUDENT" },
+            select: { id: true },
+        });
+        const existingEnrollments = await db.learningEnrollment.findMany({
+            where: { learningPathId: pathId },
+            select: { userId: true },
+        });
+        const enrolledUserIds = new Set(existingEnrollments.map((e) => e.userId));
+        const studentsToEnroll = students.filter((s) => !enrolledUserIds.has(s.id));
+        if (studentsToEnroll.length === 0) {
+            return { enrolled: 0 };
+        }
+        await db.learningEnrollment.createMany({
+            data: studentsToEnroll.map((s) => ({
+                userId: s.id,
+                learningPathId: pathId,
+                isAutoEnrolled: true,
+            })),
+        });
+        console.log(`✅ Auto-enrolled ${studentsToEnroll.length} students in path ${pathId}`);
+        return { enrolled: studentsToEnroll.length };
+    }
+    /**
+     * Submit quiz and complete module
+     */
+    static async submitQuiz(data) {
+        const module = await db.learningModule.findUnique({
+            where: { id: data.moduleId },
+            include: { path: true },
+        });
+        if (!module) {
+            throw new Error("Module not found");
+        }
+        if (!module.quiz) {
+            throw new Error("This module does not have a quiz");
+        }
+        const existing = await db.moduleCompletion.findUnique({
+            where: {
+                userId_moduleId: {
+                    userId: data.userId,
+                    moduleId: data.moduleId,
+                },
+            },
+        });
+        if (existing) {
+            throw new Error("Module already completed");
+        }
+        // Calculate score
+        const quiz = module.quiz;
+        const questions = quiz.questions || [];
+        let correctCount = 0;
+        questions.forEach((question, index) => {
+            if (data.answers[index] === question.correctAnswer) {
+                correctCount++;
+            }
+        });
+        const quizScore = questions.length > 0
+            ? Math.round((correctCount / questions.length) * 100)
+            : 0;
+        const completion = await db.moduleCompletion.create({
+            data: {
+                userId: data.userId,
+                moduleId: data.moduleId,
+                quizScore,
+                quizAnswers: data.answers,
+            },
+        });
+        // Award points
+        let pointsAwarded = POINTS_CONFIG.LEARNING.STAGE_COMPLETE;
+        if (quizScore >= 70) {
+            pointsAwarded += POINTS_CONFIG.LEARNING.QUIZ_PASS;
+        }
+        if (quizScore === 100) {
+            pointsAwarded += POINTS_CONFIG.LEARNING.QUIZ_PERFECT_SCORE;
+        }
+        try {
+            await db.userActivity.create({
+                data: {
+                    userId: data.userId,
+                    type: "LEARNING",
+                    action: "STAGE_COMPLETE",
+                    pointsAwarded,
+                },
+            });
+        }
+        catch (error) {
+            console.error("Failed to award points:", error);
+        }
+        // Check if path is complete
+        await this.checkPathCompletion(data.userId, module.id);
+        return {
+            ...completion,
+            pointsAwarded,
+            quizScore,
+            passed: quizScore >= 70,
+        };
+    }
+    /**
+     * Check and mark path as complete
+     */
+    static async checkPathCompletion(userId, pathId) {
+        const modules = await db.learningModule.findMany({
+            where: { id: pathId },
+            select: { id: true },
+        });
+        const completions = await db.moduleCompletion.findMany({
+            where: {
+                userId,
+                moduleId: { in: modules.map((m) => m.id) },
+            },
+        });
+        if (completions.length === modules.length && modules.length > 0) {
+            const existing = await db.learningPathCompletion.findUnique({
+                where: {
+                    userId_learningPathId: {
+                        userId,
+                        learningPathId: pathId,
+                    },
+                },
+            });
+            if (!existing) {
+                const scores = completions
+                    .filter((c) => c.quizScore !== null)
+                    .map((c) => c.quizScore);
+                const totalScore = scores.length > 0
+                    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                    : null;
+                await db.learningPathCompletion.create({
+                    data: {
+                        userId,
+                        learningPathId: pathId,
+                        totalScore,
+                    },
+                });
+                // Award completion bonus
+                try {
+                    await db.userActivity.create({
+                        data: {
+                            userId,
+                            type: "LEARNING",
+                            action: "COURSE_COMPLETE",
+                            pointsAwarded: POINTS_CONFIG.LEARNING.COURSE_COMPLETE,
+                        },
+                    });
+                }
+                catch (error) {
+                    console.error("Failed to award completion bonus:", error);
+                }
+                console.log(`🎉 User ${userId} completed learning path ${pathId}`);
+            }
+        }
+    }
+}
+//# sourceMappingURL=service.js.map

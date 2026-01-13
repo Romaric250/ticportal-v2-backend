@@ -1,6 +1,9 @@
 export declare const env: {
     nodeEnv: string;
     port: number;
+    isRateLimitActive: boolean;
+    isRedisActive: boolean;
+    isKafkaActive: boolean;
     DATABASE_URL: string;
     jwtAccessSecret: string;
     jwtRefreshSecret: string;

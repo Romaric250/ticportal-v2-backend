@@ -58,12 +58,12 @@ export declare class DefaultsService {
         country?: string;
     }): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         region: string | null;
+        updatedAt: Date;
+        isActive: boolean;
     }>;
     /**
      * Create a new region (admin only)
@@ -73,11 +73,11 @@ export declare class DefaultsService {
         country?: string;
     }): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
         updatedAt: Date;
+        isActive: boolean;
     }>;
     /**
      * Update school
@@ -89,12 +89,12 @@ export declare class DefaultsService {
         isActive?: boolean;
     }): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         region: string | null;
+        updatedAt: Date;
+        isActive: boolean;
     }>;
     /**
      * Update region
@@ -105,34 +105,34 @@ export declare class DefaultsService {
         isActive?: boolean;
     }): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
         updatedAt: Date;
+        isActive: boolean;
     }>;
     /**
      * Delete school (soft delete by setting isActive to false)
      */
     static deleteSchool(id: string): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         region: string | null;
+        updatedAt: Date;
+        isActive: boolean;
     }>;
     /**
      * Delete region (soft delete by setting isActive to false)
      */
     static deleteRegion(id: string): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         country: string | null;
-        isActive: boolean;
-        createdAt: Date;
         updatedAt: Date;
+        isActive: boolean;
     }>;
 }
 //# sourceMappingURL=service.d.ts.map

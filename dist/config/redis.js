@@ -1,4 +1,7 @@
 import Redis from "ioredis";
 import { env } from "./env";
-export const redis = new Redis(env.redisUrl);
+// Only connect to Redis if explicitly enabled
+export const redis = env.isRedisActive
+    ? new Redis(env.redisUrl)
+    : null;
 //# sourceMappingURL=redis.js.map

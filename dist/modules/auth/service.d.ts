@@ -7,25 +7,26 @@ export declare class AuthService {
     static login(input: LoginInput): Promise<{
         user: {
             id: string;
-            country: string | null;
             createdAt: Date;
-            updatedAt: Date;
-            region: string | null;
             email: string;
+            username: string | null;
+            phone: string | null;
             password: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            status: import(".prisma/client").$Enums.UserStatus;
             firstName: string;
             lastName: string;
-            phone: string | null;
-            role: import(".prisma/client").$Enums.UserRole;
-            username: string | null;
             bio: string | null;
             profilePhoto: string | null;
             school: string | null;
             grade: string | null;
+            country: string | null;
+            region: string | null;
             gradDate: Date | null;
             isVerified: boolean;
             lastLogin: Date | null;
             squadId: string | null;
+            updatedAt: Date;
         };
         accessToken: string;
         refreshToken: string;

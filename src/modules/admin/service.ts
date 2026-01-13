@@ -1,6 +1,6 @@
 import { db } from "../../config/database";
-import { UserRole, UserStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { UserRole, UserStatus, TeamRole } from "@prisma/client";
 
 export class AdminService {
   /**
@@ -90,7 +90,9 @@ export class AdminService {
     const usersOverTimeMap = new Map<string, number>();
     usersCreatedRecently.forEach((user) => {
       const date = user.createdAt.toISOString().split("T")[0];
-      usersOverTimeMap.set(date, (usersOverTimeMap.get(date) || 0) + 1);
+      if (date) {
+        usersOverTimeMap.set(date, (usersOverTimeMap.get(date) || 0) + 1);
+      }
     });
 
     const usersOverTime = Array.from(usersOverTimeMap.entries()).map(
@@ -486,7 +488,11 @@ export class AdminService {
   /**
    * Add member to team
    */
-  static async addTeamMember(teamId: string, userId: string, role: string = "MEMBER") {
+  static async addTeamMember(
+    teamId: string,
+    userId: string,
+    role?: string
+  ) {
     // Check if team exists
     const team = await db.team.findUnique({
       where: { id: teamId },
@@ -517,12 +523,20 @@ export class AdminService {
       throw new Error("User is already a team member");
     }
 
+    // Validate and set role
+    let memberRole: TeamRole = TeamRole.MEMBER;
+    if (role) {
+      if (role === TeamRole.LEAD || role === TeamRole.MEMBER) {
+        memberRole = role;
+      }
+    }
+
     // Add member
     const member = await db.teamMember.create({
       data: {
-        teamId,
         userId,
-        role,
+        teamId,
+        role: memberRole,
       },
       include: {
         user: {
@@ -577,12 +591,17 @@ export class AdminService {
       throw new Error("Team member not found");
     }
 
+    // Validate role
+    if (role !== TeamRole.LEAD && role !== TeamRole.MEMBER) {
+      throw new Error(`Invalid role. Must be ${TeamRole.LEAD} or ${TeamRole.MEMBER}`);
+    }
+
     const updatedMember = await db.teamMember.update({
       where: {
         id: member.id,
       },
       data: {
-        role,
+        role: role as TeamRole,
       },
       include: {
         user: {
@@ -606,7 +625,7 @@ export class AdminService {
   static async getTeamSubmissions(teamId: string) {
     const submissions = await db.submission.findMany({
       where: { teamId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { submittedAt: "desc" },
     });
 
     return submissions;

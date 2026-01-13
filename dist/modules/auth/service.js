@@ -4,6 +4,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from ".
 import { sendEmail } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import { activityService } from "../../shared/services/activity";
+import { NotificationService } from "../notifications/service";
 export class AuthService {
     static async register(input) {
         logger.info({ email: input.email, role: input.role }, "User registration attempt");
@@ -68,6 +69,8 @@ export class AuthService {
                 expiresAt,
             },
         });
+        // Send login notification
+        await NotificationService.notifyLogin(user.id);
         logger.info({ userId: user.id }, "User logged in successfully");
         // Track login activity
         await activityService.trackAuthActivity(user.id, "LOGIN");

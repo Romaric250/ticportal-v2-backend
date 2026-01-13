@@ -322,5 +322,95 @@ router.put("/profile-photo", UserController.updateProfilePhoto);
  *         description: Unauthorized
  */
 router.delete("/profile-photo", UserController.deleteProfilePhoto);
+/**
+ * @swagger
+ * /api/users/search:
+ *   get:
+ *     tags:
+ *       - User Search
+ *     summary: Search for users
+ *     description: Search for users by name, email, username, or school with optional type filter
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query (name, email, username, or school)
+ *         example: "John"
+ *       - in: query
+ *         name: type
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [user, mentor]
+ *         description: Filter by user type (user=STUDENT, mentor=MENTOR)
+ *         example: "mentor"
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: Results per page
+ *     responses:
+ *       200:
+ *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       profilePhoto:
+ *                         type: string
+ *                       bio:
+ *                         type: string
+ *                       school:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       400:
+ *         description: Bad request - Invalid search parameters
+ */
+router.get("/search", UserController.searchUsers);
 export default router;
 //# sourceMappingURL=routes.js.map

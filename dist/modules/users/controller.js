@@ -1,5 +1,5 @@
 import { UserService } from "./service";
-import { UpdateUserSchema, UpdateProfilePhotoSchema } from "./types";
+import { UpdateUserSchema, UpdateProfilePhotoSchema, SearchUsersSchema } from "./types";
 import { logger } from "../../shared/utils/logger";
 export class UserController {
     static async getProfile(req, res) {
@@ -46,6 +46,22 @@ export class UserController {
             const userId = req.user?.userId;
             const user = await UserService.deleteProfilePhoto(userId);
             res.json({ success: true, data: user });
+        }
+        catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    }
+    static async searchUsers(req, res) {
+        try {
+            const { q, type, page, limit } = req.query;
+            const input = SearchUsersSchema.parse({
+                query: q,
+                type: type,
+                page: page ? parseInt(page) : 1,
+                limit: limit ? parseInt(limit) : 20,
+            });
+            const result = await UserService.searchUsers(input);
+            res.json({ success: true, data: result.users, pagination: result.pagination });
         }
         catch (error) {
             res.status(400).json({ success: false, message: error.message });
