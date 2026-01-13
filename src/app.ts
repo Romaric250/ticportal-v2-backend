@@ -72,7 +72,7 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: [env.clientUrl, "https://ticportal-v2.vercel.app"],
     credentials: true,
   }),
 );
