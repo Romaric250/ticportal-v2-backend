@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { env } from "../../config/env";
+import { env } from "../../config/env.js";
 import { TeamRole } from "@prisma/client";
 const resend = new Resend(env.resendApiKey);
 // Professional email template with TIC Portal branding

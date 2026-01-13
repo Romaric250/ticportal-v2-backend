@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { TeamController } from "./controller";
-import { cacheMiddleware } from "../../shared/middleware/cache";
-import { authenticate } from "../../shared/middleware/auth";
+import { TeamController } from "./controller.js";
+import { cacheMiddleware } from "../../shared/middleware/cache.js";
+import { authenticate } from "../../shared/middleware/auth.js";
 const router = Router();
 /**
  * @swagger

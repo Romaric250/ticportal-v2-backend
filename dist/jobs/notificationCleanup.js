@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { NotificationService } from "../modules/notifications/service";
-import { logger } from "../shared/utils/logger";
+import { NotificationService } from "../modules/notifications/service.js";
+import { logger } from "../shared/utils/logger.js";
 /**
  * Cleanup expired notifications every minute
  */

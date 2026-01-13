@@ -1,4 +1,4 @@
-import { DefaultsService } from "./service";
+import { DefaultsService } from "./service.js";
 export class DefaultsController {
     /**
      * Get defaults by type (school or region)

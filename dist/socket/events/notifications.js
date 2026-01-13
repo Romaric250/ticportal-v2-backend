@@ -1,4 +1,4 @@
-import { logger } from "../../shared/utils/logger";
+import { logger } from "../../shared/utils/logger.js";
 export const registerNotificationHandlers = (io, socket) => {
     logger.info({ socketId: socket.id, userId: socket.userId }, "📬 [SOCKET] Notification handlers registered");
     // Join user's personal notification room

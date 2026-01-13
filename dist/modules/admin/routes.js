@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { AdminController } from "./controller";
+import { AdminController } from "./controller.js";
 import { UserRole } from "@prisma/client";
 const router = Router();
 // TEMPORARY: Bypass authentication for testing

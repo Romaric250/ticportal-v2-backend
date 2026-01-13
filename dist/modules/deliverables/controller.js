@@ -1,4 +1,4 @@
-import { DeliverableService } from "./service";
+import { DeliverableService } from "./service.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus } from "@prisma/client";
 export class DeliverableController {
     /**

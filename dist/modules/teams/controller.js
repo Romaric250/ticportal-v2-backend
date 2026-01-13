@@ -1,7 +1,7 @@
-import { TeamService } from "./service";
-import { CreateTeamSchema, UpdateTeamSchema, AddTeamMemberSchema, UpdateTeamMemberRoleSchema, SendTeamChatMessageSchema, SearchTeamsSchema, RequestToJoinTeamSchema, HandleJoinRequestSchema, } from "./types";
-import { io } from "../../server";
-import { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "../../socket";
+import { TeamService } from "./service.js";
+import { CreateTeamSchema, UpdateTeamSchema, AddTeamMemberSchema, UpdateTeamMemberRoleSchema, SendTeamChatMessageSchema, SearchTeamsSchema, RequestToJoinTeamSchema, HandleJoinRequestSchema, } from "./types.js";
+import { io } from "../../server.js";
+import { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "../../socket/index.js";
 export class TeamController {
     static async getTeams(req, res) {
         try {

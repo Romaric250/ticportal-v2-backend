@@ -6,24 +6,24 @@ import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import { createRouteHandler } from "uploadthing/express";
-import { env } from "./config/env";
-import { logger } from "./shared/utils/logger";
-import { trackActivity } from "./shared/middleware/activityTracker";
-import authRoutes from "./modules/auth/routes";
-import userRoutes from "./modules/users/routes";
-import squadRoutes from "./modules/squads/routes";
-import teamRoutes from "./modules/teams/routes";
-import hackathonRoutes from "./modules/hackathons/routes";
-import defaultsRoutes from "./modules/defaults/routes";
-import notificationRoutes from "./modules/notifications/routes";
-import adminRoutes from "./modules/admin/routes";
-import { authenticate } from "./shared/middleware/auth";
-import { generalRateLimit } from "./shared/middleware/rateLimit";
-import { uploadRouter } from "./config/uploadthing";
-import deliverableRoutes from "./modules/deliverables/routes";
-import learningPathRoutes from "./modules/learning-paths/routes";
-// import submissionRoutes from "./modules/submission/routes"; // REMOVED - doesn't exist
-import uploadRoutes from "./modules/upload/routes";
+import { env } from "./config/env.js";
+import { logger } from "./shared/utils/logger.js";
+import { trackActivity } from "./shared/middleware/activityTracker.js";
+import authRoutes from "./modules/auth/routes.js";
+import userRoutes from "./modules/users/routes.js";
+import squadRoutes from "./modules/squads/routes.js";
+import teamRoutes from "./modules/teams/routes.js";
+import hackathonRoutes from "./modules/hackathons/routes.js";
+import defaultsRoutes from "./modules/defaults/routes.js";
+import notificationRoutes from "./modules/notifications/routes.js";
+import adminRoutes from "./modules/admin/routes.js";
+import { authenticate } from "./shared/middleware/auth.js";
+import { generalRateLimit } from "./shared/middleware/rateLimit.js";
+import { uploadRouter } from "./config/uploadthing.js";
+import deliverableRoutes from "./modules/deliverables/routes.js";
+import learningPathRoutes from "./modules/learning-paths/routes.js";
+// import submissionRoutes from "./modules/submission/routes.js"; // REMOVED - doesn't exist
+import uploadRoutes from "./modules/upload/routes.js";
 const app = express();
 // Simplified logging middleware - only log errors
 app.use((req, res, next) => {

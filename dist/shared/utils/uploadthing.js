@@ -1,5 +1,5 @@
-import { env } from "../../config/env";
-import { logger } from "./logger";
+import { env } from "../../config/env.js";
+import { logger } from "./logger.js";
 import { UTApi } from "uploadthing/server";
 // Initialize UTApi with your token
 const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });

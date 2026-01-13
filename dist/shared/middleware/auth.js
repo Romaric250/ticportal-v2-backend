@@ -1,4 +1,4 @@
-import { verifyAccessToken } from "../utils/jwt";
+import { verifyAccessToken } from "../utils/jwt.js";
 export const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

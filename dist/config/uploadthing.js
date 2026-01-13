@@ -1,5 +1,5 @@
 import { createUploadthing } from "uploadthing/express";
-import { logger } from "../shared/utils/logger";
+import { logger } from "../shared/utils/logger.js";
 const f = createUploadthing();
 /**
  * UploadThing FileRouter

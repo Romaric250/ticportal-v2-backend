@@ -1,7 +1,7 @@
 import { ActivityType } from "@prisma/client";
-import { db } from "../../config/database";
-import { logger } from "../utils/logger";
-import { POINTS_CONFIG, ACTIVITY_TYPE_MAP, UNIQUE_ACTIVITIES, DAILY_LIMITS, getActivityPoints, } from "../constants/points";
+import { db } from "../../config/database.js";
+import { logger } from "../utils/logger.js";
+import { POINTS_CONFIG, ACTIVITY_TYPE_MAP, UNIQUE_ACTIVITIES, DAILY_LIMITS, getActivityPoints, } from "../constants/points.js";
 class ActivityService {
     /**
      * Track a user activity and optionally award points

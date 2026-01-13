@@ -1,7 +1,7 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
-import { POINTS_CONFIG } from "../../shared/constants/points";
-// import { sendNotification } from "../../shared/utils/notifications";
+import { POINTS_CONFIG } from "../../shared/constants/points.js";
+// import { sendNotification } from "../../shared/utils/notifications.js";
 // Temporary inline notification function until module is properly resolved
 async function sendNotification(data) {
     try {

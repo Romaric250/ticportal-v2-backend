@@ -1,5 +1,5 @@
-import { AuthService } from "./service";
-import { RegisterSchema, LoginSchema, RefreshTokenSchema, SendOtpSchema, VerifyOtpSchema, ResetPasswordSchema } from "./types";
+import { AuthService } from "./service.js";
+import { RegisterSchema, LoginSchema, RefreshTokenSchema, SendOtpSchema, VerifyOtpSchema, ResetPasswordSchema } from "./types.js";
 export class AuthController {
     static async register(req, res) {
         try {

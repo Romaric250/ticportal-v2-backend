@@ -1,10 +1,10 @@
 import bcrypt from "bcrypt";
-import { db } from "../../config/database";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt";
-import { sendEmail } from "../../shared/utils/email";
-import { logger } from "../../shared/utils/logger";
-import { activityService } from "../../shared/services/activity";
-import { NotificationService } from "../notifications/service";
+import { db } from "../../config/database.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt.js";
+import { sendEmail } from "../../shared/utils/email.js";
+import { logger } from "../../shared/utils/logger.js";
+import { activityService } from "../../shared/services/activity.js";
+import { NotificationService } from "../notifications/service.js";
 export class AuthService {
     static async register(input) {
         logger.info({ email: input.email, role: input.role }, "User registration attempt");

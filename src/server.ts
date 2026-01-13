@@ -3,7 +3,7 @@ import { Server } from "socket.io";
 import app from "./app";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
-import { initializeSocket } from "./socket";
+import { initializeSocket } from "./socket/index";
 import { startNotificationCleanup } from "./jobs/notificationCleanup";
 
 const server = http.createServer(app);

@@ -1,9 +1,9 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 import { TeamRole } from "@prisma/client";
-import { activityService } from "../../shared/services/activity";
-import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail, sendTeamJoinRequestEmail, sendJoinRequestAcceptedEmail, sendJoinRequestRejectedEmail } from "../../shared/utils/email";
-import { logger } from "../../shared/utils/logger";
-import { NotificationService } from "../notifications/service";
+import { activityService } from "../../shared/services/activity.js";
+import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail, sendTeamJoinRequestEmail, sendJoinRequestAcceptedEmail, sendJoinRequestRejectedEmail } from "../../shared/utils/email.js";
+import { logger } from "../../shared/utils/logger.js";
+import { NotificationService } from "../notifications/service.js";
 export class TeamService {
     /**
      * Get all teams with pagination

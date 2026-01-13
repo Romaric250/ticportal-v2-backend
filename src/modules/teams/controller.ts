@@ -16,7 +16,7 @@ import {
   emitTeamMemberAdded,
   emitTeamMemberRemoved,
   emitTeamMemberRoleUpdated,
-} from "../../socket";
+} from "../../socket/index";
 
 export class TeamController {
   static async getTeams(req: Request, res: Response) {

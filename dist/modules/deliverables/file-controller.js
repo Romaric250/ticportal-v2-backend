@@ -1,4 +1,4 @@
-import { DeliverableService } from "../deliverables/service";
+import { DeliverableService } from "../deliverables/service.js";
 /**
  * File Upload Controller for Deliverables
  */

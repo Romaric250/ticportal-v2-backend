@@ -1,4 +1,4 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 export class SquadService {
     static async getSquads() {
         return await db.squad.findMany({

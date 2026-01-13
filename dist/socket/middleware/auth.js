@@ -1,7 +1,7 @@
 import { Socket } from "socket.io";
-import { verifyAccessToken } from "../../shared/utils/jwt";
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { verifyAccessToken } from "../../shared/utils/jwt.js";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 /**
  * Socket.io authentication middleware
  * Verifies JWT token from handshake auth or query

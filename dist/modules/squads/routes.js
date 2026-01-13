@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { SquadController } from "./controller";
-import { cacheMiddleware } from "../../shared/middleware/cache";
+import { SquadController } from "./controller.js";
+import { cacheMiddleware } from "../../shared/middleware/cache.js";
 const router = Router();
 router.get("/", cacheMiddleware(), SquadController.getSquads);
 router.get("/:id", cacheMiddleware(), SquadController.getSquad);
