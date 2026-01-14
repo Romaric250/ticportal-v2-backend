@@ -1039,4 +1039,127 @@ export class LearningPathService {
 
     return pathsWithStatus;
   }
+
+  /**
+   * Calculate user progress for all enrolled learning paths
+   */
+  static async calculateProgressForAll(userId: string) {
+    // Get all enrolled paths
+    const enrollments = await db.learningEnrollment.findMany({
+      where: { userId },
+      select: {
+        learningPathId: true,
+      },
+    });
+
+    if (enrollments.length === 0) {
+      return [];
+    }
+
+    const pathIds = enrollments.map(e => e.learningPathId);
+
+    // Get all enrolled paths with modules
+    const paths = await db.learningPath.findMany({
+      where: {
+        id: { in: pathIds },
+      },
+      include: {
+        modules: {
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Get all module completions for this user in enrolled paths
+    const allModuleIds = paths.flatMap(p => p.modules.map(m => m.id));
+    
+    const completions = await db.moduleCompletion.findMany({
+      where: {
+        userId,
+        moduleId: { in: allModuleIds },
+      },
+      select: {
+        moduleId: true,
+      },
+    });
+
+    // Create a set of completed module IDs for quick lookup
+    const completedModuleIds = new Set(completions.map(c => c.moduleId));
+
+    // Calculate progress for each path
+    const progressData = paths.map(path => {
+      const totalModules = path.modules.length;
+      const completedModules = path.modules.filter(m => 
+        completedModuleIds.has(m.id)
+      ).length;
+
+      const progressPercentage = totalModules > 0 
+        ? Math.round((completedModules / totalModules) * 100)
+        : 0;
+
+      const isCompleted = completedModules === totalModules && totalModules > 0;
+
+      return {
+        pathId: path.id,
+        pathTitle: path.title,
+        totalModules,
+        completedModules,
+        progressPercentage,
+        isCompleted,
+      };
+    });
+
+    return progressData;
+  }
+
+  /**
+   * Calculate user progress in a single learning path
+   */
+  static async calculateProgress(userId: string, pathId: string) {
+    // Check if learning path exists
+    const path = await db.learningPath.findUnique({
+      where: { id: pathId },
+      include: {
+        modules: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!path) {
+      throw new Error("Learning path not found");
+    }
+
+    const totalModules = path.modules.length;
+
+    // Count completed modules for this user
+    const completedModules = await db.moduleCompletion.count({
+      where: {
+        userId,
+        moduleId: { in: path.modules.map(m => m.id) },
+      },
+    });
+
+    // Calculate percentage
+    const progressPercentage = totalModules > 0 
+      ? Math.round((completedModules / totalModules) * 100)
+      : 0;
+
+    const isCompleted = completedModules === totalModules && totalModules > 0;
+
+    console.log(  totalModules,
+      completedModules,
+      progressPercentage,
+      isCompleted,)
+    return {
+      totalModules,
+      completedModules,
+      progressPercentage,
+      isCompleted,
+    };
+
+
+
+  }
 }

@@ -7,14 +7,15 @@ const router = Router();
 // Student routes with authentication
 router.get("/learning-paths", authenticate, LearningPathController.getPathsForUser);
 router.get("/learning-paths/enrollments", authenticate, LearningPathController.getAllEnrollmentStatus);
+router.get("/learning-paths/calculate-progress", authenticate, LearningPathController.calculateProgress);
 router.get("/learning-paths/:pathId/progress", authenticate, LearningPathController.getUserProgress);
-router.get("/learning-paths/:pathId/modules", authenticate, LearningPathController.getPathModules);
 router.get("/learning-paths/:pathId/modules/:moduleId/status", authenticate, LearningPathController.getModuleStatus);
+router.get("/learning-paths/:pathId/modules", authenticate, LearningPathController.getPathModules);
 router.post("/learning-paths/:pathId/enroll", authenticate, LearningPathController.enrollInPath);
 router.post("/learning-paths/:pathId/complete", authenticate, LearningPathController.completeLearningPath);
-router.delete("/learning-paths/:pathId/unenroll", authenticate, LearningPathController.unenrollFromPath);
-router.post("/learning-paths/:pathId/modules/:moduleId/complete", authenticate, LearningPathController.completeModule);
 router.post("/learning-paths/:pathId/modules/:moduleId/submit-quiz", authenticate, LearningPathController.submitQuiz);
+router.post("/learning-paths/:pathId/modules/:moduleId/complete", authenticate, LearningPathController.completeModule);
+router.delete("/learning-paths/:pathId/unenroll", authenticate, LearningPathController.unenrollFromPath);
 
 // Admin routes
 router.get("/admin/learning-paths", authenticate, LearningPathController.getAllPaths);
