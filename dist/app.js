@@ -25,47 +25,51 @@ import learningPathRoutes from "./modules/learning-paths/routes.js";
 // import submissionRoutes from "./modules/submission/routes.js"; // REMOVED - doesn't exist
 import uploadRoutes from "./modules/upload/routes.js";
 const app = express();
-// Simplified logging middleware - only log errors
+// Simplified logging middleware - log all requests and responses
 app.use((req, res, next) => {
+    const startTime = Date.now();
     const originalJson = res.json.bind(res);
     const originalSend = res.send.bind(res);
     // Store request body
     const requestBody = req.body;
     // Override res.json to capture response
     res.json = function (body) {
-        if (res.statusCode >= 400) {
-            logger.warn({
-                url: `${req.method} ${req.url}`,
-                body: requestBody,
-                response: body,
-                statusCode: res.statusCode,
-            });
-        }
+        const duration = Date.now() - startTime;
+        logger.info({
+            method: req.method,
+            url: req.url,
+            statusCode: res.statusCode,
+            duration: `${duration}ms`,
+            requestBody,
+            response: body,
+        }, `${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
         return originalJson(body);
     };
     // Override res.send to capture response
     res.send = function (body) {
-        if (res.statusCode >= 400) {
-            let responseBody = body;
-            try {
-                responseBody = typeof body === 'string' ? JSON.parse(body) : body;
-            }
-            catch (e) {
-                // If not JSON, use as is
-            }
-            logger.warn({
-                url: `${req.method} ${req.url}`,
-                body: requestBody,
-                response: responseBody,
-                statusCode: res.statusCode,
-            });
+        const duration = Date.now() - startTime;
+        let responseBody = body;
+        try {
+            responseBody = typeof body === 'string' ? JSON.parse(body) : body;
         }
+        catch (e) {
+            // If not JSON, use as is
+            responseBody = body;
+        }
+        logger.info({
+            method: req.method,
+            url: req.url,
+            statusCode: res.statusCode,
+            duration: `${duration}ms`,
+            requestBody,
+            response: responseBody,
+        }, `${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
         return originalSend(body);
     };
     next();
 });
 app.use(cors({
-    origin: env.clientUrl,
+    origin: [env.clientUrl, "https://ticportal-v2.vercel.app", "http://localhost:3000"],
     credentials: true,
 }));
 app.use(helmet());

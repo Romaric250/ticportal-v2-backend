@@ -190,11 +190,15 @@ export declare class LearningPathService {
     /**
      * Complete module
      */
-    static completeModule(data: {
+    /**
+     * Complete a module without quiz
+     */
+    static completeModule(input: {
         userId: string;
         moduleId: string;
         quizScore?: number;
     }): Promise<{
+        pointsAwarded: number;
         userId: string;
         id: string;
         completedAt: Date;
@@ -247,5 +251,61 @@ export declare class LearningPathService {
      * Check and mark path as complete
      */
     static checkPathCompletion(userId: string, pathId: string): Promise<void>;
+    /**
+     * Get module completion status for a user
+     */
+    static getModuleStatus(userId: string, moduleId: string): Promise<{
+        isCompleted: boolean;
+        completedAt: Date | null;
+        quizScore: number | null;
+    }>;
+    /**
+     * Get all modules for a learning path with completion status
+     */
+    static getPathModulesWithStatus(userId: string, pathId: string): Promise<{
+        id: string;
+        title: string;
+        content: string;
+        order: number;
+        hasQuiz: boolean;
+        isCompleted: boolean;
+        completedAt: Date | null;
+        quizScore: number | null;
+    }[]>;
+    /**
+     * Complete a learning path (all modules must be completed)
+     */
+    static completeLearningPath(userId: string, pathId: string): Promise<{
+        pointsAwarded: number;
+        totalModules: number;
+        averageScore: number | null;
+        userId: string;
+        id: string;
+        learningPathId: string;
+        completedAt: Date;
+        totalScore: number | null;
+    }>;
+    /**
+     * Unenroll from learning path and delete all progress
+     */
+    static unenrollFromPath(userId: string, pathId: string): Promise<{
+        success: boolean;
+    }>;
+    /**
+     * Get enrollment status for all learning paths
+     */
+    static getAllEnrollmentStatus(userId: string): Promise<{
+        pathId: string;
+        pathTitle: string;
+        pathDescription: string;
+        audience: import(".prisma/client").$Enums.LearningPathAudience;
+        isCore: boolean;
+        isEnrolled: boolean;
+        isAutoEnrolled: boolean;
+        enrolledAt: Date | null;
+        isCompleted: boolean;
+        completedAt: Date | null;
+        totalScore: number | null;
+    }[]>;
 }
 //# sourceMappingURL=service.d.ts.map

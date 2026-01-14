@@ -26,8 +26,8 @@ export declare class DeliverableService {
         updatedAt: Date;
         description: string;
         hackathonId: string | null;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         dueDate: Date;
         required: boolean;
     })[]>;
@@ -46,8 +46,8 @@ export declare class DeliverableService {
             description: string | null;
             teamId: string;
             submittedAt: Date;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             content: string;
             submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
             reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -73,8 +73,8 @@ export declare class DeliverableService {
         updatedAt: Date;
         description: string;
         hackathonId: string | null;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         dueDate: Date;
         required: boolean;
     }>;
@@ -108,8 +108,8 @@ export declare class DeliverableService {
         updatedAt: Date;
         description: string;
         hackathonId: string | null;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         dueDate: Date;
         required: boolean;
     }>;
@@ -142,8 +142,8 @@ export declare class DeliverableService {
         updatedAt: Date;
         description: string;
         hackathonId: string | null;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         dueDate: Date;
         required: boolean;
     }>;
@@ -173,8 +173,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -188,8 +188,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -221,8 +221,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -232,8 +232,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -259,8 +259,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -270,8 +270,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -297,8 +297,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -308,8 +308,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -330,8 +330,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -345,8 +345,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -378,8 +378,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -389,8 +389,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -415,8 +415,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -430,8 +430,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
@@ -469,8 +469,8 @@ export declare class DeliverableService {
             updatedAt: Date;
             description: string;
             hackathonId: string | null;
-            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
             dueDate: Date;
             required: boolean;
         };
@@ -480,8 +480,8 @@ export declare class DeliverableService {
         description: string | null;
         teamId: string;
         submittedAt: Date;
-        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;

@@ -74,6 +74,11 @@ export class TeamController {
       }
       
       const team = await TeamService.createTeam(userId, parseResult.data);
+
+      
+
+
+
       res.status(201).json({ success: true, data: team });
     } catch (error) {
       const status = (error as Error).message.includes("must be a member") ? 403 : 400;

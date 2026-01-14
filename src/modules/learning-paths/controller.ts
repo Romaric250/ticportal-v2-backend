@@ -289,8 +289,8 @@ export class LearningPathController {
   static async completeModule(req: Request, res: Response) {
     try {
       const { moduleId } = req.params;
-      const { quizScore } = req.body;
       const userId = (req as any).user?.userId;
+      const quizScore = req.body?.quizScore; // Optional from body
 
       if (!userId) {
         return res.status(401).json({
@@ -315,12 +315,13 @@ export class LearningPathController {
       res.json({
         success: true,
         data: completion,
-        message: "Module completed successfully",
+        message: "Module completed successfully! +50 points",
       });
     } catch (error: any) {
       const statusCode = 
         error.message.includes("not found") ? 404 :
-        error.message.includes("already completed") ? 409 : 500;
+        error.message.includes("already completed") ? 409 :
+        error.message.includes("quiz") ? 400 : 500;
 
       res.status(statusCode).json({
         success: false,
@@ -328,6 +329,19 @@ export class LearningPathController {
       });
     }
   }
+
+      static async createPath(req:Request, res:Response) {
+    }
+    /**
+     * PUT /api/admin/learning-paths/:pathId
+     */
+    static async updatePath(req:Request, res:Response) {
+    }
+    /**
+     * DELETE /api/admin/learning-paths/:pathId
+     */
+    static async deletePath(req:Request, res:Response) {
+    }
 
   /**
    * @swagger
@@ -686,6 +700,344 @@ export class LearningPathController {
       res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to delete module",
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/learning-paths/{pathId}/modules/{moduleId}/status:
+   *   get:
+   *     summary: Get module completion status
+   *     tags: [Learning Paths]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: pathId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: moduleId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Module completion status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     isCompleted:
+   *                       type: boolean
+   *                     completedAt:
+   *                       type: string
+   *                       format: date-time
+   *                     quizScore:
+   *                       type: number
+   *       404:
+   *         description: Module not found
+   */
+  static async getModuleStatus(req: Request, res: Response) {
+    try {
+      const { moduleId } = req.params;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!moduleId) {
+        return res.status(400).json({
+          success: false,
+          message: "Module ID is required",
+        });
+      }
+
+      const status = await LearningPathService.getModuleStatus(userId, moduleId);
+
+      res.json({
+        success: true,
+        data: status,
+      });
+    } catch (error: any) {
+      const statusCode = error.message === "Module not found" ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to get module status",
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/learning-paths/{pathId}/modules:
+   *   get:
+   *     summary: Get all modules with completion status for a learning path
+   *     tags: [Learning Paths]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: pathId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of modules with completion status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       id:
+   *                         type: string
+   *                       title:
+   *                         type: string
+   *                       content:
+   *                         type: string
+   *                       order:
+   *                         type: number
+   *                       hasQuiz:
+   *                         type: boolean
+   *                       isCompleted:
+   *                         type: boolean
+   *                       completedAt:
+   *                         type: string
+   *                         format: date-time
+   *                       quizScore:
+   *                         type: number
+   *       404:
+   *         description: Learning path not found
+   */
+  static async getPathModules(req: Request, res: Response) {
+    try {
+      const { pathId } = req.params;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!pathId) {
+        return res.status(400).json({
+          success: false,
+          message: "Path ID is required",
+        });
+      }
+
+      const modules = await LearningPathService.getPathModulesWithStatus(userId, pathId);
+
+      res.json({
+        success: true,
+        data: modules,
+      });
+    } catch (error: any) {
+      const statusCode = error.message === "Learning path not found" ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to get modules",
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/learning-paths/{pathId}/complete:
+   *   post:
+   *     summary: Complete a learning path (all modules must be done)
+   *     tags: [Learning Paths]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: pathId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Learning path completed successfully (+200 points)
+   *       400:
+   *         description: Not all modules completed yet
+   *       404:
+   *         description: Learning path not found
+   */
+  static async completeLearningPath(req: Request, res: Response) {
+    try {
+      const { pathId } = req.params;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!pathId) {
+        return res.status(400).json({
+          success: false,
+          message: "Path ID is required",
+        });
+      }
+
+      const result = await LearningPathService.completeLearningPath(userId, pathId);
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Congratulations! Learning path completed! +${result.pointsAwarded} points 🎉`,
+      });
+    } catch (error: any) {
+      const statusCode = 
+        error.message === "Learning path not found" ? 404 :
+        error.message.includes("not all modules") ? 400 : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to complete learning path",
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/learning-paths/{pathId}/unenroll:
+   *   delete:
+   *     summary: Unenroll from learning path and delete all progress
+   *     tags: [Learning Paths]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: pathId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Successfully unenrolled and progress deleted
+   *       404:
+   *         description: Not enrolled in this learning path
+   */
+  static async unenrollFromPath(req: Request, res: Response) {
+    try {
+      const { pathId } = req.params;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      if (!pathId) {
+        return res.status(400).json({
+          success: false,
+          message: "Path ID is required",
+        });
+      }
+
+      await LearningPathService.unenrollFromPath(userId, pathId);
+
+      res.json({
+        success: true,
+        message: "Successfully unenrolled. All progress has been deleted.",
+      });
+    } catch (error: any) {
+      const statusCode = error.message === "Not enrolled in this learning path" ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || "Failed to unenroll",
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/learning-paths/enrollments:
+   *   get:
+   *     summary: Get enrollment status for all learning paths
+   *     tags: [Learning Paths]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: List of all paths with enrollment status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       pathId:
+   *                         type: string
+   *                       pathTitle:
+   *                         type: string
+   *                       isEnrolled:
+   *                         type: boolean
+   *                       isAutoEnrolled:
+   *                         type: boolean
+   *                       enrolledAt:
+   *                         type: string
+   *                         format: date-time
+   *                       isCompleted:
+   *                         type: boolean
+   *                       completedAt:
+   *                         type: string
+   *                         format: date-time
+   */
+  static async getAllEnrollmentStatus(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      const enrollments = await LearningPathService.getAllEnrollmentStatus(userId);
+
+      res.json({
+        success: true,
+        data: enrollments,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get enrollment status",
       });
     }
   }

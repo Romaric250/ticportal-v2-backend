@@ -411,19 +411,12 @@ export class AdminService {
         if (existingMember) {
             throw new Error("User is already a team member");
         }
-        // Validate and set role
-        let memberRole = TeamRole.MEMBER;
-        if (role) {
-            if (role === TeamRole.LEAD || role === TeamRole.MEMBER) {
-                memberRole = role;
-            }
-        }
         // Add member
         const member = await db.teamMember.create({
             data: {
                 userId,
                 teamId,
-                role: memberRole,
+                role: role || TeamRole.MEMBER,
             },
             include: {
                 user: {
@@ -471,13 +464,12 @@ export class AdminService {
         if (!member) {
             throw new Error("Team member not found");
         }
-        // Validate role
-        if (role !== TeamRole.LEAD && role !== TeamRole.MEMBER) {
-            throw new Error(`Invalid role. Must be ${TeamRole.LEAD} or ${TeamRole.MEMBER}`);
-        }
         const updatedMember = await db.teamMember.update({
             where: {
-                id: member.id,
+                teamId_userId: {
+                    teamId,
+                    userId,
+                },
             },
             data: {
                 role: role,

@@ -245,6 +245,24 @@ export class TeamService {
       },
     });
 
+    // ✅ Auto-create deliverables from all existing templates
+    const templates = await db.deliverableTemplate.findMany();
+    
+    if (templates.length > 0) {
+      await db.teamDeliverable.createMany({
+        data: templates.map(template => ({
+          teamId: team.id,
+          templateId: template.id,
+          type: template.type,
+          customType: template.customType,
+          contentType: template.contentType,
+          content: "",
+        })),
+      });
+
+      logger.info({ teamId: team.id, deliverableCount: templates.length }, "Auto-created deliverables for new team");
+    }
+
     logger.info({ userId, teamId: team.id }, "Team created");
 
     return team;
