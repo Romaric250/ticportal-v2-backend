@@ -794,6 +794,7 @@ export class LearningPathService {
       content: module.content,
       order: module.order,
       hasQuiz: !!(module.quiz && Object.keys(module.quiz).length > 0),
+      quiz: module.quiz || null,
       isCompleted: completionMap.has(module.id),
       completedAt: completionMap.get(module.id)?.completedAt || null,
       quizScore: completionMap.get(module.id)?.quizScore || null,
