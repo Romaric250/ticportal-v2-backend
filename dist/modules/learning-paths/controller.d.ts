@@ -534,5 +534,42 @@ export declare class LearningPathController {
      *                         format: date-time
      */
     static getAllEnrollmentStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * @swagger
+     * /api/learning-paths/calculate-progress:
+     *   get:
+     *     summary: Calculate user progress for all enrolled learning paths
+     *     tags: [Learning Paths]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Progress calculation for all enrolled paths
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       pathId:
+     *                         type: string
+     *                       pathTitle:
+     *                         type: string
+     *                       totalModules:
+     *                         type: number
+     *                       completedModules:
+     *                         type: number
+     *                       progressPercentage:
+     *                         type: number
+     *                       isCompleted:
+     *                         type: boolean
+     */
+    static calculateProgress(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=controller.d.ts.map

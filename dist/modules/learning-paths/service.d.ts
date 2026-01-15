@@ -268,6 +268,7 @@ export declare class LearningPathService {
         content: string;
         order: number;
         hasQuiz: boolean;
+        quiz: string | number | true | Prisma.JsonObject | Prisma.JsonArray | null;
         isCompleted: boolean;
         completedAt: Date | null;
         quizScore: number | null;
@@ -307,5 +308,25 @@ export declare class LearningPathService {
         completedAt: Date | null;
         totalScore: number | null;
     }[]>;
+    /**
+     * Calculate user progress for all enrolled learning paths
+     */
+    static calculateProgressForAll(userId: string): Promise<{
+        pathId: string;
+        pathTitle: string;
+        totalModules: number;
+        completedModules: number;
+        progressPercentage: number;
+        isCompleted: boolean;
+    }[]>;
+    /**
+     * Calculate user progress in a single learning path
+     */
+    static calculateProgress(userId: string, pathId: string): Promise<{
+        totalModules: number;
+        completedModules: number;
+        progressPercentage: number;
+        isCompleted: boolean;
+    }>;
 }
 //# sourceMappingURL=service.d.ts.map
