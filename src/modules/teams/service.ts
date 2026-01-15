@@ -7,7 +7,8 @@ import {
   sendTeamRemovalEmail,
   sendTeamJoinRequestEmail,
   sendJoinRequestAcceptedEmail,
-  sendJoinRequestRejectedEmail
+  sendJoinRequestRejectedEmail,
+  sendTeamCreatedEmail,
 } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import { NotificationService } from "../notifications/service";
@@ -244,6 +245,19 @@ export class TeamService {
         school: team.school,
       },
     });
+
+    // Send team created confirmation email
+    const creator = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        firstName: true,
+      },
+    });
+
+    if (creator) {
+      await sendTeamCreatedEmail(creator.email, creator.firstName, team.name);
+    }
 
     // ✅ Auto-create deliverables from all existing templates
     const templates = await db.deliverableTemplate.findMany();

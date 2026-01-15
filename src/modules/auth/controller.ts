@@ -44,6 +44,9 @@ export class AuthController {
   }
 
   static async sendOtp(req: Request, res: Response) {
+
+    console.log("data to opt", req.body)
+
     try {
       const input = SendOtpSchema.parse(req.body);
       await AuthService.sendOtp(input);

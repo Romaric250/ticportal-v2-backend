@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { db } from "../../config/database";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt";
-import { sendEmail } from "../../shared/utils/email";
+import { sendEmail, sendVerificationEmail, sendPasswordResetEmail } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import { activityService } from "../../shared/services/activity";
 import { NotificationService } from "../notifications/service";
@@ -46,11 +46,7 @@ export class AuthService {
     });
 
     // Send OTP email
-    await sendEmail(
-      user.email,
-      "Verify Your Email - TIC Portal",
-      `Welcome to TIC Portal!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account, please ignore this email.`,
-    );
+    await sendVerificationEmail(user.email, user.firstName, code);
 
     logger.info({ userId: user.id, email: user.email }, "User registered, OTP sent");
 
@@ -121,6 +117,7 @@ export class AuthService {
   }
 
   static async sendOtp(input: SendOtpInput) {
+    console.log("input here", input)
     const user = await db.user.findUnique({ where: { email: input.email } });
     
     if (!user && input.type === "PASSWORD_RESET") {
@@ -142,15 +139,12 @@ export class AuthService {
       },
     });
 
-    const emailSubject = input.type === "EMAIL_VERIFICATION" 
-      ? "Verify Your Email - TIC Portal" 
-      : "Password Reset Code - TIC Portal";
-    
-    const emailContent = input.type === "EMAIL_VERIFICATION"
-      ? `Your email verification code is: ${code}\n\nThis code will expire in 10 minutes.`
-      : `Your password reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-
-    await sendEmail(input.email, emailSubject, emailContent);
+    // Send formatted email based on OTP type
+    if (input.type === "EMAIL_VERIFICATION") {
+      await sendVerificationEmail(input.email, user?.firstName || "User", code);
+    } else {
+      await sendPasswordResetEmail(input.email, user?.firstName || "User", code);
+    }
 
     logger.info({ email: input.email, type: input.type }, "OTP sent successfully");
 

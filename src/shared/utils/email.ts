@@ -25,67 +25,76 @@ const emailTemplate = (content: string) => `
     }
     .header {
       background-color: #111827;
-      padding: 40px 20px;
+      padding: 30px 20px;
       text-align: center;
       border-bottom: 2px solid #ffffff;
     }
     .logo {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: bold;
       color: #ffffff;
       letter-spacing: 2px;
     }
     .content {
       background-color: #ffffff;
-      padding: 40px 30px;
+      padding: 30px 25px;
       color: #111827;
       line-height: 1.6;
     }
     .content p {
-      margin: 0 0 20px 0;
-      font-size: 16px;
+      margin: 0 0 16px 0;
+      font-size: 14px;
     }
     .button {
       display: inline-block;
-      padding: 14px 28px;
-      margin: 20px 0;
+      padding: 12px 24px;
+      margin: 16px 0;
       background-color: #111827;
       color: #ffffff !important;
       text-decoration: none;
       border-radius: 4px;
       font-weight: 600;
-      font-size: 16px;
+      font-size: 14px;
     }
     .footer {
       background-color: #111827;
-      padding: 30px 20px;
+      padding: 25px 20px;
       text-align: center;
       color: #ffffff;
-      font-size: 14px;
+      font-size: 12px;
       border-top: 2px solid #ffffff;
     }
     .footer p {
       margin: 5px 0;
       opacity: 0.8;
     }
+    .footer a {
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
     .code-box {
       background-color: #f3f4f6;
       border: 1px solid #e5e7eb;
       border-radius: 4px;
-      padding: 16px;
+      padding: 14px;
       font-family: 'Courier New', monospace;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
       text-align: center;
-      letter-spacing: 4px;
-      margin: 20px 0;
+      letter-spacing: 3px;
+      margin: 16px 0;
       color: #111827;
     }
     .info-box {
       background-color: #f9fafb;
       border-left: 4px solid #111827;
-      padding: 16px;
-      margin: 20px 0;
+      padding: 14px;
+      margin: 16px 0;
+      font-size: 13px;
     }
   </style>
 </head>
@@ -100,6 +109,7 @@ const emailTemplate = (content: string) => `
     <div class="footer">
       <p>TIC Summit Portal</p>
       <p>Building Africa's Tech Future</p>
+      <p><a href="https://ticsummit.org" target="_blank">ticsummit.org</a></p>
     </div>
   </div>
 </body>
@@ -178,6 +188,33 @@ export const sendWelcomeEmail = async (email: string, firstName: string) => {
   await sendEmail(email, "Welcome to TIC Portal", emailTemplate(content));
 };
 
+// Email: Team Created Confirmation
+export const sendTeamCreatedEmail = async (
+  email: string,
+  firstName: string,
+  teamName: string,
+) => {
+  const content = `
+    <p>Hello ${firstName},</p>
+    <p>Congratulations! Your team <strong>${teamName}</strong> has been created successfully! 🎉</p>
+    <div class="info-box">
+      <p><strong>Next Steps:</strong></p>
+      <p>• Invite team members to join<br>
+      • Set up your team profile<br>
+      • Start working on your project<br>
+      • Explore hackathon opportunities</p>
+    </div>
+    <p>🏆 <strong>Get inspired!</strong> Explore past TIC Summit projects at <a href="https://ticsummit.org/hall-of-fame" target="_blank" style="color: #111827; font-weight: 600;">ticsummit.org/hall-of-fame</a></p>
+    <a href="${env.clientUrl}/teams/${teamName}" class="button">Go to Team</a>
+  `;
+
+  await sendEmail(
+    email,
+    `Team Created: ${teamName}`,
+    emailTemplate(content),
+  );
+};
+
 // Email: Team Invitation
 export const sendTeamInviteEmail = async (
   email: string,
@@ -195,6 +232,7 @@ export const sendTeamInviteEmail = async (
       • Share ideas and resources<br>
       • Track team progress</p>
     </div>
+    <p>🏆 <strong>Get inspired!</strong> Explore past TIC Summit projects at <a href="https://ticsummit.org/hall-of-fame" target="_blank" style="color: #111827; font-weight: 600;">ticsummit.org/hall-of-fame</a></p>
     <a href="${env.clientUrl}/teams/${teamName}" class="button">View Team</a>
   `;
 
