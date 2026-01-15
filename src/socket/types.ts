@@ -106,6 +106,77 @@ export interface ServerToClientEvents {
     newRole: string;
   }) => void;
 
+  // Feed events
+  "feed:post:created": (data: {
+    post: any; // FeedPost type
+  }) => void;
+
+  "feed:post:updated": (data: {
+    postId: string;
+    updates: any;
+  }) => void;
+
+  "feed:post:deleted": (data: {
+    postId: string;
+  }) => void;
+
+  "feed:post:pinned": (data: {
+    postId: string;
+    isPinned: boolean;
+  }) => void;
+
+  "feed:post:liked": (data: {
+    postId: string;
+    userId: string;
+    userName: string;
+    isLiked: boolean;
+    likesCount: number;
+  }) => void;
+
+  "feed:comment:created": (data: {
+    postId: string;
+    comment: any; // FeedComment type
+    commentsCount: number;
+  }) => void;
+
+  "feed:comment:updated": (data: {
+    postId: string;
+    commentId: string;
+    content: string;
+    updatedAt: string;
+  }) => void;
+
+  "feed:comment:deleted": (data: {
+    postId: string;
+    commentId: string;
+    commentsCount: number;
+  }) => void;
+
+  "feed:comment:liked": (data: {
+    postId: string;
+    commentId: string;
+    userId: string;
+    isLiked: boolean;
+    likesCount: number;
+  }) => void;
+
+  "feed:view:incremented": (data: {
+    postId: string;
+    viewsCount: number;
+  }) => void;
+
+  "feed:typing:comment": (data: {
+    postId: string;
+    userId: string;
+    userName: string;
+    isTyping: boolean;
+  }) => void;
+
+  "feed:error": (data: {
+    message: string;
+    code?: string;
+  }) => void;
+
   // Errors
   error: (data: { message: string }) => void;
 }
@@ -126,4 +197,20 @@ export interface ClientToServerEvents {
   // Message receipts
   "team:message:delivered": (data: { messageId: string; teamId: string }) => void;
   "team:message:read": (data: { messageId: string; teamId: string }) => void;
+
+  // Feed events
+  "feed:join": (data: {
+    category?: string;
+  }) => void;
+
+  "feed:leave": () => void;
+
+  "feed:typing:comment": (data: {
+    postId: string;
+    isTyping: boolean;
+  }) => void;
+
+  "feed:post:view": (data: {
+    postId: string;
+  }) => void;
 }

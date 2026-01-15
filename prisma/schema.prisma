@@ -58,6 +58,12 @@ model User {
   moduleCompletions      ModuleCompletion[]        @relation("ModuleCompletions")
   learningEnrollments    LearningEnrollment[]
   learningPathCompletions LearningPathCompletion[]
+  feedPosts              FeedPost[]                @relation("FeedPosts")
+  feedLikes              FeedLike[]                @relation("FeedLikes")
+  feedComments           FeedComment[]             @relation("FeedComments")
+  feedViews              FeedView[]                @relation("FeedViews")
+  feedBookmarks          FeedBookmark[]            @relation("FeedBookmarks")
+  feedReports            FeedReport[]              @relation("FeedReporter")
 
   @@index([username(sort: Desc)], map: "User_username_idx")
 }
@@ -164,6 +170,7 @@ model Team {
   mentorSessions    MentorSession[]
   leaderboards      Leaderboard[]
   deliverables      TeamDeliverable[]
+  feedPosts         FeedPost[]
 }
 
 model TeamMember {
@@ -638,7 +645,256 @@ model TeamDeliverable {
   @@map("team_deliverables")
 }
 
-/// Learning Paths
+/// TIC Feed System
+enum FeedCategory {
+  ANNOUNCEMENTS      // Official announcements from admins
+  MENTORSHIP        // Mentorship opportunities, tips, guidance
+  TEAM_UPDATES      // Team project updates and progress
+  ACHIEVEMENTS      // User achievements, milestones, awards
+  EVENTS            // Event announcements and updates
+  LEARNING          // Learning resources, tips, tutorials
+  TECH_NEWS         // Tech industry news and trends
+  OPPORTUNITIES     // Internships, jobs, scholarships
+  GENERAL           // General discussions
+}
+
+enum FeedPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DELETED
+}
+
+enum FeedVisibility {
+  PUBLIC           // Visible to all authenticated users
+  STUDENTS_ONLY    // Only students can see
+  MENTORS_ONLY     // Only mentors can see
+  TEAM_ONLY        // Only specific team members
+  ADMIN_ONLY       // Only admins
+}
+
+model FeedPost {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId    String   @db.ObjectId
+  
+  // Content
+  title       String?
+  content     String
+  category    FeedCategory
+  tags        String[]  // For better filtering and search
+  
+  // Media
+  imageUrls   String[]  // Multiple images support
+  videoUrl    String?
+  attachments FeedAttachment[]
+  
+  // Visibility & Moderation
+  status      FeedPostStatus @default(PUBLISHED)
+  visibility  FeedVisibility @default(PUBLIC)
+  isPinned    Boolean  @default(false)
+  pinnedAt    DateTime?
+  pinnedBy    String?  @db.ObjectId
+  
+  // Rich metadata
+  isOfficial  Boolean  @default(false)
+  isEdited    Boolean  @default(false)
+  editedAt    DateTime?
+  
+  // Team-specific post
+  teamId      String?  @db.ObjectId
+  
+  // Engagement metrics (denormalized for performance)
+  likesCount     Int   @default(0)
+  commentsCount  Int   @default(0)
+  viewsCount     Int   @default(0)
+  sharesCount    Int   @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
+  
+  // Relations
+  author      User     @relation("FeedPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  likes       FeedLike[]
+  comments    FeedComment[]
+  views       FeedView[]
+  bookmarks   FeedBookmark[]
+  reports     FeedReport[]
+  
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([category, publishedAt(sort: Desc)])
+  @@index([status, visibility])
+  @@index([isPinned, pinnedAt(sort: Desc)])
+  @@index([teamId])
+  @@index([tags])
+  @@map("feed_posts")
+}
+
+model FeedAttachment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId      String   @db.ObjectId
+  
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  fileType    String   // "document", "image", "video", "other"
+  
+  createdAt   DateTime @default(now())
+  
+  post        FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([postId])
+  @@map("feed_attachments")
+}
+
+model FeedLike {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId      String?  @db.ObjectId
+  commentId   String?  @db.ObjectId
+  userId      String   @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  
+  post        FeedPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment     FeedComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user        User         @relation("FeedLikes", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@unique([commentId, userId])
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([commentId])
+  @@index([userId])
+  @@map("feed_likes")
+}
+
+model FeedComment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId      String   @db.ObjectId
+  authorId    String   @db.ObjectId
+  parentId    String?  @db.ObjectId
+  
+  content     String
+  
+  // Metadata
+  isEdited    Boolean  @default(false)
+  editedAt    DateTime?
+  
+  // Engagement
+  likesCount  Int      @default(0)
+  repliesCount Int     @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  post        FeedPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User         @relation("FeedComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent      FeedComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies     FeedComment[] @relation("CommentReplies")
+  likes       FeedLike[]
+  reports     FeedReport[]
+  
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("feed_comments")
+}
+
+model FeedView {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId      String   @db.ObjectId
+  userId      String   @db.ObjectId
+  
+  // Analytics
+  duration    Int?     // Time spent viewing in seconds
+  viewedAt    DateTime @default(now())
+  
+  post        FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User     @relation("FeedViews", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@map("feed_views")
+}
+
+model FeedBookmark {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId      String   @db.ObjectId
+  userId      String   @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  
+  post        FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User     @relation("FeedBookmarks", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("feed_bookmarks")
+}
+
+enum FeedReportReason {
+  SPAM
+  INAPPROPRIATE
+  HARASSMENT
+  FALSE_INFORMATION
+  OTHER
+}
+
+enum FeedReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model FeedReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId  String   @db.ObjectId
+  postId      String?  @db.ObjectId
+  commentId   String?  @db.ObjectId
+  
+  reason      FeedReportReason
+  description String?
+  status      FeedReportStatus @default(PENDING)
+  
+  reviewedBy  String?  @db.ObjectId
+  reviewedAt  DateTime?
+  resolution  String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  reporter    User         @relation("FeedReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  post        FeedPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment     FeedComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  @@index([status, createdAt(sort: Desc)])
+  @@index([reporterId])
+  @@index([postId])
+  @@index([commentId])
+  @@map("feed_reports")
+}
+
+// Track who is currently viewing/typing in real-time
+model FeedPresence {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  postId      String?  @db.ObjectId
+  
+  status      String   // "viewing", "typing_comment", "idle"
+  lastActive  DateTime @default(now())
+  
+  @@unique([userId, postId])
+  @@index([postId, lastActive])
+  @@index([userId, lastActive])
+  @@map("feed_presence")
+}
+
+// Update User model with feed relations
 enum LearningPathAudience {
   STUDENTS
   MENTORS

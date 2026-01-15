@@ -12,6 +12,7 @@ import { trackActivity } from "./shared/middleware/activityTracker";
 import authRoutes from "./modules/auth/routes";
 import userRoutes from "./modules/users/routes";
 import squadRoutes from "./modules/squads/routes";
+import feedRoutes from "./modules/feed/routes";
 import teamRoutes from "./modules/teams/routes";
 import hackathonRoutes from "./modules/hackathons/routes";
 import defaultsRoutes from "./modules/defaults/routes";
@@ -120,6 +121,38 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", deliverableRoutes);
 app.use("/api", learningPathRoutes);
+
+// Debug middleware for feed routes
+app.use("/api/feed", (req, res, next) => {
+  logger.info({
+    feedRoute: true,
+    method: req.method,
+    path: req.path,
+    fullUrl: req.originalUrl,
+    body: req.body,
+    headers: {
+      authorization: req.headers.authorization ? "Present" : "Missing",
+      contentType: req.headers["content-type"],
+    },
+  }, `🔥 Feed route hit: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+app.use("/api", feedRoutes); // Feed routes registered ✅
+logger.info("✅ Feed routes registered at /api/feed/*");
+logger.info("Feed routes available:");
+logger.info("  POST   /api/feed/posts");
+logger.info("  GET    /api/feed/posts");
+logger.info("  GET    /api/feed/posts/:postId");
+logger.info("  PUT    /api/feed/posts/:postId");
+logger.info("  DELETE /api/feed/posts/:postId");
+logger.info("  POST   /api/feed/posts/:postId/like");
+logger.info("  POST   /api/feed/posts/:postId/bookmark");
+logger.info("  POST   /api/feed/posts/:postId/view");
+logger.info("  GET    /api/feed/posts/:postId/comments");
+logger.info("  POST   /api/feed/posts/:postId/comments");
+logger.info("  GET    /api/feed/bookmarks");
+logger.info("  GET    /api/feed/trending-tags");
 // app.use("/api/submissions", submissionRoutes); // REMOVED - doesn't exist
 app.use("/api/f", uploadRoutes); // Global file upload
 
