@@ -367,7 +367,7 @@ export class LearningPathController {
       static async updatePath(req:Request, res:Response) {
         try {
           const { pathId } = req.params;
-          const { title, description, audience, isCore } = req.body;
+          const { title, description, audience, isCore, status } = req.body;
     
           if (!pathId) {
             return res.status(400).json({
@@ -381,6 +381,7 @@ export class LearningPathController {
             description,
             audience,
             isCore,
+            status
           });
     
           res.json({

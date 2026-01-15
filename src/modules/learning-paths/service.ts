@@ -1,7 +1,7 @@
 import { db } from "../../config/database";
 import { LearningPathAudience } from "@prisma/client";
 import { POINTS_CONFIG } from "../../shared/constants/points";
-import type { Prisma } from "@prisma/client";
+import type { LearningPathStatus, Prisma } from "@prisma/client";
 
 export class LearningPathService {
   /**
@@ -61,6 +61,7 @@ export class LearningPathService {
     description: string;
     audience: LearningPathAudience;
     isCore?: boolean;
+    status?: 'DRAFT' | 'ACTIVE';
   }) {
     const template = await db.learningPath.create({
       data: {
@@ -68,11 +69,12 @@ export class LearningPathService {
         description: data.description,
         audience: data.audience,
         isCore: data.isCore ?? false,
+        status: data.status ?? 'DRAFT',
       },
     });
 
-    // ✅ Auto-enroll all students if core path
-    if (data.isCore) {
+    // ✅ Auto-enroll all students if core path AND status is ACTIVE
+    if (data.isCore && template.status === 'ACTIVE') {
       await this.autoEnrollStudents(template.id);
     }
 
@@ -89,6 +91,7 @@ export class LearningPathService {
       description?: string;
       audience?: LearningPathAudience;
       isCore?: boolean;
+      status?:LearningPathStatus
     }
   ) {
     // Get current path state
@@ -253,6 +256,7 @@ export class LearningPathService {
     const paths = await db.learningPath.findMany({
       where: {
         audience: { in: audiences },
+        status:"ACTIVE"
       },
       include: {
         modules: {

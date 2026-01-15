@@ -645,11 +645,16 @@ enum LearningPathAudience {
   EVERYONE
 }
 
+enum LearningPathStatus {
+  DRAFT
+  ACTIVE
+}
 model LearningPath {
   id          String                @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String
   audience    LearningPathAudience
+   status      LearningPathStatus @default(DRAFT)
   isCore      Boolean               @default(false)
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
