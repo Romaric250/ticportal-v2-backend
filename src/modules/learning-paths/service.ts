@@ -91,12 +91,53 @@ export class LearningPathService {
       isCore?: boolean;
     }
   ) {
+    // Get current path state
+    const currentPath = await db.learningPath.findUnique({
+      where: { id: pathId },
+    });
+
+    if (!currentPath) {
+      throw new Error("Learning path not found");
+    }
+
+    // Update the path
     const path = await db.learningPath.update({
       where: { id: pathId },
       data,
     });
 
-    return path;
+    let message = "Learning path updated successfully";
+
+    // Handle isCore changes
+    if (data.isCore !== undefined && data.isCore !== currentPath.isCore) {
+      if (data.isCore === true) {
+        // Changed to core - auto-enroll all students
+        const result = await this.autoEnrollStudents(pathId);
+        message = `Learning path updated to core. ${result.enrolled} students auto-enrolled.`;
+      } else if (data.isCore === false) {
+        // Changed to non-core - unenroll all auto-enrolled students
+        const result = await this.unenrollAutoEnrolledStudents(pathId);
+        message = `Learning path updated to non-core. ${result.unenrolled} auto-enrolled students removed.`;
+      }
+    }
+
+    return { path, message };
+  }
+
+  /**
+   * Unenroll all auto-enrolled students from a path
+   */
+  private static async unenrollAutoEnrolledStudents(pathId: string) {
+    // Delete all auto-enrolled enrollments
+    const result = await db.learningEnrollment.deleteMany({
+      where: {
+        learningPathId: pathId,
+        isAutoEnrolled: true,
+      },
+    });
+
+    console.log(`✅ Unenrolled ${result.count} auto-enrolled students from path ${pathId}`);
+    return { unenrolled: result.count };
   }
 
   /**

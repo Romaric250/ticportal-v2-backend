@@ -187,6 +187,40 @@ export class AuthService {
         data: { isVerified: true },
       });
 
+      // ✅ Auto-enroll student in all core learning paths
+      if (user.role === "STUDENT") {
+        const corePaths = await db.learningPath.findMany({
+          where: { isCore: true },
+          select: { id: true },
+        });
+
+        if (corePaths.length > 0) {
+          // Check which paths user is not already enrolled in
+          const existingEnrollments = await db.learningEnrollment.findMany({
+            where: {
+              userId: user.id,
+              learningPathId: { in: corePaths.map(p => p.id) },
+            },
+            select: { learningPathId: true },
+          });
+
+          const enrolledPathIds = new Set(existingEnrollments.map(e => e.learningPathId));
+          const pathsToEnroll = corePaths.filter(p => !enrolledPathIds.has(p.id));
+
+          if (pathsToEnroll.length > 0) {
+            await db.learningEnrollment.createMany({
+              data: pathsToEnroll.map(path => ({
+                userId: user.id,
+                learningPathId: path.id,
+                isAutoEnrolled: true,
+              })),
+            });
+
+            logger.info({ userId: user.id, enrolledPaths: pathsToEnroll.length }, "Auto-enrolled student in core learning paths on email verification");
+          }
+        }
+      }
+
       // Generate tokens for the verified user
       const accessToken = generateAccessToken({ userId: user.id, role: user.role });
       const refreshToken = generateRefreshToken({ userId: user.id });
