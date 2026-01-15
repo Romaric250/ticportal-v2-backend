@@ -35,6 +35,9 @@ router.post("/feed/report", authenticate, FeedController.reportContent);
 // Trending
 router.get("/feed/trending-tags", authenticate, FeedController.getTrendingTags);
 
+// Points
+router.get("/feed/points/summary", authenticate, FeedController.getFeedPointsSummary);
+
 // ==================== ADMIN ROUTES ====================
 
 // Pin/Unpin posts (Admin only)

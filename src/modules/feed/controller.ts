@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { FeedService } from "./service";
+import { FeedPointsService } from "./points.service";
 import { logger } from "../../shared/utils/logger";
 import type {
   CreatePostInput,
@@ -706,6 +707,36 @@ export class FeedController {
       res.status(500).json({
         success: false,
         message: error.message || "Failed to get trending tags",
+      });
+    }
+  }
+
+  /**
+   * GET /api/feed/points/summary
+   * Get user's feed points summary
+   */
+  static async getFeedPointsSummary(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      const summary = await FeedPointsService.getUserFeedPointsSummary(userId);
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error: any) {
+      logger.error({ error: error.message }, "Failed to get feed points summary");
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get feed points summary",
       });
     }
   }

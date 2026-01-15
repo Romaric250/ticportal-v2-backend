@@ -127,15 +127,15 @@ export declare class LearningPathController {
      *         description: Module already completed
      */
     static completeModule(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    static createPath(req: Request, res: Response): Promise<void>;
+    static createPath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * PUT /api/admin/learning-paths/:pathId
      */
-    static updatePath(req: Request, res: Response): Promise<void>;
+    static updatePath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * DELETE /api/admin/learning-paths/:pathId
      */
-    static deletePath(req: Request, res: Response): Promise<void>;
+    static deletePath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * @swagger
      * /api/admin/learning-paths:

@@ -1,7 +1,7 @@
 import { db } from "../../config/database.js";
 import { TeamRole } from "@prisma/client";
 import { activityService } from "../../shared/services/activity.js";
-import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail, sendTeamJoinRequestEmail, sendJoinRequestAcceptedEmail, sendJoinRequestRejectedEmail } from "../../shared/utils/email.js";
+import { sendTeamInviteEmail, sendTeamRoleUpdateEmail, sendTeamRemovalEmail, sendTeamJoinRequestEmail, sendJoinRequestAcceptedEmail, sendJoinRequestRejectedEmail, sendTeamCreatedEmail, } from "../../shared/utils/email.js";
 import { logger } from "../../shared/utils/logger.js";
 import { NotificationService } from "../notifications/service.js";
 export class TeamService {
@@ -213,6 +213,17 @@ export class TeamService {
                 school: team.school,
             },
         });
+        // Send team created confirmation email
+        const creator = await db.user.findUnique({
+            where: { id: userId },
+            select: {
+                email: true,
+                firstName: true,
+            },
+        });
+        if (creator) {
+            await sendTeamCreatedEmail(creator.email, creator.firstName, team.name);
+        }
         // ✅ Auto-create deliverables from all existing templates
         const templates = await db.deliverableTemplate.findMany();
         if (templates.length > 0) {

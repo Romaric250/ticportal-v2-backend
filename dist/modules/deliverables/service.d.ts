@@ -49,12 +49,12 @@ export declare class DeliverableService {
             customType: string | null;
             contentType: import(".prisma/client").$Enums.DeliverableContentType;
             content: string;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
             submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
             reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
             feedback: string | null;
-            reviewedAt: Date | null;
             templateId: string;
-            reviewedBy: string | null;
         })[];
         hackathon: {
             level: import(".prisma/client").$Enums.HackathonLevel;
@@ -191,12 +191,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     })[]>;
     /**
      * Upload deliverable for a team (admin action)
@@ -235,12 +235,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
     /**
      * Approve deliverable
@@ -273,12 +273,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
     /**
      * Reject deliverable with feedback
@@ -311,12 +311,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
     /**
      * Get team's deliverables
@@ -348,12 +348,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     })[]>;
     /**
      * Submit or update deliverable (student action)
@@ -392,12 +392,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
     /**
      * Get deliverable by ID (for viewing before submission)
@@ -433,12 +433,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
     /**
      * Check if deadline has passed
@@ -483,12 +483,12 @@ export declare class DeliverableService {
         customType: string | null;
         contentType: import(".prisma/client").$Enums.DeliverableContentType;
         content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        reviewedAt: Date | null;
         templateId: string;
-        reviewedBy: string | null;
     }>;
 }
 //# sourceMappingURL=service.d.ts.map

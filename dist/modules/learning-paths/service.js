@@ -54,10 +54,11 @@ export class LearningPathService {
                 description: data.description,
                 audience: data.audience,
                 isCore: data.isCore ?? false,
+                status: data.status ?? 'DRAFT',
             },
         });
-        // ✅ Auto-enroll all students if core path
-        if (data.isCore) {
+        // ✅ Auto-enroll all students if core path AND status is ACTIVE
+        if (data.isCore && template.status === 'ACTIVE') {
             await this.autoEnrollStudents(template.id);
         }
         return template;
@@ -66,11 +67,47 @@ export class LearningPathService {
      * Update learning path
      */
     static async updatePath(pathId, data) {
+        // Get current path state
+        const currentPath = await db.learningPath.findUnique({
+            where: { id: pathId },
+        });
+        if (!currentPath) {
+            throw new Error("Learning path not found");
+        }
+        // Update the path
         const path = await db.learningPath.update({
             where: { id: pathId },
             data,
         });
-        return path;
+        let message = "Learning path updated successfully";
+        // Handle isCore changes
+        if (data.isCore !== undefined && data.isCore !== currentPath.isCore) {
+            if (data.isCore === true) {
+                // Changed to core - auto-enroll all students
+                const result = await this.autoEnrollStudents(pathId);
+                message = `Learning path updated to core. ${result.enrolled} students auto-enrolled.`;
+            }
+            else if (data.isCore === false) {
+                // Changed to non-core - unenroll all auto-enrolled students
+                const result = await this.unenrollAutoEnrolledStudents(pathId);
+                message = `Learning path updated to non-core. ${result.unenrolled} auto-enrolled students removed.`;
+            }
+        }
+        return { path, message };
+    }
+    /**
+     * Unenroll all auto-enrolled students from a path
+     */
+    static async unenrollAutoEnrolledStudents(pathId) {
+        // Delete all auto-enrolled enrollments
+        const result = await db.learningEnrollment.deleteMany({
+            where: {
+                learningPathId: pathId,
+                isAutoEnrolled: true,
+            },
+        });
+        console.log(`✅ Unenrolled ${result.count} auto-enrolled students from path ${pathId}`);
+        return { unenrolled: result.count };
     }
     /**
      * Delete learning path
@@ -156,6 +193,7 @@ export class LearningPathService {
         const paths = await db.learningPath.findMany({
             where: {
                 audience: { in: audiences },
+                status: "ACTIVE"
             },
             include: {
                 modules: {

@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { db } from "../../config/database.js";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../shared/utils/jwt.js";
-import { sendEmail } from "../../shared/utils/email.js";
+import { sendEmail, sendVerificationEmail, sendPasswordResetEmail } from "../../shared/utils/email.js";
 import { logger } from "../../shared/utils/logger.js";
 import { activityService } from "../../shared/services/activity.js";
 import { NotificationService } from "../notifications/service.js";
@@ -38,7 +38,7 @@ export class AuthService {
             },
         });
         // Send OTP email
-        await sendEmail(user.email, "Verify Your Email - TIC Portal", `Welcome to TIC Portal!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account, please ignore this email.`);
+        await sendVerificationEmail(user.email, user.firstName, code);
         logger.info({ userId: user.id, email: user.email }, "User registered, OTP sent");
         // Track registration activity
         await activityService.trackAuthActivity(user.id, "REGISTER", {
@@ -92,6 +92,7 @@ export class AuthService {
         return Math.floor(100000 + Math.random() * 900000).toString();
     }
     static async sendOtp(input) {
+        console.log("input here", input);
         const user = await db.user.findUnique({ where: { email: input.email } });
         if (!user && input.type === "PASSWORD_RESET") {
             throw new Error("User not found");
@@ -109,13 +110,13 @@ export class AuthService {
                 type: input.type,
             },
         });
-        const emailSubject = input.type === "EMAIL_VERIFICATION"
-            ? "Verify Your Email - TIC Portal"
-            : "Password Reset Code - TIC Portal";
-        const emailContent = input.type === "EMAIL_VERIFICATION"
-            ? `Your email verification code is: ${code}\n\nThis code will expire in 10 minutes.`
-            : `Your password reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-        await sendEmail(input.email, emailSubject, emailContent);
+        // Send formatted email based on OTP type
+        if (input.type === "EMAIL_VERIFICATION") {
+            await sendVerificationEmail(input.email, user?.firstName || "User", code);
+        }
+        else {
+            await sendPasswordResetEmail(input.email, user?.firstName || "User", code);
+        }
         logger.info({ email: input.email, type: input.type }, "OTP sent successfully");
         return { message: "OTP sent successfully to your email" };
     }
@@ -144,6 +145,35 @@ export class AuthService {
                 where: { id: otp.userId },
                 data: { isVerified: true },
             });
+            // ✅ Auto-enroll student in all core learning paths
+            if (user.role === "STUDENT") {
+                const corePaths = await db.learningPath.findMany({
+                    where: { isCore: true },
+                    select: { id: true },
+                });
+                if (corePaths.length > 0) {
+                    // Check which paths user is not already enrolled in
+                    const existingEnrollments = await db.learningEnrollment.findMany({
+                        where: {
+                            userId: user.id,
+                            learningPathId: { in: corePaths.map(p => p.id) },
+                        },
+                        select: { learningPathId: true },
+                    });
+                    const enrolledPathIds = new Set(existingEnrollments.map(e => e.learningPathId));
+                    const pathsToEnroll = corePaths.filter(p => !enrolledPathIds.has(p.id));
+                    if (pathsToEnroll.length > 0) {
+                        await db.learningEnrollment.createMany({
+                            data: pathsToEnroll.map(path => ({
+                                userId: user.id,
+                                learningPathId: path.id,
+                                isAutoEnrolled: true,
+                            })),
+                        });
+                        logger.info({ userId: user.id, enrolledPaths: pathsToEnroll.length }, "Auto-enrolled student in core learning paths on email verification");
+                    }
+                }
+            }
             // Generate tokens for the verified user
             const accessToken = generateAccessToken({ userId: user.id, role: user.role });
             const refreshToken = generateRefreshToken({ userId: user.id });

@@ -1,5 +1,5 @@
 import { LearningPathAudience } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import type { LearningPathStatus, Prisma } from "@prisma/client";
 export declare class LearningPathService {
     /**
      * Get all learning paths
@@ -25,6 +25,7 @@ export declare class LearningPathService {
         id: string;
         createdAt: Date;
         title: string;
+        status: import(".prisma/client").$Enums.LearningPathStatus;
         updatedAt: Date;
         description: string;
         audience: import(".prisma/client").$Enums.LearningPathAudience;
@@ -48,6 +49,7 @@ export declare class LearningPathService {
         id: string;
         createdAt: Date;
         title: string;
+        status: import(".prisma/client").$Enums.LearningPathStatus;
         updatedAt: Date;
         description: string;
         audience: import(".prisma/client").$Enums.LearningPathAudience;
@@ -61,10 +63,12 @@ export declare class LearningPathService {
         description: string;
         audience: LearningPathAudience;
         isCore?: boolean;
+        status?: 'DRAFT' | 'ACTIVE';
     }): Promise<{
         id: string;
         createdAt: Date;
         title: string;
+        status: import(".prisma/client").$Enums.LearningPathStatus;
         updatedAt: Date;
         description: string;
         audience: import(".prisma/client").$Enums.LearningPathAudience;
@@ -78,15 +82,24 @@ export declare class LearningPathService {
         description?: string;
         audience?: LearningPathAudience;
         isCore?: boolean;
+        status?: LearningPathStatus;
     }): Promise<{
-        id: string;
-        createdAt: Date;
-        title: string;
-        updatedAt: Date;
-        description: string;
-        audience: import(".prisma/client").$Enums.LearningPathAudience;
-        isCore: boolean;
+        path: {
+            id: string;
+            createdAt: Date;
+            title: string;
+            status: import(".prisma/client").$Enums.LearningPathStatus;
+            updatedAt: Date;
+            description: string;
+            audience: import(".prisma/client").$Enums.LearningPathAudience;
+            isCore: boolean;
+        };
+        message: string;
     }>;
+    /**
+     * Unenroll all auto-enrolled students from a path
+     */
+    private static unenrollAutoEnrolledStudents;
     /**
      * Delete learning path
      */
@@ -163,6 +176,7 @@ export declare class LearningPathService {
         id: string;
         createdAt: Date;
         title: string;
+        status: import(".prisma/client").$Enums.LearningPathStatus;
         updatedAt: Date;
         description: string;
         audience: import(".prisma/client").$Enums.LearningPathAudience;

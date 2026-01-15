@@ -302,16 +302,92 @@ export class LearningPathController {
         }
     }
     static async createPath(req, res) {
+        try {
+            const { title, description, audience, isCore } = req.body;
+            if (!title || !description || !audience) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Missing required fields: title, description, audience",
+                });
+            }
+            const path = await LearningPathService.createPath({
+                title,
+                description,
+                audience,
+                isCore,
+            });
+            res.status(201).json({
+                success: true,
+                data: path,
+                message: isCore ? "Learning path created and all students enrolled" : "Learning path created successfully",
+            });
+        }
+        catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to create learning path",
+            });
+        }
     }
     /**
      * PUT /api/admin/learning-paths/:pathId
      */
     static async updatePath(req, res) {
+        try {
+            const { pathId } = req.params;
+            const { title, description, audience, isCore, status } = req.body;
+            if (!pathId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Path ID is required",
+                });
+            }
+            const result = await LearningPathService.updatePath(pathId, {
+                title,
+                description,
+                audience,
+                isCore,
+                status
+            });
+            res.json({
+                success: true,
+                data: result.path,
+                message: result.message,
+            });
+        }
+        catch (error) {
+            const statusCode = error.message === "Learning path not found" ? 404 : 500;
+            res.status(statusCode).json({
+                success: false,
+                message: error.message || "Failed to update learning path",
+            });
+        }
     }
     /**
      * DELETE /api/admin/learning-paths/:pathId
      */
     static async deletePath(req, res) {
+        try {
+            const { pathId } = req.params;
+            if (!pathId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Path ID is required",
+                });
+            }
+            await LearningPathService.deletePath(pathId);
+            res.json({
+                success: true,
+                message: "Learning path deleted successfully",
+            });
+        }
+        catch (error) {
+            const statusCode = error.message === "Learning path not found" ? 404 : 500;
+            res.status(statusCode).json({
+                success: false,
+                message: error.message || "Failed to delete learning path",
+            });
+        }
     }
     /**
      * @swagger

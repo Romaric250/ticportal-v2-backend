@@ -2,6 +2,7 @@ import { db } from "../../config/database";
 import { logger } from "../../shared/utils/logger";
 import { activityService } from "../../shared/services/activity";
 import { FeedSocketEmitter } from "./socket";
+import { FeedPointsService } from "./points.service";
 import type {
   CreatePostInput,
   UpdatePostInput,
@@ -342,6 +343,14 @@ export class FeedService {
 
     logger.info({ userId, postId: post.id }, "Feed post created");
 
+    // Award points for creating the post
+    await FeedPointsService.awardPostCreationPoints(
+      userId,
+      post.id,
+      (input.imageUrls && input.imageUrls.length > 0) || false,
+      !!input.videoUrl
+    );
+
     // Emit socket event
     await FeedSocketEmitter.emitPostCreated(post);
 
@@ -450,6 +459,16 @@ export class FeedService {
    * Toggle like on a post
    */
   static async togglePostLike(userId: string, postId: string) {
+    // Get post info for points
+    const post = await db.feedPost.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
     const existing = await db.feedLike.findUnique({
       where: {
         postId_userId: {
@@ -484,6 +503,12 @@ export class FeedService {
         where: { id: postId },
         data: { likesCount: { increment: 1 } },
       });
+
+      // Award points to the liker
+      await FeedPointsService.awardLikeGivenPoints(userId, postId);
+
+      // Award points to the post author
+      await FeedPointsService.awardLikeReceivedPoints(post.authorId, postId, userId);
 
       return { isLiked: true };
     }
@@ -624,6 +649,16 @@ export class FeedService {
    * Create a comment
    */
   static async createComment(userId: string, postId: string, input: CreateCommentInput) {
+    // Get post to award points to author
+    const post = await db.feedPost.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
     const comment = await db.feedComment.create({
       data: {
         postId,
@@ -660,6 +695,12 @@ export class FeedService {
     }
 
     logger.info({ userId, postId, commentId: comment.id }, "Comment created");
+
+    // Award points to the commenter
+    await FeedPointsService.awardCommentGivenPoints(userId, postId, comment.id);
+
+    // Award points to the post author
+    await FeedPointsService.awardCommentReceivedPoints(post.authorId, postId, userId);
 
     return comment;
   }
@@ -818,6 +859,9 @@ export class FeedService {
         where: { id: input.postId },
         data: { viewsCount: { increment: 1 } },
       });
+
+      // Track view activity (no points, just analytics)
+      await FeedPointsService.trackPostView(userId, input.postId, input.duration);
     }
 
     const post = await db.feedPost.findUnique({
@@ -832,6 +876,16 @@ export class FeedService {
    * Toggle bookmark
    */
   static async toggleBookmark(userId: string, postId: string) {
+    // Get post info for points
+    const post = await db.feedPost.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
     const existing = await db.feedBookmark.findUnique({
       where: {
         postId_userId: {
@@ -854,6 +908,9 @@ export class FeedService {
           userId,
         },
       });
+
+      // Award points to the post author
+      await FeedPointsService.awardBookmarkReceivedPoints(post.authorId, postId, userId);
 
       return { isBookmarked: true };
     }
