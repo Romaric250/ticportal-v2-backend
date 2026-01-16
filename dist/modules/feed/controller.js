@@ -625,6 +625,136 @@ export class FeedController {
         }
     }
     /**
+     * GET /api/feed/trending
+     * Get trending posts (last 7 days, high engagement)
+     */
+    static async getTrendingPosts(req, res) {
+        try {
+            const userId = req.user?.userId;
+            const userRole = req.user?.role;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 3;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized",
+                });
+            }
+            const posts = await FeedService.getTrendingPosts(userId, userRole, limit);
+            res.json({
+                success: true,
+                data: posts,
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, "Failed to get trending posts");
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to get trending posts",
+            });
+        }
+    }
+    /**
+     * GET /api/feed/latest
+     * Get latest posts
+     */
+    static async getLatestPosts(req, res) {
+        try {
+            const userId = req.user?.userId;
+            const userRole = req.user?.role;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 3;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized",
+                });
+            }
+            const posts = await FeedService.getLatestPosts(userId, userRole, limit);
+            res.json({
+                success: true,
+                data: posts,
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, "Failed to get latest posts");
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to get latest posts",
+            });
+        }
+    }
+    /**
+     * GET /api/feed/search
+     * Search posts
+     */
+    static async searchPosts(req, res) {
+        try {
+            const userId = req.user?.userId;
+            const userRole = req.user?.role;
+            const query = req.query.q;
+            const page = req.query.page ? parseInt(req.query.page) : 1;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized",
+                });
+            }
+            if (!query) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Search query is required",
+                });
+            }
+            const result = await FeedService.searchPosts(userId, userRole, query, page, limit);
+            res.json({
+                success: true,
+                data: result,
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, "Failed to search posts");
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to search posts",
+            });
+        }
+    }
+    /**
+     * POST /api/feed/posts/:postId/record-view
+     * Record view when user scrolls to post (frontend triggered)
+     */
+    static async recordPostView(req, res) {
+        try {
+            const userId = req.user?.userId;
+            const { postId } = req.params;
+            const { duration } = req.body;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized",
+                });
+            }
+            if (!postId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Post ID is required",
+                });
+            }
+            const result = await FeedService.recordPostView(userId, postId, duration);
+            res.json({
+                success: true,
+                data: result,
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message, postId: req.params.postId }, "Failed to record view");
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to record view",
+            });
+        }
+    }
+    /**
      * GET /api/feed/points/summary
      * Get user's feed points summary
      */

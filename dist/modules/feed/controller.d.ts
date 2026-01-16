@@ -91,6 +91,26 @@ export declare class FeedController {
      */
     static getTrendingTags(req: Request, res: Response): Promise<void>;
     /**
+     * GET /api/feed/trending
+     * Get trending posts (last 7 days, high engagement)
+     */
+    static getTrendingPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * GET /api/feed/latest
+     * Get latest posts
+     */
+    static getLatestPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * GET /api/feed/search
+     * Search posts
+     */
+    static searchPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/feed/posts/:postId/record-view
+     * Record view when user scrolls to post (frontend triggered)
+     */
+    static recordPostView(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
      * GET /api/feed/points/summary
      * Get user's feed points summary
      */

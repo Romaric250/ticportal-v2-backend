@@ -25,8 +25,10 @@ import deliverableRoutes from "./modules/deliverables/routes";
 import learningPathRoutes from "./modules/learning-paths/routes";
 // import submissionRoutes from "./modules/submission/routes"; // REMOVED - doesn't exist
 import uploadRoutes from "./modules/upload/routes";
+import job from './config/cron';
 
 const app = express();
+
 
 // Simplified logging middleware - log all requests and responses
 app.use((req, res, next) => {
@@ -95,6 +97,8 @@ app.use(cookieParser());
 
 // Activity tracking middleware (tracks all authenticated requests)
 app.use(trackActivity);
+
+job.start();
 
 // Basic health check
 app.get("/health", (_req, res) => {

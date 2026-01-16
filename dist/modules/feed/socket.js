@@ -336,5 +336,42 @@ export class FeedSocketEmitter {
             logger.error({ error }, "Failed to emit view increment event");
         }
     }
+    /**
+     * Emit points earned notification to user
+     */
+    static async emitPointsEarned(userId, points, reason, metadata) {
+        try {
+            const feedNamespace = this.io.of("/feed");
+            // Send to specific user
+            feedNamespace.emit("feed:points:earned", {
+                userId,
+                points,
+                reason,
+                timestamp: new Date(),
+                metadata,
+            });
+            logger.info({ userId, points, reason }, "Points earned event emitted");
+        }
+        catch (error) {
+            logger.error({ error }, "Failed to emit points earned event");
+        }
+    }
+    /**
+     * Emit points summary update
+     */
+    static async emitPointsSummaryUpdate(userId, totalPoints) {
+        try {
+            const feedNamespace = this.io.of("/feed");
+            feedNamespace.emit("feed:points:summary", {
+                userId,
+                totalPoints,
+                timestamp: new Date(),
+            });
+            logger.info({ userId, totalPoints }, "Points summary event emitted");
+        }
+        catch (error) {
+            logger.error({ error }, "Failed to emit points summary event");
+        }
+    }
 }
 //# sourceMappingURL=socket.js.map

@@ -50,5 +50,13 @@ export declare class FeedSocketEmitter {
      * Broadcast view count updated
      */
     static emitViewIncremented(postId: string, viewsCount: number): Promise<void>;
+    /**
+     * Emit points earned notification to user
+     */
+    static emitPointsEarned(userId: string, points: number, reason: string, metadata?: any): Promise<void>;
+    /**
+     * Emit points summary update
+     */
+    static emitPointsSummaryUpdate(userId: string, totalPoints: number): Promise<void>;
 }
 //# sourceMappingURL=socket.d.ts.map

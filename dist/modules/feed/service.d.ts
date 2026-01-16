@@ -2,7 +2,7 @@ import type { CreatePostInput, UpdatePostInput, GetPostsInput, CreateCommentInpu
 import type { UserRole } from "@prisma/client";
 export declare class FeedService {
     /**
-     * Get posts with advanced filtering and pagination
+     * Get posts with advanced filtering and pagination + SMART ALGORITHM
      */
     static getPosts(userId: string, userRole: UserRole, input: GetPostsInput): Promise<{
         posts: any[];
@@ -14,6 +14,15 @@ export declare class FeedService {
             totalPages: number;
         };
     }>;
+    /**
+     * 🔥 SMART RANKING ALGORITHM
+     * Balances recency, engagement, and diversity
+     */
+    private static rankPosts;
+    /**
+     * Apply diversity filter to prevent author repetition
+     */
+    private static applyDiversityFilter;
     /**
      * Get single post by ID
      */
@@ -395,5 +404,188 @@ export declare class FeedService {
         tag: string;
         count: number;
     }[]>;
+    /**
+     * Get trending posts (based on engagement in last 7 days)
+     */
+    static getTrendingPosts(userId: string, userRole: UserRole, limit?: number): Promise<{
+        author: {
+            fullName: string;
+            id: string;
+            email: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            firstName: string;
+            lastName: string;
+            profilePhoto: string | null;
+        };
+        isLiked: boolean;
+        isBookmarked: boolean;
+        trendingScore: undefined;
+        attachments: {
+            id: string;
+            createdAt: Date;
+            postId: string;
+            fileName: string;
+            fileUrl: string;
+            fileSize: number;
+            mimeType: string;
+            fileType: string;
+        }[];
+        team: {
+            id: string;
+            name: string;
+            profileImage: string | null;
+        } | null;
+        id: string;
+        createdAt: Date;
+        tags: string[];
+        title: string | null;
+        status: import(".prisma/client").$Enums.FeedPostStatus;
+        updatedAt: Date;
+        teamId: string | null;
+        category: import(".prisma/client").$Enums.FeedCategory;
+        isPinned: boolean;
+        authorId: string;
+        content: string;
+        imageUrls: string[];
+        videoUrl: string | null;
+        visibility: import(".prisma/client").$Enums.FeedVisibility;
+        pinnedAt: Date | null;
+        pinnedBy: string | null;
+        isOfficial: boolean;
+        isEdited: boolean;
+        editedAt: Date | null;
+        likesCount: number;
+        commentsCount: number;
+        viewsCount: number;
+        sharesCount: number;
+        publishedAt: Date | null;
+    }[]>;
+    /**
+     * Get latest posts
+     */
+    static getLatestPosts(userId: string, userRole: UserRole, limit?: number): Promise<{
+        author: {
+            fullName: string;
+            id: string;
+            email: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            firstName: string;
+            lastName: string;
+            profilePhoto: string | null;
+        };
+        isLiked: boolean;
+        isBookmarked: boolean;
+        attachments: {
+            id: string;
+            createdAt: Date;
+            postId: string;
+            fileName: string;
+            fileUrl: string;
+            fileSize: number;
+            mimeType: string;
+            fileType: string;
+        }[];
+        team: {
+            id: string;
+            name: string;
+            profileImage: string | null;
+        } | null;
+        id: string;
+        createdAt: Date;
+        tags: string[];
+        title: string | null;
+        status: import(".prisma/client").$Enums.FeedPostStatus;
+        updatedAt: Date;
+        teamId: string | null;
+        category: import(".prisma/client").$Enums.FeedCategory;
+        isPinned: boolean;
+        authorId: string;
+        content: string;
+        imageUrls: string[];
+        videoUrl: string | null;
+        visibility: import(".prisma/client").$Enums.FeedVisibility;
+        pinnedAt: Date | null;
+        pinnedBy: string | null;
+        isOfficial: boolean;
+        isEdited: boolean;
+        editedAt: Date | null;
+        likesCount: number;
+        commentsCount: number;
+        viewsCount: number;
+        sharesCount: number;
+        publishedAt: Date | null;
+    }[]>;
+    /**
+     * Search posts
+     */
+    static searchPosts(userId: string, userRole: UserRole, query: string, page?: number, limit?: number): Promise<{
+        posts: {
+            author: {
+                fullName: string;
+                id: string;
+                email: string;
+                role: import(".prisma/client").$Enums.UserRole;
+                firstName: string;
+                lastName: string;
+                profilePhoto: string | null;
+            };
+            isLiked: boolean;
+            isBookmarked: boolean;
+            attachments: {
+                id: string;
+                createdAt: Date;
+                postId: string;
+                fileName: string;
+                fileUrl: string;
+                fileSize: number;
+                mimeType: string;
+                fileType: string;
+            }[];
+            team: {
+                id: string;
+                name: string;
+                profileImage: string | null;
+            } | null;
+            id: string;
+            createdAt: Date;
+            tags: string[];
+            title: string | null;
+            status: import(".prisma/client").$Enums.FeedPostStatus;
+            updatedAt: Date;
+            teamId: string | null;
+            category: import(".prisma/client").$Enums.FeedCategory;
+            isPinned: boolean;
+            authorId: string;
+            content: string;
+            imageUrls: string[];
+            videoUrl: string | null;
+            visibility: import(".prisma/client").$Enums.FeedVisibility;
+            pinnedAt: Date | null;
+            pinnedBy: string | null;
+            isOfficial: boolean;
+            isEdited: boolean;
+            editedAt: Date | null;
+            likesCount: number;
+            commentsCount: number;
+            viewsCount: number;
+            sharesCount: number;
+            publishedAt: Date | null;
+        }[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+        query: string;
+    }>;
+    /**
+     * Record view when user actually scrolls to post (called from frontend)
+     */
+    static recordPostView(userId: string, postId: string, duration?: number): Promise<{
+        viewsCount: number;
+        alreadyViewed: boolean;
+        pointsEarned: number;
+    }>;
 }
 //# sourceMappingURL=service.d.ts.map

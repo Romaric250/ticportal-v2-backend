@@ -50,6 +50,13 @@ export declare class FeedPointsService {
      */
     static trackPostView(userId: string, postId: string, duration?: number): Promise<void>;
     /**
+     * Award points for viewing a post
+     */
+    static awardViewPoints(userId: string, postId: string, postAuthorId: string, isFirstView: boolean): Promise<{
+        viewerPoints: 2 | 5;
+        authorPoints: 1;
+    } | undefined>;
+    /**
      * Get user's feed points summary
      */
     static getUserFeedPointsSummary(userId: string): Promise<{
