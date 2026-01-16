@@ -392,6 +392,62 @@ export class FeedPointsService {
   }
 
   /**
+   * Award points for viewing a post
+   */
+  static async awardViewPoints(userId: string, postId: string, postAuthorId: string, isFirstView: boolean) {
+    try {
+      // Don't award points for viewing own posts
+      if (userId === postAuthorId) {
+        return;
+      }
+
+      // Award points to viewer
+      const viewerPoints = isFirstView ? FEED_POINTS.VIEW_POST_FIRST_TIME : FEED_POINTS.VIEW_POST_AGAIN;
+      
+      await db.point.create({
+        data: {
+          userId,
+          amount: viewerPoints,
+          reason: isFirstView ? "First time viewing post" : "Viewing post",
+          activity: FEED_ACTIVITIES.POST_VIEWED,
+        },
+      });
+
+      // Award points to post author (1 point per view)
+      await db.point.create({
+        data: {
+          userId: postAuthorId,
+          amount: FEED_POINTS.VIEW_POST_RECEIVED,
+          reason: "Post viewed by someone",
+          activity: FEED_ACTIVITIES.POST_VIEWED,
+        },
+      });
+
+      await activityService.trackActivity({
+        userId,
+        action: FEED_ACTIVITIES.POST_VIEWED,
+        metadata: {
+          postId,
+          pointsAwarded: viewerPoints,
+          isFirstView,
+        },
+      });
+
+      logger.info({
+        viewerId: userId,
+        postAuthorId,
+        postId,
+        viewerPoints,
+        isFirstView,
+      }, "View points awarded");
+
+      return { viewerPoints, authorPoints: FEED_POINTS.VIEW_POST_RECEIVED };
+    } catch (error) {
+      logger.error({ error, userId, postId }, "Failed to award view points");
+    }
+  }
+
+  /**
    * Get user's feed points summary
    */
   static async getUserFeedPointsSummary(userId: string) {

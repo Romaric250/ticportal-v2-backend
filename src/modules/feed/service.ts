@@ -17,14 +17,14 @@ import type { FeedCategory, FeedVisibility, UserRole } from "@prisma/client";
 
 export class FeedService {
   /**
-   * Get posts with advanced filtering and pagination
+   * Get posts with advanced filtering and pagination + SMART ALGORITHM
    */
   static async getPosts(userId: string, userRole: UserRole, input: GetPostsInput) {
     const {
       category = "all",
       visibility,
       page = 1,
-      limit = 20,
+      limit = 10,
       includePinned = true,
       teamId,
       authorId,
@@ -83,12 +83,15 @@ export class FeedService {
       ];
     }
 
-    const [posts, total, pinnedPosts] = await Promise.all([
-      // Regular posts
+    // Get more posts than needed for smart ranking
+    const fetchLimit = limit * 3; // Fetch 3x to allow ranking algorithm
+
+    const [allPosts, total, pinnedPosts] = await Promise.all([
+      // Regular posts (fetch more for ranking)
       db.feedPost.findMany({
         where: { ...whereClause, isPinned: false },
-        skip,
-        take: limit,
+        skip: page === 1 ? 0 : skip,
+        take: fetchLimit,
         include: {
           author: {
             select: {
@@ -108,20 +111,13 @@ export class FeedService {
             },
           },
           attachments: true,
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-              views: true,
-            },
-          },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: "desc" }, // Start with recent posts
       }),
       // Total count
       db.feedPost.count({ where: whereClause }),
-      // Pinned posts (if requested)
-      includePinned
+      // Pinned posts (if requested and first page)
+      includePinned && page === 1
         ? db.feedPost.findMany({
             where: { ...whereClause, isPinned: true },
             include: {
@@ -143,18 +139,17 @@ export class FeedService {
                 },
               },
               attachments: true,
-              _count: {
-                select: {
-                  likes: true,
-                  comments: true,
-                  views: true,
-                },
-              },
             },
             orderBy: { pinnedAt: "desc" },
           })
         : [],
     ]);
+
+    // 🔥 SMART RANKING ALGORITHM
+    const rankedPosts = this.rankPosts(allPosts, userId);
+
+    // Take only the requested limit after ranking
+    const posts = rankedPosts.slice(0, limit);
 
     // Check which posts user has liked
     const postIds = [...posts.map((p) => p.id), ...pinnedPosts.map((p) => p.id)];
@@ -186,12 +181,13 @@ export class FeedService {
         ...post.author,
         fullName: `${post.author.firstName} ${post.author.lastName}`,
       },
-      likesCount: post._count.likes,
-      commentsCount: post._count.comments,
-      viewsCount: post._count.views,
+      likesCount: post.likesCount || 0,
+      commentsCount: post.commentsCount || 0,
+      viewsCount: post.viewsCount || 0,
       isLiked: likedPostIds.has(post.id),
       isBookmarked: bookmarkedPostIds.has(post.id),
       _count: undefined,
+      score: undefined, // Remove internal score from response
     });
 
     return {
@@ -204,6 +200,100 @@ export class FeedService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * 🔥 SMART RANKING ALGORITHM
+   * Balances recency, engagement, and diversity
+   */
+  private static rankPosts(posts: any[], userId: string): any[] {
+    const now = Date.now();
+
+    // Calculate score for each post
+    const postsWithScore = posts.map((post) => {
+      // 1. RECENCY SCORE (0-1, decays exponentially)
+      const ageInHours = (now - post.createdAt.getTime()) / (1000 * 60 * 60);
+      const recencyScore = Math.exp(-ageInHours / 24); // Half-life of 24 hours
+
+      // 2. ENGAGEMENT SCORE (normalized)
+      const engagementScore =
+        post.likesCount * 1 +
+        post.commentsCount * 3 + // Comments worth 3x likes
+        post.viewsCount * 0.05 +
+        (post.bookmarksCount || 0) * 2;
+
+      // Normalize engagement (log scale to prevent viral posts from dominating)
+      const normalizedEngagement = Math.log10(engagementScore + 1) / 3;
+
+      // 3. DIVERSITY SCORE (reduce author repetition)
+      // This will be adjusted after initial sort
+
+      // 4. FINAL SCORE (weighted combination)
+      const finalScore =
+        recencyScore * 0.4 + // 40% recency
+        normalizedEngagement * 0.35 + // 35% engagement
+        Math.random() * 0.25; // 25% randomness for diversity
+
+      return {
+        ...post,
+        score: finalScore,
+        recencyScore,
+        engagementScore: normalizedEngagement,
+      };
+    });
+
+    // Sort by score
+    let sorted = postsWithScore.sort((a, b) => b.score - a.score);
+
+    // Apply diversity filter (prevent same author appearing consecutively)
+    sorted = this.applyDiversityFilter(sorted);
+
+    return sorted;
+  }
+
+  /**
+   * Apply diversity filter to prevent author repetition
+   */
+  private static applyDiversityFilter(posts: any[]): any[] {
+    const result: any[] = [];
+    const recentAuthors: string[] = [];
+    const maxConsecutive = 2;
+    const remaining = [...posts];
+
+    while (remaining.length > 0 && result.length < posts.length) {
+      let foundDiverse = false;
+
+      // Try to find a post from a different author
+      for (let i = 0; i < remaining.length; i++) {
+        const post = remaining[i];
+        const recentAuthorCount = recentAuthors.filter(
+          (id) => id === post.authorId
+        ).length;
+
+        if (recentAuthorCount < maxConsecutive) {
+          result.push(post);
+          recentAuthors.push(post.authorId);
+          if (recentAuthors.length > maxConsecutive * 2) {
+            recentAuthors.shift(); // Keep sliding window
+          }
+          remaining.splice(i, 1);
+          foundDiverse = true;
+          break;
+        }
+      }
+
+      // If can't find diverse, just take the next best
+      if (!foundDiverse && remaining.length > 0) {
+        const post = remaining.shift()!;
+        result.push(post);
+        recentAuthors.push(post.authorId);
+        if (recentAuthors.length > maxConsecutive * 2) {
+          recentAuthors.shift();
+        }
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -510,6 +600,10 @@ export class FeedService {
       // Award points to the post author
       await FeedPointsService.awardLikeReceivedPoints(post.authorId, postId, userId);
 
+      // Emit socket events for points
+      await FeedSocketEmitter.emitPointsEarned(userId, 2, "Liked a post", { postId });
+      await FeedSocketEmitter.emitPointsEarned(post.authorId, 5, "Post liked", { postId, likerId: userId });
+
       return { isLiked: true };
     }
   }
@@ -701,6 +795,10 @@ export class FeedService {
 
     // Award points to the post author
     await FeedPointsService.awardCommentReceivedPoints(post.authorId, postId, userId);
+
+    // Emit socket events for points
+    await FeedSocketEmitter.emitPointsEarned(userId, 15, "Commented on post", { postId, commentId: comment.id });
+    await FeedSocketEmitter.emitPointsEarned(post.authorId, 10, "Post received comment", { postId, commentId: comment.id });
 
     return comment;
   }
@@ -912,6 +1010,9 @@ export class FeedService {
       // Award points to the post author
       await FeedPointsService.awardBookmarkReceivedPoints(post.authorId, postId, userId);
 
+      // Emit socket event for points
+      await FeedSocketEmitter.emitPointsEarned(post.authorId, 3, "Post bookmarked", { postId, bookmarkerId: userId });
+
       return { isBookmarked: true };
     }
   }
@@ -1006,5 +1107,378 @@ export class FeedService {
       .map(([tag, count]) => ({ tag, count }));
 
     return sortedTags;
+  }
+
+  /**
+   * Get trending posts (based on engagement in last 7 days)
+   */
+  static async getTrendingPosts(userId: string, userRole: UserRole, limit: number = 3) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Build where clause based on visibility and user role
+    const whereClause: any = {
+      status: "PUBLISHED",
+      createdAt: {
+        gte: sevenDaysAgo,
+      },
+    };
+
+    // Role-based visibility
+    if (userRole === "STUDENT") {
+      whereClause.OR = [
+        { visibility: "PUBLIC" },
+        { visibility: "STUDENTS_ONLY" },
+      ];
+    } else if (userRole === "MENTOR") {
+      whereClause.OR = [
+        { visibility: "PUBLIC" },
+        { visibility: "MENTORS_ONLY" },
+      ];
+    }
+
+    const posts = await db.feedPost.findMany({
+      where: whereClause,
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            profilePhoto: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true,
+          },
+        },
+        attachments: true,
+      },
+      orderBy: [
+        { likesCount: "desc" },
+        { commentsCount: "desc" },
+        { viewsCount: "desc" },
+      ],
+      take: limit * 3, // Get more to calculate score
+    });
+
+    // Calculate trending score for each post
+    const postsWithScore = posts.map((post) => {
+      const ageInHours = (Date.now() - post.createdAt.getTime()) / (1000 * 60 * 60);
+      const timeDecay = Math.max(0, 1 - ageInHours / 168); // 7 days decay
+
+      const engagementScore =
+        post.likesCount * 3 +
+        post.commentsCount * 5 +
+        post.viewsCount * 0.1 +
+        (post.isPinned ? 100 : 0);
+
+      const trendingScore = engagementScore * timeDecay;
+
+      return {
+        ...post,
+        trendingScore,
+      };
+    });
+
+    // Sort by trending score and take top N
+    const trendingPosts = postsWithScore
+      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .slice(0, limit);
+
+    // Check user interactions
+    const postIds = trendingPosts.map((p) => p.id);
+    const [userLikes, userBookmarks] = await Promise.all([
+      db.feedLike.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      db.feedBookmark.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedPostIds = new Set(userLikes.map((l) => l.postId));
+    const bookmarkedPostIds = new Set(userBookmarks.map((b) => b.postId));
+
+    return trendingPosts.map((post) => ({
+      ...post,
+      author: {
+        ...post.author,
+        fullName: `${post.author.firstName} ${post.author.lastName}`,
+      },
+      isLiked: likedPostIds.has(post.id),
+      isBookmarked: bookmarkedPostIds.has(post.id),
+      trendingScore: undefined, // Remove score from response
+    }));
+  }
+
+  /**
+   * Get latest posts
+   */
+  static async getLatestPosts(userId: string, userRole: UserRole, limit: number = 3) {
+    const whereClause: any = {
+      status: "PUBLISHED",
+    };
+
+    // Role-based visibility
+    if (userRole === "STUDENT") {
+      whereClause.OR = [
+        { visibility: "PUBLIC" },
+        { visibility: "STUDENTS_ONLY" },
+      ];
+    } else if (userRole === "MENTOR") {
+      whereClause.OR = [
+        { visibility: "PUBLIC" },
+        { visibility: "MENTORS_ONLY" },
+      ];
+    }
+
+    const posts = await db.feedPost.findMany({
+      where: whereClause,
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            profilePhoto: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true,
+          },
+        },
+        attachments: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    // Check user interactions
+    const postIds = posts.map((p) => p.id);
+    const [userLikes, userBookmarks] = await Promise.all([
+      db.feedLike.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      db.feedBookmark.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedPostIds = new Set(userLikes.map((l) => l.postId));
+    const bookmarkedPostIds = new Set(userBookmarks.map((b) => b.postId));
+
+    return posts.map((post) => ({
+      ...post,
+      author: {
+        ...post.author,
+        fullName: `${post.author.firstName} ${post.author.lastName}`,
+      },
+      isLiked: likedPostIds.has(post.id),
+      isBookmarked: bookmarkedPostIds.has(post.id),
+    }));
+  }
+
+  /**
+   * Search posts
+   */
+  static async searchPosts(
+    userId: string,
+    userRole: UserRole,
+    query: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    if (query.length < 2) {
+      throw new Error("Search query must be at least 2 characters");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const whereClause: any = {
+      status: "PUBLISHED",
+      OR: [
+        { title: { contains: query, mode: "insensitive" } },
+        { content: { contains: query, mode: "insensitive" } },
+        { tags: { hasSome: [query.toLowerCase()] } },
+      ],
+    };
+
+    // Role-based visibility
+    const visibilityOR: any[] = [];
+    if (userRole === "STUDENT") {
+      visibilityOR.push({ visibility: "PUBLIC" }, { visibility: "STUDENTS_ONLY" });
+    } else if (userRole === "MENTOR") {
+      visibilityOR.push({ visibility: "PUBLIC" }, { visibility: "MENTORS_ONLY" });
+    } else if (userRole === "ADMIN" || userRole === "SUPER_ADMIN") {
+      // Admins can see everything
+    } else {
+      visibilityOR.push({ visibility: "PUBLIC" });
+    }
+
+    if (visibilityOR.length > 0) {
+      whereClause.AND = [{ OR: visibilityOR }];
+    }
+
+    const [posts, total] = await Promise.all([
+      db.feedPost.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          author: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+              profilePhoto: true,
+            },
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+          attachments: true,
+        },
+        orderBy: [
+          { likesCount: "desc" }, // Most liked first
+          { createdAt: "desc" }, // Then newest
+        ],
+      }),
+      db.feedPost.count({ where: whereClause }),
+    ]);
+
+    // Check user interactions
+    const postIds = posts.map((p) => p.id);
+    const [userLikes, userBookmarks] = await Promise.all([
+      db.feedLike.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      db.feedBookmark.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const likedPostIds = new Set(userLikes.map((l) => l.postId));
+    const bookmarkedPostIds = new Set(userBookmarks.map((b) => b.postId));
+
+    return {
+      posts: posts.map((post) => ({
+        ...post,
+        author: {
+          ...post.author,
+          fullName: `${post.author.firstName} ${post.author.lastName}`,
+        },
+        isLiked: likedPostIds.has(post.id),
+        isBookmarked: bookmarkedPostIds.has(post.id),
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      query,
+    };
+  }
+
+  /**
+   * Record view when user actually scrolls to post (called from frontend)
+   */
+  static async recordPostView(userId: string, postId: string, duration?: number) {
+    // Check if already viewed
+    const existing = await db.feedView.findUnique({
+      where: {
+        postId_userId: {
+          postId,
+          userId,
+        },
+      },
+    });
+
+    const isFirstView = !existing;
+
+    // Get post author for points
+    const post = await db.feedPost.findUnique({
+      where: { id: postId },
+      select: { authorId: true, viewsCount: true },
+    });
+
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    if (existing) {
+      // Update duration if provided and longer than existing
+      if (duration && (!existing.duration || duration > existing.duration)) {
+        await db.feedView.update({
+          where: { id: existing.id },
+          data: { duration },
+        });
+      }
+      
+      // Award reduced points for repeat view
+      await FeedPointsService.awardViewPoints(userId, postId, post.authorId, false);
+      
+      return { 
+        viewsCount: post.viewsCount, 
+        alreadyViewed: true,
+        pointsEarned: 2, // Repeat view points
+      };
+    }
+
+    // Create new view
+    await db.feedView.create({
+      data: {
+        postId,
+        userId,
+        duration: duration ?? null,
+      },
+    });
+
+    // Increment view count
+    const updatedPost = await db.feedPost.update({
+      where: { id: postId },
+      data: { viewsCount: { increment: 1 } },
+      select: { viewsCount: true },
+    });
+
+    // Award points for first view
+    const pointsResult = await FeedPointsService.awardViewPoints(userId, postId, post.authorId, true);
+
+    // Emit socket event
+    await FeedSocketEmitter.emitViewIncremented(postId, updatedPost.viewsCount);
+
+    // Emit points earned notification
+    if (pointsResult) {
+      await FeedSocketEmitter.emitPointsEarned(userId, pointsResult.viewerPoints, "Viewed post");
+    }
+
+    return { 
+      viewsCount: updatedPost.viewsCount, 
+      alreadyViewed: false,
+      pointsEarned: pointsResult?.viewerPoints || 0,
+    };
   }
 }

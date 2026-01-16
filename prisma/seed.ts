@@ -210,6 +210,13 @@ const schools = [
 async function main() {
   console.log("🌱 Starting seed...");
 
+  // NOTE: This seed file only seeds default schools and regions.
+  // If you have dummy/test users in the database that were added for testing,
+  // you need to manually remove them from the database using:
+  // - MongoDB Compass
+  // - Prisma Studio: npx prisma studio
+  // - Or a custom script to delete test users
+
   // Clear existing data (optional - comment out if you want to keep existing data)
   console.log("🗑️  Clearing existing data...");
   await prisma.defaultSchool.deleteMany({});

@@ -6,6 +6,11 @@ const router = Router();
 
 // ==================== PUBLIC/STUDENT ROUTES ====================
 
+// Discovery routes
+router.get("/feed/trending", authenticate, FeedController.getTrendingPosts);
+router.get("/feed/latest", authenticate, FeedController.getLatestPosts);
+router.get("/feed/search", authenticate, FeedController.searchPosts);
+
 // Posts
 router.get("/feed/posts", authenticate, FeedController.getPosts);
 router.get("/feed/posts/:postId", authenticate, FeedController.getPostById);
@@ -16,7 +21,8 @@ router.delete("/feed/posts/:postId", authenticate, FeedController.deletePost);
 // Post interactions
 router.post("/feed/posts/:postId/like", authenticate, FeedController.togglePostLike);
 router.get("/feed/posts/:postId/likes", authenticate, FeedController.getPostLikes);
-router.post("/feed/posts/:postId/view", authenticate, FeedController.recordView);
+router.post("/feed/posts/:postId/view", authenticate, FeedController.recordView); // Old method (deprecated)
+router.post("/feed/posts/:postId/record-view", authenticate, FeedController.recordPostView); // New method
 router.post("/feed/posts/:postId/bookmark", authenticate, FeedController.toggleBookmark);
 
 // Comments
