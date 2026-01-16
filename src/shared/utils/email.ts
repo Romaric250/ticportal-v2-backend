@@ -117,14 +117,22 @@ const emailTemplate = (content: string) => `
 `;
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
-  console.log(`Sending email to ${to}: ${subject}`);
+  try {
+    console.log(`📧 Sending email to ${to}: ${subject}`);
+    
+    const result = await resend.emails.send({
+      from: env.emailFrom,
+      to: [to],
+      subject,
+      html,
+    });
 
-  await resend.emails.send({
-    from: env.emailFrom,
-    to: [to],
-    subject,
-    html,
-  });
+    console.log(`✅ Email sent successfully:`, result);
+    return result;
+  } catch (error: any) {
+    console.error(`❌ Failed to send email to ${to}:`, error);
+    throw error;
+  }
 };
 
 // Email: Email Verification
@@ -133,19 +141,29 @@ export const sendVerificationEmail = async (
   firstName: string,
   otp: string,
 ) => {
-  const content = `
-    <p>Hello ${firstName},</p>
-    <p>Thank you for joining TIC Portal. Please verify your email address using the code below:</p>
-    <div class="code-box">${otp}</div>
-    <p>This code will expire in 10 minutes.</p>
-    <p>If you didn't create an account, please ignore this email.</p>
-  `;
+  try {
+    console.log(`🔐 Preparing verification email for ${email} with OTP: ${otp}`);
+    
+    const content = `
+      <p>Hello ${firstName},</p>
+      <p>Thank you for joining TIC Portal. Please verify your email address using the code below:</p>
+      <div class="code-box">${otp}</div>
+      <p>This code will expire in 10 minutes.</p>
+      <p>If you didn't create an account, please ignore this email.</p>
+    `;
 
-  await sendEmail(
-    email,
-    "Verify Your Email - TIC Portal",
-    emailTemplate(content),
-  );
+    const result = await sendEmail(
+      email,
+      "Verify Your Email - TIC Portal",
+      emailTemplate(content),
+    );
+    
+    console.log(`✅ Verification email sent successfully to ${email}`);
+    return result;
+  } catch (error: any) {
+    console.error(`❌ Failed to send verification email to ${email}:`, error);
+    throw error;
+  }
 };
 
 // Email: Password Reset
@@ -154,19 +172,29 @@ export const sendPasswordResetEmail = async (
   firstName: string,
   otp: string,
 ) => {
-  const content = `
-    <p>Hello ${firstName},</p>
-    <p>We received a request to reset your password. Use the code below:</p>
-    <div class="code-box">${otp}</div>
-    <p>This code will expire in 10 minutes.</p>
-    <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-  `;
+  try {
+    console.log(`🔐 Preparing password reset email for ${email} with OTP: ${otp}`);
+    
+    const content = `
+      <p>Hello ${firstName},</p>
+      <p>We received a request to reset your password. Use the code below:</p>
+      <div class="code-box">${otp}</div>
+      <p>This code will expire in 10 minutes.</p>
+      <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+    `;
 
-  await sendEmail(
-    email,
-    "Reset Your Password - TIC Portal",
-    emailTemplate(content),
-  );
+    const result = await sendEmail(
+      email,
+      "Reset Your Password - TIC Portal",
+      emailTemplate(content),
+    );
+    
+    console.log(`✅ Password reset email sent successfully to ${email}`);
+    return result;
+  } catch (error: any) {
+    console.error(`❌ Failed to send password reset email to ${email}:`, error);
+    throw error;
+  }
 };
 
 // Email: Welcome Email (after verification)
