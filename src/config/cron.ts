@@ -1,7 +1,7 @@
 import { CronJob } from "cron";
 import https from "https";
 
-const job = new CronJob("*/1 * * * *", () => {
+const job = new CronJob("*/14 * * * *", () => {
   https
     .get(`${process.env.API_URL}/health`, (res) => {
       if (res.statusCode === 200) console.log("Get request sent successfully");
