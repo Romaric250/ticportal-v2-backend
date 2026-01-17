@@ -29,6 +29,7 @@ import { startCronJobs } from "./config/cron.js";
 import badgeRoutes from "./modules/badges/routes.js";
 import leaderboardRoutes from "./modules/leaderboard/routes.js";
 import dashboardRoutes from "./modules/dashboard/routes.js";
+import portfolioRoutes from "./modules/portfolio/routes.js";
 const app = express();
 // Simplified logging middleware - log all requests and responses
 app.use((req, res, next) => {
@@ -125,10 +126,12 @@ app.use("/api", feedRoutes); // Feed routes registered ✅
 app.use("/api", badgeRoutes); // Badge routes registered ✅
 app.use("/api", leaderboardRoutes); // Leaderboard routes registered ✅
 app.use("/api", dashboardRoutes); // Dashboard routes registered ✅
+app.use("/api", portfolioRoutes); // Portfolio routes registered ✅
 logger.info("✅ Feed routes registered at /api/feed/*");
 logger.info("✅ Badge routes registered at /api/badges/*");
 logger.info("✅ Leaderboard routes registered at /api/leaderboard/*");
 logger.info("✅ Dashboard routes registered at /api/dashboard/*");
+logger.info("✅ Portfolio routes registered at /api/portfolio");
 logger.info("Feed routes available:");
 logger.info("  POST   /api/feed/posts");
 logger.info("  GET    /api/feed/posts");
