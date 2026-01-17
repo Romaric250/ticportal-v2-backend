@@ -4,7 +4,7 @@ import { logger } from "../../shared/utils/logger.js";
 export class FeedController {
     /**
      * GET /api/feed/posts
-     * Get paginated feed posts with filters
+     * Get posts with smart algorithm (no duplicates)
      */
     static async getPosts(req, res) {
         try {
@@ -18,23 +18,17 @@ export class FeedController {
             }
             const input = {
                 category: req.query.category,
-                visibility: req.query.visibility,
                 page: req.query.page ? parseInt(req.query.page) : 1,
-                limit: req.query.limit ? parseInt(req.query.limit) : 20,
+                limit: req.query.limit ? parseInt(req.query.limit) : 10,
                 includePinned: req.query.includePinned !== "false",
+                ...(req.query.teamId && { teamId: req.query.teamId }),
+                ...(req.query.authorId && { authorId: req.query.authorId }),
+                ...(req.query.tags && { tags: req.query.tags.split(",") }),
+                ...(req.query.search && { search: req.query.search }),
+                ...(req.query.excludePostIds && {
+                    excludePostIds: req.query.excludePostIds.split(",")
+                }),
             };
-            if (req.query.teamId) {
-                input.teamId = req.query.teamId;
-            }
-            if (req.query.authorId) {
-                input.authorId = req.query.authorId;
-            }
-            if (req.query.tags) {
-                input.tags = req.query.tags.split(",");
-            }
-            if (req.query.search) {
-                input.search = req.query.search;
-            }
             const result = await FeedService.getPosts(userId, userRole, input);
             res.json({
                 success: true,
@@ -42,10 +36,10 @@ export class FeedController {
             });
         }
         catch (error) {
-            logger.error({ error: error.message }, "Failed to get feed posts");
+            logger.error({ error: error.message }, "Failed to get posts");
             res.status(500).json({
                 success: false,
-                message: error.message || "Failed to get feed posts",
+                message: error.message || "Failed to get posts",
             });
         }
     }

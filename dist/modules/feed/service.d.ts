@@ -7,11 +7,13 @@ export declare class FeedService {
     static getPosts(userId: string, userRole: UserRole, input: GetPostsInput): Promise<{
         posts: any[];
         pinnedPosts: any[];
+        returnedPostIds: any[];
         pagination: {
             page: number;
             limit: number;
             total: number;
             totalPages: number;
+            hasMore: boolean;
         };
     }>;
     /**

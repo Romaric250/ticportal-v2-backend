@@ -25,7 +25,9 @@ import deliverableRoutes from "./modules/deliverables/routes.js";
 import learningPathRoutes from "./modules/learning-paths/routes.js";
 // import submissionRoutes from "./modules/submission/routes.js"; // REMOVED - doesn't exist
 import uploadRoutes from "./modules/upload/routes.js";
-import job from "./config/cron.js";
+import { startCronJobs } from "./config/cron.js";
+import badgeRoutes from "./modules/badges/routes.js";
+import leaderboardRoutes from "./modules/leaderboard/routes.js";
 const app = express();
 // Simplified logging middleware - log all requests and responses
 app.use((req, res, next) => {
@@ -81,7 +83,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 // Activity tracking middleware (tracks all authenticated requests)
 app.use(trackActivity);
-job.start();
+// Start all cron jobs (health check + badge awards)
+startCronJobs();
+logger.info("🤖 Cron jobs initialized");
 // Basic health check
 app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
@@ -117,7 +121,11 @@ app.use("/api/feed", (req, res, next) => {
     next();
 });
 app.use("/api", feedRoutes); // Feed routes registered ✅
+app.use("/api", badgeRoutes); // Badge routes registered ✅
+app.use("/api", leaderboardRoutes); // Leaderboard routes registered ✅
 logger.info("✅ Feed routes registered at /api/feed/*");
+logger.info("✅ Badge routes registered at /api/badges/*");
+logger.info("✅ Leaderboard routes registered at /api/leaderboard/*");
 logger.info("Feed routes available:");
 logger.info("  POST   /api/feed/posts");
 logger.info("  GET    /api/feed/posts");

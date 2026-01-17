@@ -1,26 +1,91 @@
 import { CronJob } from "cron";
 import https from "https";
-const job = new CronJob("*/1 * * * *", () => {
+import { logger } from "../shared/utils/logger.js";
+/**
+ * Health Check Job - Every 14 minutes
+ * Keeps the server alive on free hosting
+ */
+export const healthCheckJob = new CronJob("*/14 * * * *", () => {
     https
         .get(`${process.env.API_URL}/health`, (res) => {
-        if (res.statusCode === 200)
-            console.log("Get request sent successfully");
-        else
-            console.log("GET request failed", res.statusCode);
+        if (res.statusCode === 200) {
+            logger.info("✅ Health check successful");
+        }
+        else {
+            logger.warn({ statusCode: res.statusCode }, "⚠️ Health check failed");
+        }
     })
-        .on("error", (e) => console.error("Error while sending request", e));
+        .on("error", (e) => {
+        logger.error({ error: e }, "❌ Health check error");
+    });
 });
-export default job;
-// CRON JOB EXPLANATION:
-// This cron job is scheduled to run every 14 minutes. It sends a GET request to the health check endpoint of the API.
-// If the request is successful (status code 200), it logs a success message. If it fails, it logs the status code.
-// Additionally, it handles any errors that occur while sending the request.
-//! MINUTE, HOUR, DAY OF THE MONTH, MONTH, DAY OF THE WEEK
-//? EXAMPLES
-//* 15 * * * * * - Every 15 seconds
-//* 14 * * * * - Every 14 minutes
-//* 0 0 * * 0 - At midnight on every Sunday
-//* 30 3 15 * * - At 3:30 AM on the 15th day of every month
-//* 0 0 1 1 * - At midnight, on January 1st
-//* 0 * * * * - Every hour
+/**
+ * Badge Award Job - Every minute (for testing) or every hour (production)
+ * Automatically checks and awards badges to all users
+ */
+export const badgeAwardJob = new CronJob("*/15 * * * *", // Every minute for testing - change to "0 * * * *" for every hour
+async () => {
+    try {
+        logger.info("🏅 Badge award cron triggered at " + new Date().toISOString());
+        // Lazy load to avoid circular dependency issues
+        const { BadgeService } = await import("../modules/badges/service");
+        logger.info("📊 Checking badges for all users...");
+        const totalAwarded = await BadgeService.checkBadgesForAllUsers();
+        logger.info({ totalAwarded }, `🎉 Badge award job completed - ${totalAwarded} badges awarded`);
+    }
+    catch (error) {
+        logger.error({
+            error: error.message,
+            stack: error.stack
+        }, "❌ Badge award job failed");
+        console.error("Badge award error:", error);
+    }
+}, null, // onComplete callback
+false, // Don't start immediately - we'll start it manually
+"UTC" // Timezone
+);
+/**
+ * Start all cron jobs
+ */
+export const startCronJobs = () => {
+    try {
+        // Start health check
+        healthCheckJob.start();
+        logger.info("✅ Health check cron started: Every 14 minutes");
+        // Start badge awards
+        badgeAwardJob.start();
+        logger.info("✅ Badge award cron started: Every 1 minute (TESTING MODE)");
+        logger.warn("⚠️  For production, change schedule to '0 * * * *' (every hour)");
+        logger.info("🚀 All cron jobs running!");
+        // Test badge job immediately (optional)
+        logger.info("🧪 Testing badge job now...");
+        badgeAwardJob.fireOnTick();
+    }
+    catch (error) {
+        logger.error({ error: error.message }, "Failed to start cron jobs");
+        console.error("Cron startup error:", error);
+    }
+};
+/**
+ * Stop all cron jobs
+ */
+export const stopCronJobs = () => {
+    try {
+        healthCheckJob.stop();
+        badgeAwardJob.stop();
+        logger.info("🛑 All cron jobs stopped");
+    }
+    catch (error) {
+        logger.error({ error: error.message }, "Failed to stop cron jobs");
+    }
+};
+// Default export for backward compatibility
+export default healthCheckJob;
+// CRON SCHEDULE GUIDE:
+// */1 * * * * - Every minute (TESTING)
+// */5 * * * * - Every 5 minutes
+// 0 * * * * - Every hour at :00 (PRODUCTION)
+// 0 */2 * * * - Every 2 hours
+// 0 */6 * * * - Every 6 hours
+// 0 0 * * * - Every day at midnight
 //# sourceMappingURL=cron.js.map

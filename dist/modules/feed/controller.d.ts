@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 export declare class FeedController {
     /**
      * GET /api/feed/posts
-     * Get paginated feed posts with filters
+     * Get posts with smart algorithm (no duplicates)
      */
     static getPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**

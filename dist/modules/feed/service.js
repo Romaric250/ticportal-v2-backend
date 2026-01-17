@@ -3,17 +3,23 @@ import { logger } from "../../shared/utils/logger.js";
 import { activityService } from "../../shared/services/activity.js";
 import { FeedSocketEmitter } from "./socket.js";
 import { FeedPointsService } from "./points.service.js";
+import { BadgeService } from "../badges/service.js";
 export class FeedService {
     /**
      * Get posts with advanced filtering and pagination + SMART ALGORITHM
      */
     static async getPosts(userId, userRole, input) {
-        const { category = "all", visibility, page = 1, limit = 10, includePinned = true, teamId, authorId, tags, search, } = input;
+        const { category = "all", visibility, page = 1, limit = 10, includePinned = true, teamId, authorId, tags, search, excludePostIds = [], // NEW: Posts to exclude (already seen)
+         } = input;
         const skip = (page - 1) * limit;
         // Build where clause based on visibility and user role
         const whereClause = {
             status: "PUBLISHED",
         };
+        // Exclude already seen posts to prevent duplicates
+        if (excludePostIds.length > 0) {
+            whereClause.id = { notIn: excludePostIds };
+        }
         // Category filter
         if (category && category !== "all") {
             whereClause.category = category;
@@ -60,7 +66,7 @@ export class FeedService {
             // Regular posts (fetch more for ranking)
             db.feedPost.findMany({
                 where: { ...whereClause, isPinned: false },
-                skip: page === 1 ? 0 : skip,
+                skip: 0, // Always start from 0, we filter via excludePostIds
                 take: fetchLimit,
                 include: {
                     author: {
@@ -84,7 +90,7 @@ export class FeedService {
                 },
                 orderBy: { createdAt: "desc" }, // Start with recent posts
             }),
-            // Total count
+            // Total count (excluding already seen posts)
             db.feedPost.count({ where: whereClause }),
             // Pinned posts (if requested and first page)
             includePinned && page === 1
@@ -118,6 +124,8 @@ export class FeedService {
         const rankedPosts = this.rankPosts(allPosts, userId);
         // Take only the requested limit after ranking
         const posts = rankedPosts.slice(0, limit);
+        // Return post IDs for client to track
+        const returnedPostIds = [...pinnedPosts.map(p => p.id), ...posts.map(p => p.id)];
         // Check which posts user has liked
         const postIds = [...posts.map((p) => p.id), ...pinnedPosts.map((p) => p.id)];
         const userLikes = await db.feedLike.findMany({
@@ -155,11 +163,13 @@ export class FeedService {
         return {
             posts: posts.map(formatPost),
             pinnedPosts: pinnedPosts.map(formatPost),
+            returnedPostIds, // NEW: Return IDs for client to track
             pagination: {
                 page,
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+                hasMore: posts.length === limit, // NEW: Indicate if more posts available
             },
         };
     }
@@ -365,6 +375,8 @@ export class FeedService {
         logger.info({ userId, postId: post.id }, "Feed post created");
         // Award points for creating the post
         await FeedPointsService.awardPostCreationPoints(userId, post.id, (input.imageUrls && input.imageUrls.length > 0) || false, !!input.videoUrl);
+        // Check and award badges
+        await BadgeService.checkAndAwardBadges(userId);
         // Emit socket event
         await FeedSocketEmitter.emitPostCreated(post);
         return post;
@@ -499,6 +511,8 @@ export class FeedService {
             // Emit socket events for points
             await FeedSocketEmitter.emitPointsEarned(userId, 2, "Liked a post", { postId });
             await FeedSocketEmitter.emitPointsEarned(post.authorId, 5, "Post liked", { postId, likerId: userId });
+            // Check and award badges
+            await BadgeService.checkAndAwardBadges(userId);
             return { isLiked: true };
         }
     }
@@ -673,6 +687,8 @@ export class FeedService {
         await FeedPointsService.awardCommentGivenPoints(userId, postId, comment.id);
         // Award points to the post author
         await FeedPointsService.awardCommentReceivedPoints(post.authorId, postId, userId);
+        // Check and award badges
+        await BadgeService.checkAndAwardBadges(userId);
         // Emit socket events for points
         await FeedSocketEmitter.emitPointsEarned(userId, 15, "Commented on post", { postId, commentId: comment.id });
         await FeedSocketEmitter.emitPointsEarned(post.authorId, 10, "Post received comment", { postId, commentId: comment.id });
@@ -1266,6 +1282,8 @@ export class FeedService {
         if (pointsResult) {
             await FeedSocketEmitter.emitPointsEarned(userId, pointsResult.viewerPoints, "Viewed post");
         }
+        // Check and award badges
+        await BadgeService.checkAndAwardBadges(userId);
         return {
             viewsCount: updatedPost.viewsCount,
             alreadyViewed: false,

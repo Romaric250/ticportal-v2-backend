@@ -3,6 +3,7 @@ import { logger } from "../../shared/utils/logger";
 import { activityService } from "../../shared/services/activity";
 import { FeedSocketEmitter } from "./socket";
 import { FeedPointsService } from "./points.service";
+import { BadgeService } from "../badges/service";
 import type {
   CreatePostInput,
   UpdatePostInput,
@@ -452,6 +453,9 @@ export class FeedService {
       !!input.videoUrl
     );
 
+    // Check and award badges
+    await BadgeService.checkAndAwardBadges(userId);
+
     // Emit socket event
     await FeedSocketEmitter.emitPostCreated(post);
 
@@ -614,6 +618,9 @@ export class FeedService {
       // Emit socket events for points
       await FeedSocketEmitter.emitPointsEarned(userId, 2, "Liked a post", { postId });
       await FeedSocketEmitter.emitPointsEarned(post.authorId, 5, "Post liked", { postId, likerId: userId });
+
+      // Check and award badges
+      await BadgeService.checkAndAwardBadges(userId);
 
       return { isLiked: true };
     }
@@ -806,6 +813,9 @@ export class FeedService {
 
     // Award points to the post author
     await FeedPointsService.awardCommentReceivedPoints(post.authorId, postId, userId);
+
+    // Check and award badges
+    await BadgeService.checkAndAwardBadges(userId);
 
     // Emit socket events for points
     await FeedSocketEmitter.emitPointsEarned(userId, 15, "Commented on post", { postId, commentId: comment.id });
@@ -1485,6 +1495,9 @@ export class FeedService {
     if (pointsResult) {
       await FeedSocketEmitter.emitPointsEarned(userId, pointsResult.viewerPoints, "Viewed post");
     }
+
+    // Check and award badges
+    await BadgeService.checkAndAwardBadges(userId);
 
     return { 
       viewsCount: updatedPost.viewsCount, 

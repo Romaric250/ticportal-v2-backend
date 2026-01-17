@@ -450,9 +450,15 @@ enum ActivityType {
 
 model Badge {
   id          String  @id @default(auto()) @map("_id") @db.ObjectId
-  name        String  @unique
+  badgeId     String  @unique // Our custom badge identifier (e.g., "rookie", "first_post")
+  name        String
   description String
+  icon        String  // Emoji or icon identifier
   imageUrl    String?
+  category    String  // POINTS, SOCIAL, CONTENT, etc.
+  tier        String  // BRONZE, SILVER, GOLD, etc.
+  points      Int     @default(0) // Bonus points awarded
+  rarity      Int     @default(50) // 1-100
   criteria    String?
 
   userBadges UserBadge[]
@@ -461,11 +467,11 @@ model Badge {
 model UserBadge {
   id       String   @id @default(auto()) @map("_id") @db.ObjectId
   userId   String   @db.ObjectId
-  badgeId  String   @db.ObjectId
+  badgeId  String   // Changed to String to match Badge.badgeId
   earnedAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id])
-  badge Badge @relation(fields: [badgeId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [badgeId]) // Match on badgeId field
 
   @@unique([userId, badgeId])
 }

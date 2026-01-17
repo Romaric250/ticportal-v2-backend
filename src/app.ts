@@ -25,7 +25,9 @@ import deliverableRoutes from "./modules/deliverables/routes";
 import learningPathRoutes from "./modules/learning-paths/routes";
 // import submissionRoutes from "./modules/submission/routes"; // REMOVED - doesn't exist
 import uploadRoutes from "./modules/upload/routes";
-import job from './config/cron';
+import { startCronJobs } from './config/cron';
+import badgeRoutes from "./modules/badges/routes";
+import leaderboardRoutes from "./modules/leaderboard/routes";
 
 const app = express();
 
@@ -98,7 +100,9 @@ app.use(cookieParser());
 // Activity tracking middleware (tracks all authenticated requests)
 app.use(trackActivity);
 
-job.start();
+// Start all cron jobs (health check + badge awards)
+startCronJobs();
+logger.info("🤖 Cron jobs initialized");
 
 // Basic health check
 app.get("/health", (_req, res) => {
@@ -143,7 +147,11 @@ app.use("/api/feed", (req, res, next) => {
 });
 
 app.use("/api", feedRoutes); // Feed routes registered ✅
+app.use("/api", badgeRoutes); // Badge routes registered ✅
+app.use("/api", leaderboardRoutes); // Leaderboard routes registered ✅
 logger.info("✅ Feed routes registered at /api/feed/*");
+logger.info("✅ Badge routes registered at /api/badges/*");
+logger.info("✅ Leaderboard routes registered at /api/leaderboard/*");
 logger.info("Feed routes available:");
 logger.info("  POST   /api/feed/posts");
 logger.info("  GET    /api/feed/posts");

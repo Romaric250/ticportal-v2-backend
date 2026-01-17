@@ -37,6 +37,7 @@ export interface GetPostsInput {
     authorId?: string;
     tags?: string[];
     search?: string;
+    excludePostIds?: string[];
 }
 export interface CreateCommentInput {
     content: string;
