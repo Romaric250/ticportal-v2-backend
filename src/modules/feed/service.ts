@@ -30,6 +30,7 @@ export class FeedService {
       authorId,
       tags,
       search,
+      excludePostIds = [], // NEW: Posts to exclude (already seen)
     } = input;
 
     const skip = (page - 1) * limit;
@@ -38,6 +39,11 @@ export class FeedService {
     const whereClause: any = {
       status: "PUBLISHED",
     };
+
+    // Exclude already seen posts to prevent duplicates
+    if (excludePostIds.length > 0) {
+      whereClause.id = { notIn: excludePostIds };
+    }
 
     // Category filter
     if (category && category !== "all") {
@@ -90,7 +96,7 @@ export class FeedService {
       // Regular posts (fetch more for ranking)
       db.feedPost.findMany({
         where: { ...whereClause, isPinned: false },
-        skip: page === 1 ? 0 : skip,
+        skip: 0, // Always start from 0, we filter via excludePostIds
         take: fetchLimit,
         include: {
           author: {
@@ -114,7 +120,7 @@ export class FeedService {
         },
         orderBy: { createdAt: "desc" }, // Start with recent posts
       }),
-      // Total count
+      // Total count (excluding already seen posts)
       db.feedPost.count({ where: whereClause }),
       // Pinned posts (if requested and first page)
       includePinned && page === 1
@@ -150,6 +156,9 @@ export class FeedService {
 
     // Take only the requested limit after ranking
     const posts = rankedPosts.slice(0, limit);
+
+    // Return post IDs for client to track
+    const returnedPostIds = [...pinnedPosts.map(p => p.id), ...posts.map(p => p.id)];
 
     // Check which posts user has liked
     const postIds = [...posts.map((p) => p.id), ...pinnedPosts.map((p) => p.id)];
@@ -193,11 +202,13 @@ export class FeedService {
     return {
       posts: posts.map(formatPost),
       pinnedPosts: pinnedPosts.map(formatPost),
+      returnedPostIds, // NEW: Return IDs for client to track
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        hasMore: posts.length === limit, // NEW: Indicate if more posts available
       },
     };
   }

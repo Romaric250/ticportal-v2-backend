@@ -41,6 +41,7 @@ export interface GetPostsInput {
   authorId?: string;
   tags?: string[];
   search?: string;
+  excludePostIds?: string[]; // NEW: Exclude already seen posts
 }
 
 export interface CreateCommentInput {

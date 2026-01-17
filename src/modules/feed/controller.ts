@@ -16,7 +16,7 @@ import type {
 export class FeedController {
   /**
    * GET /api/feed/posts
-   * Get paginated feed posts with filters
+   * Get posts with smart algorithm (no duplicates)
    */
   static async getPosts(req: Request, res: Response) {
     try {
@@ -32,24 +32,17 @@ export class FeedController {
 
       const input: GetPostsInput = {
         category: req.query.category as any,
-        visibility: req.query.visibility as any,
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
         includePinned: req.query.includePinned !== "false",
+        ...(req.query.teamId && { teamId: req.query.teamId as string }),
+        ...(req.query.authorId && { authorId: req.query.authorId as string }),
+        ...(req.query.tags && { tags: (req.query.tags as string).split(",") }),
+        ...(req.query.search && { search: req.query.search as string }),
+        ...(req.query.excludePostIds && { 
+          excludePostIds: (req.query.excludePostIds as string).split(",") 
+        }),
       };
-
-      if (req.query.teamId) {
-        input.teamId = req.query.teamId as string;
-      }
-      if (req.query.authorId) {
-        input.authorId = req.query.authorId as string;
-      }
-      if (req.query.tags) {
-        input.tags = (req.query.tags as string).split(",");
-      }
-      if (req.query.search) {
-        input.search = req.query.search as string;
-      }
 
       const result = await FeedService.getPosts(userId, userRole, input);
 
@@ -58,10 +51,10 @@ export class FeedController {
         data: result,
       });
     } catch (error: any) {
-      logger.error({ error: error.message }, "Failed to get feed posts");
+      logger.error({ error: error.message }, "Failed to get posts");
       res.status(500).json({
         success: false,
-        message: error.message || "Failed to get feed posts",
+        message: error.message || "Failed to get posts",
       });
     }
   }
