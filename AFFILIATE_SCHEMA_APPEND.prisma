@@ -1,0 +1,440 @@
+// Affiliate System Models - Append to schema.prisma
+
+// ==================== LOCATION & HIERARCHY ====================
+
+model Country {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                    String   @unique
+  code                    String   @unique // e.g., "CM" for Cameroon
+  currency                String   @default("CFA")
+  status                  CountryStatus @default(ACTIVE)
+  
+  studentPrice            Float    @default(5000)
+  platformFee             Float    @default(300)
+  affiliateCommissionRate Float    @default(9)
+  regionalCommissionRate  Float    @default(6)
+  nationalCommissionRate  Float    @default(5)
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  regions                 Region[]
+  nationalCoordinators    NationalCoordinatorProfile[]
+  payments                Payment[]
+  
+  @@index([code])
+  @@index([status])
+}
+
+enum CountryStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+model Region {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  countryId   String       @db.ObjectId
+  country     Country      @relation(fields: [countryId], references: [id])
+  status      RegionStatus @default(ACTIVE)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  affiliates  AffiliateProfile[]
+  regionalCoordinators RegionalCoordinatorProfile[]
+  referrals   StudentReferral[]
+  
+  @@unique([name, countryId])
+  @@index([countryId])
+  @@index([status])
+}
+
+enum RegionStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+// ==================== AFFILIATE PROFILES ====================
+
+model AffiliateProfile {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String          @unique @db.ObjectId
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  regionId          String          @db.ObjectId
+  region            Region          @relation(fields: [regionId], references: [id])
+  
+  referralCode      String          @unique
+  referralLink      String
+  
+  status            AffiliateStatus @default(PENDING)
+  tier              AffiliateTier   @default(STANDARD)
+  
+  activatedAt       DateTime?
+  activatedBy       String?         @db.ObjectId
+  suspendedAt       DateTime?
+  suspendedReason   String?
+  terminatedAt      DateTime?
+  terminatedReason  String?
+  
+  totalReferrals    Int             @default(0)
+  activeReferrals   Int             @default(0)
+  totalEarned       Float           @default(0)
+  totalPaid         Float           @default(0)
+  
+  bankName          String?
+  accountNumber     String?
+  accountName       String?
+  mobileMoneyNumber String?
+  mobileMoneyProvider String?
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  referrals         StudentReferral[]
+  commissions       Commission[]
+  
+  @@index([userId])
+  @@index([regionId])
+  @@index([referralCode])
+  @@index([status])
+}
+
+enum AffiliateStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum AffiliateTier {
+  STANDARD
+  PREMIUM
+  VIP
+}
+
+model RegionalCoordinatorProfile {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String            @unique @db.ObjectId
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  regionId      String            @db.ObjectId
+  region        Region            @relation(fields: [regionId], references: [id])
+  
+  status        CoordinatorStatus @default(ACTIVE)
+  assignedAt    DateTime          @default(now())
+  assignedBy    String            @db.ObjectId
+  
+  totalStudents Int               @default(0)
+  totalEarned   Float             @default(0)
+  totalPaid     Float             @default(0)
+  
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  commissions   Commission[]
+  
+  @@index([userId])
+  @@index([regionId])
+  @@index([status])
+}
+
+model NationalCoordinatorProfile {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String            @unique @db.ObjectId
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  countryId     String            @db.ObjectId
+  country       Country           @relation(fields: [countryId], references: [id])
+  
+  status        CoordinatorStatus @default(ACTIVE)
+  assignedAt    DateTime          @default(now())
+  assignedBy    String            @db.ObjectId
+  
+  totalStudents Int               @default(0)
+  totalEarned   Float             @default(0)
+  totalPaid     Float             @default(0)
+  
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  commissions   Commission[]
+  
+  @@index([userId])
+  @@index([countryId])
+  @@index([status])
+}
+
+enum CoordinatorStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+// ==================== REFERRAL & PAYMENT TRACKING ====================
+
+model StudentReferral {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  studentId         String          @db.ObjectId
+  student           User            @relation("ReferredStudents", fields: [studentId], references: [id], onDelete: Cascade)
+  
+  affiliateId       String?         @db.ObjectId
+  affiliate         AffiliateProfile? @relation(fields: [affiliateId], references: [id])
+  
+  regionId          String          @db.ObjectId
+  region            Region          @relation(fields: [regionId], references: [id])
+  
+  countryId         String          @db.ObjectId
+  
+  referralCode      String?
+  registeredAt      DateTime        @default(now())
+  activatedAt       DateTime?
+  
+  status            ReferralStatus  @default(PENDING)
+  
+  paymentId         String?         @unique @db.ObjectId
+  payment           Payment?        @relation(fields: [paymentId], references: [id])
+  
+  firstActionAt     DateTime?
+  firstActionType   String?
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  commissions       Commission[]
+  
+  @@index([studentId])
+  @@index([affiliateId])
+  @@index([regionId])
+  @@index([status])
+  @@index([registeredAt])
+}
+
+enum ReferralStatus {
+  PENDING
+  PAID
+  ACTIVATED
+  REFUNDED
+  FLAGGED
+}
+
+model Payment {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String        @db.ObjectId
+  user              User          @relation(fields: [userId], references: [id])
+  
+  countryId         String        @db.ObjectId
+  country           Country       @relation(fields: [countryId], references: [id])
+  
+  amount            Float
+  platformFee       Float         @default(300)
+  commissionableAmount Float
+  
+  paymentReference  String        @unique
+  paymentMethod     PaymentMethod
+  paymentProvider   String?
+  
+  status            PaymentStatus @default(PENDING)
+  
+  proofUrl          String?
+  verifiedAt        DateTime?
+  verifiedBy        String?       @db.ObjectId
+  
+  refundedAt        DateTime?
+  refundReason      String?
+  
+  metadata          Json?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  referral          StudentReferral?
+  
+  @@index([userId])
+  @@index([paymentReference])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PaymentMethod {
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CARD
+  CASH
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+// ==================== COMMISSION SYSTEM ====================
+
+model Commission {
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String           @db.ObjectId
+  user                User             @relation(fields: [userId], references: [id])
+  
+  referralId          String           @db.ObjectId
+  referral            StudentReferral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  
+  type                CommissionType
+  
+  baseAmount          Float
+  percentage          Float
+  commissionAmount    Float
+  
+  status              CommissionStatus @default(PENDING)
+  
+  earnedAt            DateTime?
+  coolingPeriodEnds   DateTime?
+  approvedAt          DateTime?
+  approvedBy          String?          @db.ObjectId
+  paidAt              DateTime?
+  revokedAt           DateTime?
+  revokedReason       String?
+  
+  payoutBatchId       String?          @db.ObjectId
+  payoutBatch         PayoutBatch?     @relation(fields: [payoutBatchId], references: [id])
+  
+  affiliateId         String?          @db.ObjectId
+  affiliate           AffiliateProfile? @relation(fields: [affiliateId], references: [id])
+  
+  regionalCoordinatorId String?        @db.ObjectId
+  regionalCoordinator RegionalCoordinatorProfile? @relation(fields: [regionalCoordinatorId], references: [id])
+  
+  nationalCoordinatorId String?        @db.ObjectId
+  nationalCoordinator NationalCoordinatorProfile? @relation(fields: [nationalCoordinatorId], references: [id])
+  
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  
+  @@index([userId])
+  @@index([referralId])
+  @@index([type])
+  @@index([status])
+  @@index([earnedAt])
+  @@index([payoutBatchId])
+}
+
+enum CommissionType {
+  AFFILIATE
+  REGIONAL
+  NATIONAL
+}
+
+enum CommissionStatus {
+  PENDING
+  EARNED
+  LOCKED
+  APPROVED
+  PAID
+  REVOKED
+}
+
+model PayoutBatch {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber     String           @unique
+  
+  totalAmount     Float
+  commissionCount Int
+  
+  status          PayoutBatchStatus @default(PENDING)
+  
+  createdBy       String           @db.ObjectId
+  processedBy     String?          @db.ObjectId
+  
+  exportUrl       String?
+  notes           String?
+  
+  createdAt       DateTime         @default(now())
+  processedAt     DateTime?
+  
+  commissions     Commission[]
+  
+  @@index([batchNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PayoutBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ==================== FRAUD DETECTION ====================
+
+model FraudFlag {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String         @db.ObjectId
+  
+  type        FraudType
+  severity    FraudSeverity
+  reason      String
+  evidence    Json?
+  
+  status      FraudFlagStatus @default(PENDING)
+  
+  flaggedBy   String?        @db.ObjectId
+  flaggedAt   DateTime       @default(now())
+  
+  resolvedBy  String?        @db.ObjectId
+  resolvedAt  DateTime?
+  resolution  String?
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([userId])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([flaggedAt])
+}
+
+enum FraudType {
+  DUPLICATE_ACCOUNT
+  FAKE_PAYMENT
+  PAYMENT_REUSE
+  IP_ANOMALY
+  VELOCITY_ABUSE
+  SUSPICIOUS_PATTERN
+  OTHER
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudFlagStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+// ==================== SYSTEM CONFIGURATION ====================
+
+model SystemConfig {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                     String   @unique
+  value                   Json
+  description             String?
+  
+  updatedBy               String   @db.ObjectId
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  @@index([key])
+}

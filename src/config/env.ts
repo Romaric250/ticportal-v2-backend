@@ -19,6 +19,11 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM ?? "no-reply@ticsummit.org",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN ?? "",
+  // Fapshi Payment Gateway
+  fapshiApiKey: process.env.FAPSHI_API_KEY ?? "",
+  fapshiApiUser: process.env.FAPSHI_API_USER ?? "",
+  fapshiBaseUrl: process.env.FAPSHI_BASE_URL ?? "https://api.fapshi.com",
+  fapshiWebhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",
 };
 
 
