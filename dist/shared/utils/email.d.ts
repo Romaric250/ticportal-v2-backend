@@ -37,4 +37,17 @@ export declare const sendPaymentPendingEmail: (email: string, firstName: string,
     paymentMethod: string;
     date: Date;
 }) => Promise<void>;
+export declare const sendBadgeEarnedEmail: (email: string, firstName: string, badgeDetails: {
+    badgeName: string;
+    badgeDescription: string;
+    badgeTier: string;
+    pointsAwarded: number;
+}) => Promise<void>;
+export declare const sendCommissionEarnedEmail: (email: string, firstName: string, commissionDetails: {
+    commissionAmount: number;
+    currency: string;
+    commissionType: string;
+    studentName?: string;
+    status: string;
+}) => Promise<void>;
 //# sourceMappingURL=email.d.ts.map

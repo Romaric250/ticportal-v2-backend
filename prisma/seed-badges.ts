@@ -1,53 +1,62 @@
 import { PrismaClient } from '@prisma/client';
-import { ALL_BADGES } from '../src/modules/badges/badges';
+import { BADGES } from '../src/modules/badges/badges';
 
 const prisma = new PrismaClient();
 
-async function seedBadges() {
-  console.log('🌱 Seeding badges...');
+async function seedPaidStudentBadge() {
+  console.log('🌱 Seeding Paid Student badge...');
 
   try {
-    // Delete existing badges
-    await prisma.badge.deleteMany();
-    console.log('🗑️  Cleared existing badges');
+    const badge = BADGES.PAID_STUDENT;
 
-    // Create all badges
-    const badgePromises = ALL_BADGES.map((badge) => {
-      return prisma.badge.create({
-        data: {
-          badgeId: badge.id,
-          name: badge.name,
-          description: badge.description,
-          icon: badge.icon,
-          category: badge.category,
-          tier: badge.tier,
-          points: badge.points,
-          rarity: badge.rarity,
-          criteria: JSON.stringify(badge.requirement),
-        },
-      });
+    if (!badge) {
+      throw new Error('PAID_STUDENT badge not found in badges.ts');
+    }
+
+    // Check if badge already exists
+    const existingBadge = await prisma.badge.findUnique({
+      where: { badgeId: badge.id }
     });
 
-    const createdBadges = await Promise.all(badgePromises);
+    if (existingBadge) {
+      console.log('✅ Paid Student badge already exists in database');
+      console.log(`   Badge ID: ${badge.id}`);
+      console.log(`   Name: ${badge.name}`);
+      console.log(`   Points: ${badge.points}`);
+      return;
+    }
 
-    console.log(`✅ Created ${createdBadges.length} badges`);
-    console.log('\n📋 Badge Summary:');
-    console.log(`   POINTS: ${ALL_BADGES.filter(b => b.category === 'POINTS').length}`);
-    console.log(`   CONTENT: ${ALL_BADGES.filter(b => b.category === 'CONTENT').length}`);
-    console.log(`   SOCIAL: ${ALL_BADGES.filter(b => b.category === 'SOCIAL').length}`);
-    console.log(`   TEAM: ${ALL_BADGES.filter(b => b.category === 'TEAM').length}`);
-    console.log(`   ACHIEVEMENT: ${ALL_BADGES.filter(b => b.category === 'ACHIEVEMENT').length}`);
-    console.log(`   SPECIAL: ${ALL_BADGES.filter(b => b.category === 'SPECIAL').length}`);
+    // Create the badge
+    const createdBadge = await prisma.badge.create({
+      data: {
+        badgeId: badge.id,
+        name: badge.name,
+        description: badge.description,
+        icon: badge.icon,
+        category: badge.category,
+        tier: badge.tier,
+        points: badge.points,
+        rarity: badge.rarity,
+        criteria: JSON.stringify(badge.requirement),
+      },
+    });
 
+    console.log('✅ Paid Student badge created successfully!');
+    console.log(`   Badge ID: ${createdBadge.badgeId}`);
+    console.log(`   Name: ${createdBadge.name}`);
+    console.log(`   Description: ${createdBadge.description}`);
+    console.log(`   Points: ${createdBadge.points} TIC Points`);
+    console.log(`   Category: ${createdBadge.category}`);
+    console.log(`   Tier: ${createdBadge.tier}`);
     console.log('\n🎉 Badge seeding completed!');
   } catch (error) {
-    console.error('❌ Error seeding badges:', error);
+    console.error('❌ Error seeding badge:', error);
     throw error;
   }
 }
 
 async function main() {
-  await seedBadges();
+  await seedPaidStudentBadge();
 }
 
 main()

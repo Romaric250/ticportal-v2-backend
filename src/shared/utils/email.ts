@@ -479,9 +479,9 @@ export const sendRoleChangeEmail = async (
   const roleDetails = getRoleDetails(newRole, metadata);
   
   const content = `
-    <h2>🎉 Your Role Has Been Updated!</h2>
+    <h2>Your Role Has Been Updated</h2>
     <p>Hello ${user.firstName},</p>
-    <p>Great news! Your role on the TIC Summit Portal has been updated.</p>
+    <p>Your role on the TIC Summit Portal has been updated.</p>
     
     <div class="info-box">
       <p style="margin: 0;"><strong>Previous Role:</strong> ${user.role}</p>
@@ -555,20 +555,20 @@ export const sendAffiliateActivationEmail = async (
   profile: any
 ) => {
   const content = `
-    <h2>✅ Your Affiliate Account is Now Active!</h2>
+    <h2>Your Affiliate Account is Now Active</h2>
     <p>Hello ${user.firstName},</p>
     <p>Congratulations! Your affiliate account has been activated and you can now start referring students.</p>
     
-    <div class="success-box" style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: #10b981;">📋 Your Affiliate Details</h3>
-      <p><strong>Referral Code:</strong> <code style="background: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${profile.referralCode}</code></p>
+    <div class="info-box" style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">Your Affiliate Details</h3>
+      <p><strong>Referral Code:</strong> <code style="background-color: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${profile.referralCode}</code></p>
       <p><strong>Referral Link:</strong><br>
-        <a href="${profile.referralLink}" style="color: #10b981; word-break: break-all;">${profile.referralLink}</a>
+        <a href="${profile.referralLink}" style="color: #111827; word-break: break-all; text-decoration: underline;">${profile.referralLink}</a>
       </p>
       <p><strong>Commission:</strong> 450 CFA per activated student</p>
     </div>
 
-    <h3>🎯 How It Works:</h3>
+    <h3>How It Works</h3>
     <ol style="line-height: 1.8;">
       <li>Share your referral link with potential students</li>
       <li>They sign up using your link</li>
@@ -577,7 +577,7 @@ export const sendAffiliateActivationEmail = async (
     </ol>
 
     <div style="margin-top: 30px;">
-      <a href="${env.clientUrl}/affiliate/dashboard" class="button" style="background: #10b981;">
+      <a href="${env.clientUrl}/affiliate/dashboard" class="button">
         View Affiliate Dashboard
       </a>
     </div>
@@ -585,7 +585,7 @@ export const sendAffiliateActivationEmail = async (
 
   await sendEmail(
     user.email,
-    `🎉 Your Affiliate Account is Active - TIC Portal`,
+    `Your Affiliate Account is Active - TIC Portal`,
     emailTemplate(content)
   );
 };
@@ -614,12 +614,12 @@ export const sendPaymentSuccessEmail = async (
   }).format(paymentDetails.date);
 
   const content = `
-    <h2>✅ Payment Successful!</h2>
+    <h2>Payment Successful</h2>
     <p>Hello ${firstName},</p>
-    <p>Your payment has been processed successfully. Welcome to TIC Summit Training Portal! 🎉</p>
+    <p>Your payment has been processed successfully. Welcome to TIC Summit Training Portal!</p>
     
-    <div class="success-box" style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: #10b981;">💳 Payment Receipt</h3>
+    <div class="info-box" style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">Payment Receipt</h3>
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <td style="padding: 8px 0;"><strong>Amount:</strong></td>
@@ -640,9 +640,9 @@ export const sendPaymentSuccessEmail = async (
       </table>
     </div>
 
-    <h3>🚀 What's Next?</h3>
+    <h3>What's Next?</h3>
     <div class="info-box">
-      <p>Your account is now fully activated! Here's what you can do:</p>
+      <p>Your account is now fully activated. Here's what you can do:</p>
       <ul style="line-height: 1.8; margin: 10px 0;">
         <li>Complete your profile</li>
         <li>Join or create a squad</li>
@@ -655,7 +655,7 @@ export const sendPaymentSuccessEmail = async (
     <p style="margin-top: 20px;">If you have any questions about your payment or need a detailed receipt, please contact our support team.</p>
 
     <div style="margin-top: 30px;">
-      <a href="${env.clientUrl}/dashboard" class="button" style="background: #10b981;">
+      <a href="${env.clientUrl}/dashboard" class="button">
         Go to Dashboard
       </a>
     </div>
@@ -693,12 +693,12 @@ export const sendPaymentFailedEmail = async (
   }).format(paymentDetails.date);
 
   const content = `
-    <h2>❌ Payment Failed</h2>
+    <h2>Payment Failed</h2>
     <p>Hello ${firstName},</p>
     <p>We're sorry, but your recent payment attempt was unsuccessful.</p>
     
-    <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: #ef4444;">💳 Payment Details</h3>
+    <div style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">Payment Details</h3>
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <td style="padding: 8px 0;"><strong>Amount:</strong></td>
@@ -727,7 +727,7 @@ export const sendPaymentFailedEmail = async (
       </table>
     </div>
 
-    <h3>🔄 What Can You Do?</h3>
+    <h3>What Can You Do?</h3>
     <div class="info-box">
       <p><strong>Common reasons for payment failure:</strong></p>
       <ul style="line-height: 1.8; margin: 10px 0;">
@@ -789,12 +789,12 @@ export const sendPaymentPendingEmail = async (
   }).format(paymentDetails.date);
 
   const content = `
-    <h2>⏳ Payment Pending</h2>
+    <h2>Payment Pending</h2>
     <p>Hello ${firstName},</p>
     <p>Your payment is currently being processed. This usually takes a few minutes.</p>
     
-    <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0;">
-      <h3 style="margin-top: 0; color: #f59e0b;">💳 Payment Details</h3>
+    <div class="info-box" style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">Payment Details</h3>
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <td style="padding: 8px 0;"><strong>Amount:</strong></td>
@@ -841,6 +841,122 @@ export const sendPaymentPendingEmail = async (
   await sendEmail(
     email,
     `Payment Pending - TIC Portal`,
+    emailTemplate(content)
+  );
+};
+
+// Email: Badge Earned
+export const sendBadgeEarnedEmail = async (
+  email: string,
+  firstName: string,
+  badgeDetails: {
+    badgeName: string;
+    badgeDescription: string;
+    badgeTier: string;
+    pointsAwarded: number;
+  }
+) => {
+  const content = `
+    <h2>Badge Earned</h2>
+    <p>Hello ${firstName},</p>
+    <p>Congratulations! You've earned a new badge.</p>
+    
+    <div class="info-box" style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">${badgeDetails.badgeName}</h3>
+      <p style="margin: 10px 0;"><strong>Tier:</strong> ${badgeDetails.badgeTier}</p>
+      <p style="margin: 10px 0;">${badgeDetails.badgeDescription}</p>
+      ${badgeDetails.pointsAwarded > 0 ? `
+      <p style="margin: 10px 0;"><strong>Points Awarded:</strong> ${badgeDetails.pointsAwarded} TIC Points</p>
+      ` : ''}
+    </div>
+
+    <p style="margin-top: 20px;">Keep up the great work! Continue engaging with the platform to earn more badges and unlock new achievements.</p>
+
+    <div style="margin-top: 30px;">
+      <a href="${env.clientUrl}/badges" class="button">
+        View All Badges
+      </a>
+    </div>
+  `;
+
+  await sendEmail(
+    email,
+    `Badge Earned: ${badgeDetails.badgeName} - TIC Portal`,
+    emailTemplate(content)
+  );
+};
+
+// Email: Commission Earned
+export const sendCommissionEarnedEmail = async (
+  email: string,
+  firstName: string,
+  commissionDetails: {
+    commissionAmount: number;
+    currency: string;
+    commissionType: string;
+    studentName?: string;
+    status: string;
+  }
+) => {
+  const formattedAmount = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: commissionDetails.currency,
+    minimumFractionDigits: 0,
+  }).format(commissionDetails.commissionAmount);
+
+  const commissionTypeLabel = commissionDetails.commissionType === 'AFFILIATE' 
+    ? 'Affiliate' 
+    : commissionDetails.commissionType === 'REGIONAL' 
+    ? 'Regional Coordinator' 
+    : 'National Coordinator';
+
+  const content = `
+    <h2>Commission Earned</h2>
+    <p>Hello ${firstName},</p>
+    <p>Great news! You've earned a new commission.</p>
+    
+    <div class="info-box" style="background-color: #f9fafb; border-left: 4px solid #111827; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #111827;">Commission Details</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Amount:</strong></td>
+          <td style="padding: 8px 0; text-align: right;">${formattedAmount}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Type:</strong></td>
+          <td style="padding: 8px 0; text-align: right;">${commissionTypeLabel}</td>
+        </tr>
+        ${commissionDetails.studentName ? `
+        <tr>
+          <td style="padding: 8px 0;"><strong>Student:</strong></td>
+          <td style="padding: 8px 0; text-align: right;">${commissionDetails.studentName}</td>
+        </tr>
+        ` : ''}
+        <tr>
+          <td style="padding: 8px 0;"><strong>Status:</strong></td>
+          <td style="padding: 8px 0; text-align: right;">${commissionDetails.status}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${commissionDetails.status === 'PENDING' ? `
+    <div class="info-box">
+      <p><strong>Note:</strong> This commission is currently pending. It will be available for payout after the cooling period ends (30 days from earning date).</p>
+    </div>
+    ` : ''}
+
+    <p style="margin-top: 20px;">You can track all your commissions and earnings in your affiliate dashboard.</p>
+
+    <div style="margin-top: 30px;">
+      <a href="${env.clientUrl}/affiliate/dashboard" class="button">
+        View Affiliate Dashboard
+      </a>
+    </div>
+  `;
+
+  await sendEmail(
+    email,
+    `Commission Earned - TIC Portal`,
     emailTemplate(content)
   );
 };

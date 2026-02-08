@@ -258,6 +258,16 @@ export class PaymentService {
         // Use PaymentCommissionService to confirm payment and calculate commissions
         await PaymentCommissionService.confirmPayment(paymentId, 'system');
         logger.info({ paymentId }, 'Payment confirmed and commissions calculated');
+        // Check and award payment success badge (awards 500 points)
+        try {
+            const { BadgeService } = await import('../badges/service');
+            await BadgeService.checkAndAwardBadges(payment.user.id);
+            logger.info({ userId: payment.user.id }, 'Badge check completed after payment confirmation');
+        }
+        catch (badgeError) {
+            logger.error({ paymentId, error: badgeError.message }, 'Failed to check badges after payment');
+            // Don't throw - badge check failure shouldn't block payment confirmation
+        }
         // Send success email
         try {
             await sendPaymentSuccessEmail(payment.user.email, payment.user.firstName, {

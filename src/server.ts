@@ -6,6 +6,7 @@ import { logger } from "./shared/utils/logger";
 import { initializeSocket } from "./socket/index";
 import { startNotificationCleanup } from "./jobs/notificationCleanup";
 import { startCommissionProcessor } from "./jobs/commissionProcessor";
+import { startBadgeProcessor } from "./jobs/badgeProcessor";
 
 const server = http.createServer(app);
 
@@ -20,7 +21,7 @@ const io = new Server(server, {
 initializeSocket(io);
 startNotificationCleanup();
 startCommissionProcessor();
-startCommissionProcessor();
+startBadgeProcessor();
 
 const port = env.port;
 

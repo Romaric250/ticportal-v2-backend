@@ -1204,7 +1204,13 @@ export class AffiliateService {
             where: { id: affiliateId },
             include: {
                 referrals: true,
-                commissions: true
+                commissions: true,
+                user: {
+                    select: {
+                        id: true,
+                        role: true
+                    }
+                }
             }
         });
         if (!profile) {
@@ -1216,6 +1222,14 @@ export class AffiliateService {
         }
         if (profile.commissions.some((c) => c.status !== 'PAID')) {
             throw new Error("Cannot delete affiliate with unpaid commissions");
+        }
+        // Update user role back to STUDENT before deleting affiliate profile
+        if (profile.user) {
+            await db.user.update({
+                where: { id: profile.userId },
+                data: { role: UserRole.STUDENT }
+            });
+            logger.info({ userId: profile.userId, affiliateId }, "User role updated to STUDENT after affiliate deletion");
         }
         await db.affiliateProfile.delete({
             where: { id: affiliateId }

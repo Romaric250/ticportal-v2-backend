@@ -89,6 +89,11 @@ export declare class BadgeService {
      */
     static checkBadgesForAllUsers(): Promise<number>;
     /**
+     * Process failed payment badge awards
+     * Finds users with CONFIRMED payments who haven't received the "Paid Student" badge
+     */
+    static processFailedPaymentBadges(): Promise<void>;
+    /**
      * Revoke a badge from a user (Admin only)
      */
     static revokeBadge(userId: string, badgeId: string): Promise<void>;

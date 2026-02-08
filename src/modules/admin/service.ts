@@ -95,12 +95,12 @@ export class AdminService {
       }
     });
 
-    const usersOverTime = Array.from(usersOverTimeMap.entries()).map(
-      ([date, count]) => ({
+    const usersOverTime = Array.from(usersOverTimeMap.entries())
+      .map(([date, count]) => ({
         date,
         users: count,
-      })
-    );
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date)); // Sort by date ascending
 
     const [teamsCount, activeTeams] = await Promise.all([
       db.team.count(),

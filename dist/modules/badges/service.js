@@ -1,6 +1,8 @@
 import { db } from "../../config/database.js";
 import { logger } from "../../shared/utils/logger.js";
 import { BADGES, ALL_BADGES } from "./badges.js";
+import { PaymentStatus } from "@prisma/client";
+import { sendBadgeEarnedEmail } from "../../shared/utils/email.js";
 export class BadgeService {
     /**
      * Check and award badges to user based on their activity
@@ -40,7 +42,7 @@ export class BadgeService {
      * Get user statistics for badge checking
      */
     static async getUserStats(userId) {
-        const [user, totalPoints, postsCreated, likesGiven, commentsGiven, teamsJoined, postsViewed, maxPostLikes, maxPostComments, teamMembersCount, deliverablesSubmitted,] = await Promise.all([
+        const [user, totalPoints, postsCreated, likesGiven, commentsGiven, teamsJoined, postsViewed, maxPostLikes, maxPostComments, teamMembersCount, deliverablesSubmitted, paymentsCompleted,] = await Promise.all([
             // User info
             db.user.findUnique({
                 where: { id: userId },
@@ -98,6 +100,13 @@ export class BadgeService {
             }),
             // Deliverables submitted (placeholder - adjust based on your schema)
             Promise.resolve(0), // TODO: Implement when deliverables module exists
+            // Payments completed (confirmed payments)
+            db.payment.count({
+                where: {
+                    userId,
+                    status: 'CONFIRMED'
+                }
+            }),
         ]);
         // Learning paths completed
         const learningPathsCompleted = await db.learningPathCompletion.count({
@@ -114,6 +123,7 @@ export class BadgeService {
             maxPostComments: maxPostComments?.commentsCount || 0,
             teamMembersCount,
             deliverablesSubmitted,
+            paymentsCompleted: paymentsCompleted || 0,
             accountAge: user ? Date.now() - user.createdAt.getTime() : 0,
             learningPathsCompleted,
         };
@@ -146,6 +156,8 @@ export class BadgeService {
                 return stats.deliverablesSubmitted >= value;
             case "LEARNING_PATHS_COMPLETED":
                 return stats.learningPathsCompleted >= value;
+            case "PAYMENT_SUCCESS":
+                return stats.paymentsCompleted >= value;
             case "EARLY_POST":
                 // Check if user posted within 1 hour of registration
                 const user = await db.user.findUnique({
@@ -202,6 +214,11 @@ export class BadgeService {
                 logger.info({ userId, badgeId }, "Badge already earned");
                 return;
             }
+            // Get user details for email
+            const user = await db.user.findUnique({
+                where: { id: userId },
+                select: { email: true, firstName: true },
+            });
             // Award badge
             await db.userBadge.create({
                 data: {
@@ -221,6 +238,22 @@ export class BadgeService {
                 });
             }
             logger.info({ userId, badgeId, points: badge.points }, "Badge awarded successfully");
+            // Send badge earned email
+            if (user) {
+                try {
+                    await sendBadgeEarnedEmail(user.email, user.firstName, {
+                        badgeName: badge.name,
+                        badgeDescription: badge.description,
+                        badgeTier: badge.tier,
+                        pointsAwarded: badge.points,
+                    });
+                    logger.info({ userId, badgeId, email: user.email }, "Badge earned email sent");
+                }
+                catch (emailError) {
+                    logger.error({ userId, badgeId, error: emailError.message }, "Failed to send badge earned email");
+                    // Don't throw - badge is awarded, email failure shouldn't block the process
+                }
+            }
         }
         catch (error) {
             logger.error({ error, userId, badgeId }, "Failed to award badge");
@@ -299,6 +332,9 @@ export class BadgeService {
                         break;
                     case "LEARNING_PATHS_COMPLETED":
                         currentValue = stats.learningPathsCompleted;
+                        break;
+                    case "PAYMENT_SUCCESS":
+                        currentValue = stats.paymentsCompleted;
                         break;
                     default:
                         currentValue = earned ? badge.requirement.value : 0;
@@ -457,6 +493,78 @@ export class BadgeService {
         catch (error) {
             logger.error({ error }, "Failed to check badges for all users");
             return 0;
+        }
+    }
+    /**
+     * Process failed payment badge awards
+     * Finds users with CONFIRMED payments who haven't received the "Paid Student" badge
+     */
+    static async processFailedPaymentBadges() {
+        try {
+            logger.info("🔄 Starting failed payment badge processing job");
+            // Find users with confirmed payments who don't have the paid_student badge
+            const confirmedPayments = await db.payment.findMany({
+                where: {
+                    status: PaymentStatus.CONFIRMED,
+                    verifiedAt: {
+                        not: null,
+                    },
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                        },
+                    },
+                },
+            });
+            if (confirmedPayments.length === 0) {
+                logger.info("No confirmed payments found, skipping badge processing");
+                return;
+            }
+            // Get all users who already have the paid_student badge
+            const usersWithBadge = await db.userBadge.findMany({
+                where: {
+                    badgeId: "paid_student",
+                },
+                select: {
+                    userId: true,
+                },
+            });
+            const usersWithBadgeSet = new Set(usersWithBadge.map((ub) => ub.userId));
+            let processedCount = 0;
+            let errorCount = 0;
+            // Process each payment
+            for (const payment of confirmedPayments) {
+                if (!payment.user) {
+                    logger.warn({ paymentId: payment.id }, "Payment has no user, skipping");
+                    continue;
+                }
+                const userId = payment.user.id;
+                // Skip if user already has the badge
+                if (usersWithBadgeSet.has(userId)) {
+                    continue;
+                }
+                try {
+                    // Award the paid_student badge
+                    await this.awardBadge(userId, "paid_student");
+                    processedCount++;
+                    logger.info({ userId, paymentId: payment.id }, "Awarded Paid Student badge to user");
+                }
+                catch (error) {
+                    errorCount++;
+                    logger.error({ userId, paymentId: payment.id, error: error.message }, "Failed to award Paid Student badge");
+                }
+            }
+            logger.info({
+                totalPayments: confirmedPayments.length,
+                processedCount,
+                errorCount,
+            }, "Failed payment badge processing job completed");
+        }
+        catch (error) {
+            logger.error({ error: error.message }, "Failed to process failed payment badges");
+            throw error;
         }
     }
     /**

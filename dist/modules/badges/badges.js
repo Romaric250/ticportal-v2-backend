@@ -430,6 +430,22 @@ export const BADGES = {
         },
         rarity: 8,
     },
+    // ==================== PAYMENT BADGES ====================
+    PAID_STUDENT: {
+        id: "paid_student",
+        name: "Paid Student",
+        description: "Complete your registration payment",
+        icon: "💳",
+        category: BadgeCategory.ACHIEVEMENT,
+        tier: BadgeTier.SILVER,
+        points: 500,
+        requirement: {
+            type: "PAYMENT_SUCCESS",
+            value: 1,
+            description: "Complete a successful payment",
+        },
+        rarity: 80,
+    },
 };
 // Helper to get all badges as array
 export const ALL_BADGES = Object.values(BADGES);

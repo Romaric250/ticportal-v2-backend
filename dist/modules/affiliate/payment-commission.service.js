@@ -1,6 +1,7 @@
 import { db } from "../../config/database.js";
 import { logger } from "../../shared/utils/logger.js";
 import { PaymentStatus, CommissionStatus, CommissionType, ReferralStatus, AffiliateSubRole } from "@prisma/client";
+import { sendCommissionEarnedEmail } from "../../shared/utils/email.js";
 /**
  * Payment and Commission Service
  * Handles payment confirmation and commission calculation/distribution
@@ -93,7 +94,16 @@ export class PaymentCommissionService {
                             }
                         }
                     },
-                    payment: true
+                    payment: {
+                        include: {
+                            user: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true
+                                }
+                            }
+                        }
+                    }
                 }
             });
             if (!referral || !referral.payment) {
@@ -148,6 +158,23 @@ export class PaymentCommissionService {
                     affiliateId: referral.affiliate.id,
                     commissionAmount: affiliateCommissionAmount
                 }, 'Affiliate commission created and stats updated');
+                // Send commission earned email
+                if (referral.affiliate.user && referral.payment.user) {
+                    try {
+                        await sendCommissionEarnedEmail(referral.affiliate.user.email, referral.affiliate.user.firstName, {
+                            commissionAmount: affiliateCommissionAmount,
+                            currency: country.currency,
+                            commissionType: CommissionType.AFFILIATE,
+                            studentName: `${referral.payment.user.firstName} ${referral.payment.user.lastName || ''}`.trim(),
+                            status: CommissionStatus.PENDING,
+                        });
+                        logger.info({ affiliateId: referral.affiliate.id, email: referral.affiliate.user.email }, 'Commission earned email sent to affiliate');
+                    }
+                    catch (emailError) {
+                        logger.error({ affiliateId: referral.affiliate.id, error: emailError.message }, 'Failed to send commission earned email to affiliate');
+                        // Don't throw - commission is created, email failure shouldn't block the process
+                    }
+                }
             }
             // Calculate regional coordinator commission
             if (referral.affiliate?.region) {
@@ -213,6 +240,23 @@ export class PaymentCommissionService {
                             coordinatorId: regionalCoordinator.id,
                             commissionAmount: regionalCommissionAmount
                         }, 'Regional coordinator commission created and stats updated');
+                        // Send commission earned email
+                        if (regionalCoordinator.user && referral.payment.user) {
+                            try {
+                                await sendCommissionEarnedEmail(regionalCoordinator.user.email, regionalCoordinator.user.firstName, {
+                                    commissionAmount: regionalCommissionAmount,
+                                    currency: country.currency,
+                                    commissionType: CommissionType.REGIONAL,
+                                    studentName: `${referral.payment.user.firstName} ${referral.payment.user.lastName || ''}`.trim(),
+                                    status: CommissionStatus.PENDING,
+                                });
+                                logger.info({ coordinatorId: regionalCoordinator.id, email: regionalCoordinator.user.email }, 'Commission earned email sent to regional coordinator');
+                            }
+                            catch (emailError) {
+                                logger.error({ coordinatorId: regionalCoordinator.id, error: emailError.message }, 'Failed to send commission earned email to regional coordinator');
+                                // Don't throw - commission is created, email failure shouldn't block the process
+                            }
+                        }
                     }
                 }
             }
@@ -278,6 +322,23 @@ export class PaymentCommissionService {
                         coordinatorId: nationalCoordinator.id,
                         commissionAmount: nationalCommissionAmount
                     }, 'National coordinator commission created and stats updated');
+                    // Send commission earned email
+                    if (nationalCoordinator.user && referral.payment.user) {
+                        try {
+                            await sendCommissionEarnedEmail(nationalCoordinator.user.email, nationalCoordinator.user.firstName, {
+                                commissionAmount: nationalCommissionAmount,
+                                currency: country.currency,
+                                commissionType: CommissionType.NATIONAL,
+                                studentName: `${referral.payment.user.firstName} ${referral.payment.user.lastName || ''}`.trim(),
+                                status: CommissionStatus.PENDING,
+                            });
+                            logger.info({ coordinatorId: nationalCoordinator.id, email: nationalCoordinator.user.email }, 'Commission earned email sent to national coordinator');
+                        }
+                        catch (emailError) {
+                            logger.error({ coordinatorId: nationalCoordinator.id, error: emailError.message }, 'Failed to send commission earned email to national coordinator');
+                            // Don't throw - commission is created, email failure shouldn't block the process
+                        }
+                    }
                 }
             }
             logger.info({ referralId }, 'Commissions calculated successfully');

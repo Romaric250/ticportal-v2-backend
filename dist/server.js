@@ -6,6 +6,7 @@ import { logger } from "./shared/utils/logger.js";
 import { initializeSocket } from "./socket/index.js";
 import { startNotificationCleanup } from "./jobs/notificationCleanup.js";
 import { startCommissionProcessor } from "./jobs/commissionProcessor.js";
+import { startBadgeProcessor } from "./jobs/badgeProcessor.js";
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -17,7 +18,7 @@ const io = new Server(server, {
 initializeSocket(io);
 startNotificationCleanup();
 startCommissionProcessor();
-startCommissionProcessor();
+startBadgeProcessor();
 const port = env.port;
 server.listen(port, () => {
     logger.info(`Server listening on port ${port}`);
