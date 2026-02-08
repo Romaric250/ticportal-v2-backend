@@ -90,8 +90,12 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: [env.clientUrl, "https://ticportal-v2.vercel.app","http://localhost:3000"],
-   
+    origin: [
+      env.clientUrl,
+      "https://ticportal-v2.vercel.app",
+      "http://localhost:3000",
+      "https://portal.ticsummit.org"
+    ],
     credentials: true,
   }),
 );
