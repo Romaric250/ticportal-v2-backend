@@ -88,18 +88,46 @@ app.use((req, res, next) => {
   next();
 });
 
+// CORS configuration - must be before other middleware
+const allowedOrigins = [
+  env.clientUrl,
+  "https://ticportal-v2.vercel.app",
+  "http://localhost:3000",
+  "https://portal.ticsummit.org"
+];
+
 app.use(
   cors({
-    origin: [
-      env.clientUrl,
-      "https://ticportal-v2.vercel.app",
-      "http://localhost:3000",
-      "https://portal.ticsummit.org"
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        // Return false to reject, not an error
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }),
 );
-app.use(helmet());
+
+// Configure Helmet to not interfere with CORS
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(generalRateLimit);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -213,7 +241,21 @@ const swaggerSpec = swaggerJsdoc({
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Global 404 handler
-app.use((_req, res) => {
+app.use((req, res) => {
+  // Ensure CORS headers are set even on 404 responses
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    env.clientUrl,
+    "https://ticportal-v2.vercel.app",
+    "http://localhost:3000",
+    "https://portal.ticsummit.org"
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  
   res.status(404).json({
     success: false,
     error: {
@@ -224,11 +266,29 @@ app.use((_req, res) => {
   });
 });
 
+// Handle OPTIONS requests explicitly for CORS preflight
+app.options('*', cors());
+
 // Basic error logger (full error middleware to be added later)
 app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     logger.error({ err }, "Unhandled error");
+    
+    // Ensure CORS headers are set even on error responses
+    const origin = _req.headers.origin;
+    const allowedOrigins = [
+      env.clientUrl,
+      "https://ticportal-v2.vercel.app",
+      "http://localhost:3000",
+      "https://portal.ticsummit.org"
+    ];
+    
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
     res.status(500).json({
       success: false,
       error: {
