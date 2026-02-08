@@ -10,13 +10,13 @@ export declare class AuthService {
             createdAt: Date;
             email: string;
             username: string | null;
-            phone: string | null;
             password: string;
             role: import(".prisma/client").$Enums.UserRole;
             status: import(".prisma/client").$Enums.UserStatus;
             firstName: string;
             lastName: string;
             bio: string | null;
+            phone: string | null;
             profilePhoto: string | null;
             school: string | null;
             grade: string | null;

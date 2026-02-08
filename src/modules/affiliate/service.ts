@@ -14,6 +14,13 @@ import { sendRoleChangeEmail, sendAffiliateActivationEmail } from "../../shared/
 export class AffiliateService {
   
   static async createCountry(input: CreateCountryInput) {
+    // Normalize commission rates: if less than 1, convert from decimal to percentage
+    const normalizeRate = (rate: number | undefined, defaultRate: number): number => {
+      if (rate === undefined || rate === null) return defaultRate;
+      // If rate is less than 1, it's a decimal (0.09), convert to percentage (9)
+      return rate < 1 ? rate * 100 : rate;
+    };
+
     const country = await db.country.create({
       data: {
         name: input.name,
@@ -21,9 +28,9 @@ export class AffiliateService {
         currency: input.currency || "CFA",
         studentPrice: input.studentPrice || 5000,
         platformFee: input.platformFee || 300,
-        affiliateCommissionRate: input.affiliateCommissionRate || 9,
-        regionalCommissionRate: input.regionalCommissionRate || 6,
-        nationalCommissionRate: input.nationalCommissionRate || 5,
+        affiliateCommissionRate: normalizeRate(input.affiliateCommissionRate, 9),
+        regionalCommissionRate: normalizeRate(input.regionalCommissionRate, 5),
+        nationalCommissionRate: normalizeRate(input.nationalCommissionRate, 4),
       }
     });
 
@@ -58,18 +65,32 @@ export class AffiliateService {
       throw new Error("Country not found");
     }
 
+    // Normalize commission rates: if less than 1, convert from decimal to percentage
+    const normalizeRate = (rate: number | undefined): number | undefined => {
+      if (rate === undefined || rate === null) return undefined;
+      // If rate is less than 1, it's a decimal (0.09), convert to percentage (9)
+      return rate < 1 ? rate * 100 : rate;
+    };
+
+    const updateData: any = {};
+    if (input.name) updateData.name = input.name;
+    if (input.code) updateData.code = input.code;
+    if (input.currency) updateData.currency = input.currency;
+    if (input.studentPrice !== undefined) updateData.studentPrice = input.studentPrice;
+    if (input.platformFee !== undefined) updateData.platformFee = input.platformFee;
+    if (input.affiliateCommissionRate !== undefined) {
+      updateData.affiliateCommissionRate = normalizeRate(input.affiliateCommissionRate);
+    }
+    if (input.regionalCommissionRate !== undefined) {
+      updateData.regionalCommissionRate = normalizeRate(input.regionalCommissionRate);
+    }
+    if (input.nationalCommissionRate !== undefined) {
+      updateData.nationalCommissionRate = normalizeRate(input.nationalCommissionRate);
+    }
+
     const updated = await db.country.update({
       where: { id: countryId },
-      data: {
-        ...(input.name && { name: input.name }),
-        ...(input.code && { code: input.code }),
-        ...(input.currency && { currency: input.currency }),
-        ...(input.studentPrice !== undefined && { studentPrice: input.studentPrice }),
-        ...(input.platformFee !== undefined && { platformFee: input.platformFee }),
-        ...(input.affiliateCommissionRate !== undefined && { affiliateCommissionRate: input.affiliateCommissionRate }),
-        ...(input.regionalCommissionRate !== undefined && { regionalCommissionRate: input.regionalCommissionRate }),
-        ...(input.nationalCommissionRate !== undefined && { nationalCommissionRate: input.nationalCommissionRate }),
-      }
+      data: updateData
     });
 
     logger.info({ countryId }, "Country updated");
@@ -192,7 +213,7 @@ export class AffiliateService {
         throw new Error("Region not found");
       }
 
-      const referralCode = this.generateReferralCode(user, region);
+      const referralCode = await this.generateReferralCode(user, region);
       const referralLink = `${process.env.CLIENT_URL}/signup?ref=${referralCode}`;
 
       await db.affiliateProfile.create({
@@ -242,7 +263,7 @@ export class AffiliateService {
         throw new Error("Region not found");
       }
 
-      const referralCode = this.generateReferralCode(user, region);
+      const referralCode = await this.generateReferralCode(user, region);
       const referralLink = `${process.env.CLIENT_URL}/pay?ref=${referralCode}`;
 
       await db.affiliateProfile.create({
@@ -274,11 +295,31 @@ export class AffiliateService {
       }
 
       // Generate a unique referral code for national coordinator
-      const nameSlug = user.firstName.toUpperCase().substring(0, 6);
-      const countrySlug = country.code.toUpperCase();
-      const year = new Date().getFullYear();
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const referralCode = `TIC-${countrySlug}-NC-${nameSlug}-${year}-${random}`;
+      let referralCode = '';
+      let isUnique = false;
+      let attempts = 0;
+      
+      while (!isUnique && attempts < 10) {
+        const nameSlug = user.firstName.toLowerCase().substring(0, 6);
+        const countrySlug = country.code.toLowerCase();
+        const year = new Date().getFullYear();
+        const random = Math.random().toString(36).substring(2, 8);
+        referralCode = `tic-${countrySlug}-nc-${nameSlug}-${year}-${random}`;
+        
+        const existing = await db.affiliateProfile.findUnique({
+          where: { referralCode }
+        });
+        
+        if (!existing) {
+          isUnique = true;
+        }
+        attempts++;
+      }
+      
+      if (!isUnique) {
+        throw new Error("Failed to generate unique referral code");
+      }
+      
       const referralLink = `${process.env.CLIENT_URL}/pay?ref=${referralCode}`;
 
       await db.affiliateProfile.create({
@@ -319,16 +360,16 @@ export class AffiliateService {
       throw new Error("Affiliate profile not found");
     }
 
-    if (profile.status === AffiliateStatus.ACTIVE) {
-      throw new Error("Affiliate already active");
-    }
-
     const updatedProfile = await db.affiliateProfile.update({
       where: { id: input.affiliateId },
       data: {
         status: AffiliateStatus.ACTIVE,
         activatedAt: new Date(),
         activatedBy: adminId,
+        suspendedAt: null,
+        suspendedReason: null,
+        terminatedAt: null,
+        terminatedReason: null,
         ...(input.bankName !== undefined && { bankName: input.bankName }),
         ...(input.accountNumber !== undefined && { accountNumber: input.accountNumber }),
         ...(input.accountName !== undefined && { accountName: input.accountName }),
@@ -345,6 +386,7 @@ export class AffiliateService {
         metadata: {
           affiliateId: input.affiliateId,
           referralCode: profile.referralCode,
+          previousStatus: profile.status,
           activatedBy: adminId
         }
       }
@@ -352,7 +394,11 @@ export class AffiliateService {
 
     await sendAffiliateActivationEmail(profile.user, profile);
 
-    logger.info({ affiliateId: input.affiliateId }, "Affiliate activated");
+    logger.info({ 
+      affiliateId: input.affiliateId, 
+      previousStatus: profile.status,
+      newStatus: AffiliateStatus.ACTIVE 
+    }, "Affiliate activated");
 
     return updatedProfile;
   }
@@ -422,9 +468,13 @@ export class AffiliateService {
     const commissions = await db.commission.findMany({
       where: {
         affiliateProfileId: profile.id
+      },
+      include: {
+        referral: true
       }
     });
 
+    // Calculate earnings from actual commissions
     const earnings = {
       pending: commissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.commissionAmount, 0),
       earned: commissions.filter(c => c.status === 'EARNED').reduce((sum, c) => sum + c.commissionAmount, 0),
@@ -443,6 +493,21 @@ export class AffiliateService {
       ? `${profile.region.name}, ${profile.region.country.name}`
       : profile.country?.name || 'N/A';
 
+    // Map recent referrals with actual commission amounts
+    const recentReferralsWithCommissions = await Promise.all(
+      profile.referrals.map(async (r) => {
+        // Find commission for this referral
+        const referralCommission = commissions.find(c => c.referralId === r.id);
+        return {
+          id: r.id,
+          studentName: `${r.student.firstName} ${r.student.lastName}`,
+          registeredAt: r.registeredAt,
+          status: r.status,
+          commissionAmount: referralCommission?.commissionAmount || 0
+        };
+      })
+    );
+
     return {
       profile: {
         referralCode: profile.referralCode,
@@ -458,23 +523,40 @@ export class AffiliateService {
         conversionRate: Math.round(conversionRate * 10) / 10
       },
       earnings,
-      recentReferrals: profile.referrals.map(r => ({
-        id: r.id,
-        studentName: `${r.student.firstName} ${r.student.lastName}`,
-        registeredAt: r.registeredAt,
-        status: r.status,
-        commissionAmount: 450
-      }))
+      recentReferrals: recentReferralsWithCommissions
     };
   }
 
-  private static generateReferralCode(user: any, region: any): string {
-    const regionSlug = region.name.toUpperCase().replace(/\s+/g, '-').substring(0, 10);
-    const nameSlug = user.firstName.toUpperCase().substring(0, 6);
-    const year = new Date().getFullYear();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  private static async generateReferralCode(user: any, region: any): Promise<string> {
+    let referralCode: string;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
 
-    return `TIC-${regionSlug}-${nameSlug}-${year}-${random}`;
+    while (!isUnique && attempts < maxAttempts) {
+      const regionSlug = region.name.toLowerCase().replace(/\s+/g, '-').substring(0, 10);
+      const nameSlug = user.firstName.toLowerCase().substring(0, 6);
+      const year = new Date().getFullYear();
+      const random = Math.random().toString(36).substring(2, 8); // 6 chars, already lowercase
+
+      referralCode = `tic-${regionSlug}-${nameSlug}-${year}-${random}`;
+
+      // Check if code exists
+      const existing = await db.affiliateProfile.findUnique({
+        where: { referralCode }
+      });
+
+      if (!existing) {
+        isUnique = true;
+      }
+      attempts++;
+    }
+
+    if (!isUnique) {
+      throw new Error("Failed to generate unique referral code after multiple attempts");
+    }
+
+    return referralCode!;
   }
 
   /**
@@ -916,6 +998,27 @@ export class AffiliateService {
       throw new Error("Affiliate profile not found");
     }
 
+    // Get country (either from region or directly)
+    const countryData = profile.region?.country || profile.country;
+    
+    // Calculate commission rate based on subRole
+    let commissionRate: number | null = null;
+    if (countryData) {
+      if (profile.subRole === AffiliateSubRole.AFFILIATE) {
+        commissionRate = countryData.affiliateCommissionRate ?? 9;
+      } else if (
+        profile.subRole === AffiliateSubRole.REGIONAL_COORDINATOR ||
+        profile.subRole === AffiliateSubRole.ASSISTANT_REGIONAL_COORDINATOR
+      ) {
+        commissionRate = countryData.regionalCommissionRate ?? 5;
+      } else if (
+        profile.subRole === AffiliateSubRole.NATIONAL_COORDINATOR ||
+        profile.subRole === AffiliateSubRole.ASSISTANT_NATIONAL_COORDINATOR
+      ) {
+        commissionRate = countryData.nationalCommissionRate ?? 4;
+      }
+    }
+
     return {
       id: profile.id,
       userId: profile.userId,
@@ -924,6 +1027,7 @@ export class AffiliateService {
       referralLink: profile.referralLink,
       status: profile.status,
       tier: profile.tier,
+      commissionRate, // Add commission rate
       region: profile.region ? {
         id: profile.region.id,
         name: profile.region.name,
@@ -996,8 +1100,14 @@ export class AffiliateService {
     }
 
     // Generate referral code
-    const referralCode = this.generateReferralCode(user, region);
+    const referralCode = await this.generateReferralCode(user, region);
     const referralLink = `${process.env.CLIENT_URL}/pay?ref=${referralCode}`;
+
+    // Update user role to AFFILIATE (regardless of subRole)
+    await db.user.update({
+      where: { id: userId },
+      data: { role: UserRole.AFFILIATE }
+    });
 
     // Create profile
     const profile = await db.affiliateProfile.create({
@@ -1030,7 +1140,13 @@ export class AffiliateService {
       }
     });
 
-    logger.info({ profileId: profile.id, userId, referralCode }, "Affiliate profile created");
+    logger.info({ 
+      profileId: profile.id, 
+      userId, 
+      referralCode,
+      userRole: UserRole.AFFILIATE,
+      subRole 
+    }, "Affiliate profile created and user role updated to AFFILIATE");
 
     return profile;
   }
@@ -1054,23 +1170,42 @@ export class AffiliateService {
       throw new Error("Affiliate profile not found");
     }
 
-    let newReferralCode: string;
+    let newReferralCode = '';
 
     // Generate code based on subRole
     if (profile.subRole === AffiliateSubRole.NATIONAL_COORDINATOR || profile.subRole === AffiliateSubRole.ASSISTANT_NATIONAL_COORDINATOR) {
       if (!profile.country) {
         throw new Error("National coordinator must have a country");
       }
-      const nameSlug = profile.user.firstName.toUpperCase().substring(0, 6);
-      const countrySlug = profile.country.code.toUpperCase();
-      const year = new Date().getFullYear();
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-      newReferralCode = `TIC-${countrySlug}-NC-${nameSlug}-${year}-${random}`;
+      
+      let isUnique = false;
+      let attempts = 0;
+      
+      while (!isUnique && attempts < 10) {
+        const nameSlug = profile.user.firstName.toLowerCase().substring(0, 6);
+        const countrySlug = profile.country.code.toLowerCase();
+        const year = new Date().getFullYear();
+        const random = Math.random().toString(36).substring(2, 8);
+        newReferralCode = `tic-${countrySlug}-nc-${nameSlug}-${year}-${random}`;
+        
+        const existing = await db.affiliateProfile.findUnique({
+          where: { referralCode: newReferralCode }
+        });
+        
+        if (!existing) {
+          isUnique = true;
+        }
+        attempts++;
+      }
+      
+      if (!isUnique) {
+        throw new Error("Failed to generate unique referral code");
+      }
     } else {
       if (!profile.region) {
         throw new Error("Affiliate/Regional coordinator must have a region");
       }
-      newReferralCode = this.generateReferralCode(profile.user, profile.region);
+      newReferralCode = await this.generateReferralCode(profile.user, profile.region);
     }
 
     const newReferralLink = `${process.env.CLIENT_URL}/pay?ref=${newReferralCode}`;
@@ -1163,8 +1298,31 @@ export class AffiliateService {
       db.affiliateProfile.count({ where })
     ]);
 
+    // Recalculate totalEarned from actual commission records for accuracy
+    const affiliatesWithRecalculatedEarnings = await Promise.all(
+      affiliates.map(async (affiliate) => {
+        // Get all commissions for this affiliate
+        const commissionsResult = await db.commission.aggregate({
+          where: {
+            affiliateProfileId: affiliate.id
+          },
+          _sum: {
+            commissionAmount: true
+          }
+        });
+
+        const actualTotalEarned = commissionsResult._sum.commissionAmount || 0;
+
+        // Return affiliate with recalculated totalEarned
+        return {
+          ...affiliate,
+          totalEarned: actualTotalEarned
+        };
+      })
+    );
+
     return {
-      affiliates,
+      affiliates: affiliatesWithRecalculatedEarnings,
       pagination: {
         total,
         page,
@@ -1214,6 +1372,74 @@ export class AffiliateService {
   }
 
   /**
+   * Admin: Terminate an affiliate
+   */
+  static async terminateAffiliate(affiliateId: string, reason?: string) {
+    const profile = await db.affiliateProfile.findUnique({
+      where: { id: affiliateId },
+      include: { user: true, region: { include: { country: true } } }
+    });
+
+    if (!profile) {
+      throw new Error("Affiliate profile not found");
+    }
+
+    if (profile.status === AffiliateStatus.TERMINATED) {
+      throw new Error("Affiliate is already terminated");
+    }
+
+    const updated = await db.affiliateProfile.update({
+      where: { id: affiliateId },
+      data: {
+        status: AffiliateStatus.TERMINATED,
+        terminatedAt: new Date(),
+        terminatedReason: reason || null,
+        updatedAt: new Date()
+      },
+      include: {
+        user: true,
+        region: { include: { country: true } }
+      }
+    });
+
+    logger.info({ affiliateId, reason }, "Affiliate terminated");
+    return updated;
+  }
+
+  /**
+   * Admin: Delete an affiliate profile
+   */
+  static async deleteAffiliate(affiliateId: string) {
+    const profile = await db.affiliateProfile.findUnique({
+      where: { id: affiliateId },
+      include: {
+        referrals: true,
+        commissions: true
+      }
+    });
+
+    if (!profile) {
+      throw new Error("Affiliate profile not found");
+    }
+
+    // Check if affiliate has active referrals or unpaid commissions
+    if (profile.referrals.length > 0) {
+      throw new Error("Cannot delete affiliate with existing referrals");
+    }
+
+    if (profile.commissions.some((c: any) => c.status !== 'PAID')) {
+      throw new Error("Cannot delete affiliate with unpaid commissions");
+    }
+
+    await db.affiliateProfile.delete({
+      where: { id: affiliateId }
+    });
+
+    logger.info({ affiliateId }, "Affiliate profile deleted");
+    return { success: true, message: "Affiliate profile deleted successfully" };
+  }
+
+  /**
    * Admin: Unsuspend an affiliate
    */
   static async unsuspendAffiliate(affiliateId: string) {
@@ -1257,12 +1483,9 @@ export class AffiliateService {
       _sum: { amount: true }
     });
 
-    // Commissions owed (approved but not paid)
+    // Commissions owed (status EARNED)
     const commissionsOwedResult = await db.commission.aggregate({
-      where: {
-        status: 'APPROVED',
-        payoutBatchId: null
-      },
+      where: { status: 'EARNED' },
       _sum: { commissionAmount: true }
     });
 
@@ -1272,13 +1495,13 @@ export class AffiliateService {
       _sum: { commissionAmount: true }
     });
 
-    // All commissions (for TIC net calculation)
+    // Total amount of ALL commissions (for TIC net calculation)
     const allCommissionsResult = await db.commission.aggregate({
       _sum: { commissionAmount: true }
     });
 
     const totalRevenue = totalRevenueResult._sum.amount || 0;
-    const commissionsOwed = commissionsOwedResult._sum.commissionAmount || 0;
+    const commissionsOwed = commissionsOwedResult._sum.commissionAmount || 0; // Only EARNED commissions
     const commissionsPaid = commissionsPaidResult._sum.commissionAmount || 0;
     const allCommissions = allCommissionsResult._sum.commissionAmount || 0;
     const ticNetFees = totalRevenue - allCommissions;
@@ -1566,31 +1789,19 @@ export class AffiliateService {
       return config.value;
     }
 
-    // Return default values
+    // Return default STANDARD tier values
     return {
-      standard: {
-        affiliateRate: 0.09,
-        regionalRate: 0.06,
-        nationalRate: 0.05
-      },
-      premium: {
-        affiliateRate: 0.12,
-        regionalRate: 0.08,
-        nationalRate: 0.06
-      },
-      vip: {
-        affiliateRate: 0.15,
-        regionalRate: 0.10,
-        nationalRate: 0.08
-      }
+      affiliateRate: 0.09,
+      regionalRate: 0.06,
+      nationalRate: 0.05
     };
   }
 
   /**
    * Admin: Update commission tier configuration
+   * Only STANDARD tier is supported
    */
   static async updateCommissionTiers(data: {
-    tier: 'STANDARD' | 'PREMIUM' | 'VIP';
     affiliateRate: number;
     regionalRate: number;
     nationalRate: number;
@@ -1607,33 +1818,35 @@ export class AffiliateService {
       throw new Error("Total commission rate cannot exceed 100%");
     }
 
-    // Get current config
-    const currentConfig: any = await this.getCommissionTiers();
-
-    // Update the specified tier
-    const tierKey = data.tier.toLowerCase() as 'standard' | 'premium' | 'vip';
-    currentConfig[tierKey] = {
-      affiliateRate: data.affiliateRate,
-      regionalRate: data.regionalRate,
-      nationalRate: data.nationalRate
-    };
-
     // Save to database
     await db.systemConfig.upsert({
       where: { key: 'commission_tiers' },
       create: {
         key: 'commission_tiers',
-        value: currentConfig,
+        value: {
+          affiliateRate: data.affiliateRate,
+          regionalRate: data.regionalRate,
+          nationalRate: data.nationalRate
+        },
         updatedBy
       },
       update: {
-        value: currentConfig,
+        value: {
+          affiliateRate: data.affiliateRate,
+          regionalRate: data.regionalRate,
+          nationalRate: data.nationalRate
+        },
         updatedBy,
         updatedAt: new Date()
       }
     });
 
-    logger.info({ tier: data.tier, rates: data }, "Commission tiers updated");
-    return currentConfig;
+    logger.info({ rates: data }, "Commission tiers updated (STANDARD)");
+    
+    return {
+      affiliateRate: data.affiliateRate,
+      regionalRate: data.regionalRate,
+      nationalRate: data.nationalRate
+    };
   }
 }

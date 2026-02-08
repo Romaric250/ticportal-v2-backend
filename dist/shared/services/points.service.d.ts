@@ -45,6 +45,7 @@ export declare class PointsService {
         id: string;
         type: import(".prisma/client").$Enums.ActivityType;
         pointsAwarded: number;
+        timestamp: Date;
         createdAt: Date;
     }[]>;
     /**

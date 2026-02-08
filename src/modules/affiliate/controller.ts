@@ -510,7 +510,7 @@ export class AffiliateController {
   suspendAffiliate = async (req: Request, res: Response): Promise<void> => {
     try {
       const { affiliateId } = req.params;
-      const { reason } = req.body;
+      const reason = req.body?.reason || 'Suspended by administrator';
 
       if (!affiliateId) {
         res.status(400).json({ error: 'Affiliate ID is required' });
@@ -542,6 +542,47 @@ export class AffiliateController {
     } catch (error: any) {
       logger.error('Error unsuspending affiliate:', error);
       res.status(500).json({ error: error.message || 'Failed to unsuspend affiliate' });
+    }
+  };
+
+  /**
+   * Admin: Terminate affiliate
+   */
+  terminateAffiliate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { affiliateId } = req.params;
+      const reason = req.body?.reason || 'Terminated by administrator';
+
+      if (!affiliateId) {
+        res.status(400).json({ error: 'Affiliate ID is required' });
+        return;
+      }
+
+      const result = await AffiliateService.terminateAffiliate(affiliateId, reason);
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      logger.error('Error terminating affiliate:', error);
+      res.status(500).json({ error: error.message || 'Failed to terminate affiliate' });
+    }
+  };
+
+  /**
+   * Admin: Delete affiliate
+   */
+  deleteAffiliate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { affiliateId } = req.params;
+
+      if (!affiliateId) {
+        res.status(400).json({ error: 'Affiliate ID is required' });
+        return;
+      }
+
+      const result = await AffiliateService.deleteAffiliate(affiliateId);
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      logger.error('Error deleting affiliate:', error);
+      res.status(500).json({ error: error.message || 'Failed to delete affiliate' });
     }
   };
 
@@ -639,14 +680,15 @@ export class AffiliateController {
 
   /**
    * Admin: Update commission tier configuration
+   * Only STANDARD tier is supported
    */
   updateCommissionTiers = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { tier, affiliateRate, regionalRate, nationalRate } = req.body;
+      const { affiliateRate, regionalRate, nationalRate } = req.body;
       const adminId = (req as any).user?.userId;
 
-      if (!tier || affiliateRate === undefined || regionalRate === undefined || nationalRate === undefined) {
-        res.status(400).json({ error: 'Tier and all rates are required' });
+      if (affiliateRate === undefined || regionalRate === undefined || nationalRate === undefined) {
+        res.status(400).json({ error: 'All commission rates are required (affiliateRate, regionalRate, nationalRate)' });
         return;
       }
 
@@ -656,7 +698,6 @@ export class AffiliateController {
       }
 
       const result = await AffiliateService.updateCommissionTiers({
-        tier,
         affiliateRate,
         regionalRate,
         nationalRate

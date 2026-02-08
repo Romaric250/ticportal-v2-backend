@@ -65,36 +65,37 @@ export class FapshiService {
   /**
    * Initiate a payment collection
    * 
-   * @param phoneNumber - Customer's phone number (e.g., "237650495499")
    * @param amount - Amount to collect (minimum 100 XAF)
+   * @param email - Customer's email address
+   * @param userId - Customer's user ID
    * @param externalId - Your unique transaction reference
+   * @param redirectUrl - URL to redirect after payment
    * @param message - Optional message to customer
-   * @returns Payment initiation response
+   * @returns Payment initiation response with payment link
    */
   async initiatePayment(params: {
-    phoneNumber: string;
     amount: number;
+    email: string;
+    userId: string;
     externalId: string;
+    redirectUrl?: string;
     message?: string;
   }): Promise<FapshiInitiateResponse> {
     try {
-      const { phoneNumber, amount, externalId, message } = params;
+      const { amount, email, userId, externalId, redirectUrl, message } = params;
 
       // Validate amount (minimum 100 XAF)
       if (amount < 100) {
         throw new Error('Minimum payment amount is 100 XAF');
       }
 
-      // Validate phone number format (must start with country code, e.g., 237)
-      if (!phoneNumber.match(/^237\d{9}$/)) {
-        throw new Error('Invalid phone number format. Must be 237XXXXXXXXX');
-      }
-
       const payload = {
-        phone: phoneNumber,
-        amount: amount,
-        externalId: externalId,
-        message: message || `Payment for TiC Summit Training - ${externalId}`
+        amount:100,
+        email,
+        userId,
+        externalId,
+        redirectUrl: redirectUrl || `${env.frontendUrl}/payment-successful`,
+        message: message || `Registration Fee for TiC Summit 20260 - ${externalId}`
       };
 
       const response = await this.client.post<FapshiInitiateResponse>(
@@ -102,7 +103,13 @@ export class FapshiService {
         payload
       );
 
-      logger.info({ externalId, transId: response.data.transId }, 'Fapshi payment initiated');
+      console.log(" fapshi response:", response)
+
+      logger.info({ 
+        externalId, 
+        transId: response.data.transId,
+        hasLink: !!response.data.link 
+      }, 'Fapshi payment initiated');
 
       return response.data;
     } catch (error: any) {
@@ -209,37 +216,15 @@ export class FapshiService {
         code: 'MTN',
         name: 'MTN Mobile Money',
         description: 'Pay with MTN Mobile Money',
-        logo: 'mtn-logo.png',
-        phonePrefix: '237650,237651,237652,237653,237654'
+        logo: 'mtn-logo.png'
       },
       {
         code: 'ORANGE',
         name: 'Orange Money',
         description: 'Pay with Orange Money',
-        logo: 'orange-logo.png',
-        phonePrefix: '237655,237656,237657,237658,237659'
+        logo: 'orange-logo.png'
       }
     ];
-  }
-
-  /**
-   * Detect payment method from phone number
-   */
-  detectPaymentMethod(phoneNumber: string): 'MTN' | 'ORANGE' | 'UNKNOWN' {
-    // Remove country code if present
-    const phone = phoneNumber.replace(/^237/, '');
-    
-    // MTN prefixes: 650, 651, 652, 653, 654, 67, 68
-    if (phone.match(/^(650|651|652|653|654|67|68)/)) {
-      return 'MTN';
-    }
-    
-    // Orange prefixes: 655, 656, 657, 658, 659, 69
-    if (phone.match(/^(655|656|657|658|659|69)/)) {
-      return 'ORANGE';
-    }
-    
-    return 'UNKNOWN';
   }
 }
 
@@ -247,8 +232,9 @@ export class FapshiService {
 
 export interface FapshiInitiateResponse {
   transId: string;
-  status: string;
   message: string;
+  link: string;
+  dateInitiated: string;
 }
 
 export interface FapshiStatusResponse {
@@ -288,7 +274,6 @@ export interface PaymentMethodInfo {
   name: string;
   description: string;
   logo: string;
-  phonePrefix: string;
 }
 
 // Export singleton instance

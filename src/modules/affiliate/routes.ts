@@ -12,6 +12,12 @@ const affiliateController = new AffiliateController();
 // Validate referral code (public for registration flow)
 router.get('/validate/:referralCode', affiliateController.validateReferralCode);
 
+// Get all countries (public for registration/payment forms)
+router.get('/countries', affiliateController.getCountries);
+
+// Get regions by country (public for registration/payment forms)
+router.get('/countries/:countryId/regions', affiliateController.getRegionsByCountry);
+
 /**
  * Admin Routes - Country & Region Management
  */
@@ -145,22 +151,36 @@ router.post(
 router.get(
   '/admin/affiliates',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.listAffiliates
 );
 
 router.patch(
   '/admin/affiliates/:affiliateId/suspend',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.suspendAffiliate
 );
 
 router.patch(
   '/admin/affiliates/:affiliateId/unsuspend',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.unsuspendAffiliate
+);
+
+router.patch(
+  '/admin/affiliates/:affiliateId/terminate',
+  authenticate,
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+  affiliateController.terminateAffiliate
+);
+
+router.delete(
+  '/admin/affiliates/:affiliateId',
+  authenticate,
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+  affiliateController.deleteAffiliate
 );
 
 /**

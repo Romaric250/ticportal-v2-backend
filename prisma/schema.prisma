@@ -24,7 +24,7 @@ model User {
   firstName    String
   lastName     String
   bio          String?
-  phone        String?     @unique
+  phone        String?
   profilePhoto String?
   school       String?
   grade        String?
@@ -1151,8 +1151,6 @@ enum AffiliateStatus {
 
 enum AffiliateTier {
   STANDARD
-  PREMIUM
-  VIP
 }
 
 model StudentReferral {
@@ -1219,6 +1217,7 @@ model Payment {
   paymentReference     String        
   paymentMethod        PaymentMethod
   paymentProvider      String?
+  fapshiTransId        String?       // Fapshi transaction ID for payment verification
   
   status               PaymentStatus @default(PENDING)
   

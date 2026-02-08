@@ -1,0 +1,2 @@
+import { AffiliateStatus, AffiliateTier, ReferralStatus, PaymentStatus, PaymentMethod, CommissionType, CommissionStatus, CountryStatus, RegionStatus, FraudType, FraudSeverity, FraudFlagStatus } from "@prisma/client";
+//# sourceMappingURL=types.js.map

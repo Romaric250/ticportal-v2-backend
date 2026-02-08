@@ -12,8 +12,13 @@ export declare const env: {
     redisUrl: string;
     kafkaBrokers: string[];
     clientUrl: string;
+    frontendUrl: string;
     emailFrom: string;
     resendApiKey: string;
     UPLOADTHING_TOKEN: string;
+    fapshiApiKey: string;
+    fapshiApiUser: string;
+    fapshiBaseUrl: string;
+    fapshiWebhookSecret: string;
 };
 //# sourceMappingURL=env.d.ts.map

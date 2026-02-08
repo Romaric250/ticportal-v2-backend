@@ -18,16 +18,17 @@ export class PaymentService {
   /**
    * Initiate a payment for student registration
    * Referral code is passed here (from payment link), not during registration
+   * Can pay for yourself or another user (userId in params)
    */
   static async initiatePayment(params: {
     userId: string;
-    phoneNumber: string;
     amount: number;
     countryId: string;
     referralCode?: string; // Comes from payment link URL, not user registration
+    phoneNumber?: string; // Phone number for payment
   }): Promise<any> {
     try {
-      const { userId, phoneNumber, amount, countryId, referralCode } = params;
+      const { userId, amount, countryId, referralCode, phoneNumber } = params;
 
       logger.info({ userId, countryId, amount, hasReferral: !!referralCode }, 'Initiating payment');
 
@@ -70,11 +71,10 @@ export class PaymentService {
       const platformFee = country.platformFee || 300;
       const commissionableAmount = amount - platformFee;
 
-      // Generate unique payment reference
-      const paymentReference = `TIC-${Date.now()}-${userId.substring(0, 8)}`;
-
-      // Detect payment method from phone number
-      const paymentMethod = fapshiService.detectPaymentMethod(phoneNumber);
+      // Generate unique payment reference (use referral code if provided)
+      const paymentReference = referralCode 
+        ? `TIC-${referralCode}-${Date.now()}` 
+        : `TIC-${Date.now()}-${userId.substring(0, 8)}`;
 
       // Create payment record
       const payment = await db.payment.create({
@@ -85,12 +85,11 @@ export class PaymentService {
           platformFee,
           commissionableAmount,
           paymentReference,
-          paymentMethod: paymentMethod === 'MTN' ? PaymentMethod.MOBILE_MONEY : PaymentMethod.MOBILE_MONEY,
-          paymentProvider: paymentMethod,
+          paymentMethod: PaymentMethod.MOBILE_MONEY,
+          paymentProvider: 'FAPSHI',
           status: PaymentStatus.PENDING,
           metadata: {
-            phoneNumber,
-            referralCode: referralCode || null, // Store referral code from payment link
+            referralCode: referralCode || null,
             initiatedAt: new Date().toISOString()
           }
         }
@@ -111,16 +110,21 @@ export class PaymentService {
 
         if (affiliate) {
           // Create referral record
+          const referralData: any = {
+            studentId: userId,
+            affiliateId: affiliate.id,
+            countryId,
+            referralCode,
+            paymentId: payment.id,
+            status: 'PENDING'
+          };
+          
+          if (affiliate.regionId) {
+            referralData.regionId = affiliate.regionId;
+          }
+          
           const referral = await db.studentReferral.create({
-            data: {
-              studentId: userId,
-              affiliateId: affiliate.id,
-              regionId: affiliate.regionId,
-              countryId,
-              referralCode,
-              paymentId: payment.id,
-              status: 'PENDING'
-            }
+            data: referralData
           });
           referralId = referral.id;
           logger.info({ referralId, affiliateId: affiliate.id }, 'Referral record created');
@@ -129,22 +133,31 @@ export class PaymentService {
         }
       }
 
-      // Initiate payment with Fapshi
+      // Initiate payment with Fapshi - use paymentReference as externalId
       const fapshiResponse = await fapshiService.initiatePayment({
-        phoneNumber,
         amount,
-        externalId: paymentReference,
+        email: user.email,
+        userId: user.id,
+        externalId: paymentReference, // Use our payment reference (includes referral code if present)
         message: `TiC Summit Training Registration - ${user.firstName} ${user.lastName}`
       });
 
-      // Update payment with Fapshi transaction ID
+      // Update payment with Fapshi transaction ID and phone number (if provided)
+      const metadataUpdate: any = {
+        ...(payment.metadata as any),
+        fapshiLink: fapshiResponse.link,
+        fapshiDateInitiated: fapshiResponse.dateInitiated
+      };
+      
+      if (phoneNumber) {
+        metadataUpdate.phoneNumber = phoneNumber;
+      }
+
       await db.payment.update({
         where: { id: payment.id },
         data: {
-          metadata: {
-            ...(payment.metadata as any),
-            fapshiTransId: fapshiResponse.transId
-          }
+          fapshiTransId: fapshiResponse.transId, // Store in dedicated field
+          metadata: metadataUpdate
         }
       });
 
@@ -159,7 +172,7 @@ export class PaymentService {
             amount,
             currency: country.currency,
             transactionId: fapshiResponse.transId,
-            paymentMethod: paymentMethod,
+            paymentMethod: 'MOBILE_MONEY',
             date: new Date()
           }
         );
@@ -173,8 +186,9 @@ export class PaymentService {
         paymentId: payment.id,
         paymentReference,
         fapshiTransId: fapshiResponse.transId,
+        paymentLink: fapshiResponse.link,
         amount,
-        phoneNumber,
+        currency: country.currency,
         status: 'PENDING',
         message: fapshiResponse.message
       };
@@ -297,14 +311,13 @@ export class PaymentService {
 
     // Send success email
     try {
-      const metadata = payment.metadata as any;
       await sendPaymentSuccessEmail(
         payment.user!.email,
         payment.user!.firstName,
         {
           amount: payment.amount,
           currency: payment.country!.currency,
-          transactionId: metadata?.fapshiTransId || payment.paymentReference,
+          transactionId: payment.fapshiTransId || payment.paymentReference,
           paymentMethod: payment.paymentProvider || 'Mobile Money',
           date: payment.createdAt
         }
@@ -337,13 +350,13 @@ export class PaymentService {
         return;
       }
 
-      // Update payment metadata with transaction details
+      // Update payment with transaction ID and webhook details
       await db.payment.update({
         where: { id: payment.id },
         data: {
+          fapshiTransId: transactionId, // Store in dedicated field
           metadata: {
             ...(payment.metadata as any),
-            fapshiTransId: transactionId,
             webhookReceivedAt: new Date().toISOString()
           }
         }
@@ -362,14 +375,13 @@ export class PaymentService {
 
         // Send failure email
         try {
-          const metadata = payment.metadata as any;
           await sendPaymentFailedEmail(
             payment.user!.email,
             payment.user!.firstName,
             {
               amount: payment.amount,
               currency: payment.country!.currency,
-              transactionId: metadata?.fapshiTransId || payment.paymentReference,
+              transactionId: payment.fapshiTransId || payment.paymentReference,
               paymentMethod: payment.paymentProvider || 'Mobile Money',
               errorMessage: event.message || 'Payment could not be completed',
               date: payment.createdAt
@@ -467,6 +479,191 @@ export class PaymentService {
       };
     } catch (error: any) {
       logger.error({ error: error.message, paymentId }, 'Failed to verify payment');
+      throw error;
+    }
+  }
+
+  /**
+   * Handle payment success callback from Fapshi redirect
+   * Called when user is redirected back from payment gateway
+   */
+  static async handlePaymentSuccessCallback(transId: string, status: string): Promise<any> {
+    try {
+      logger.info({ transId, status }, 'Handling payment success callback');
+
+      // Find payment by Fapshi transaction ID
+      const payment = await db.payment.findFirst({
+        where: {
+          fapshiTransId: transId
+        },
+        include: {
+          user: true,
+          country: true
+        }
+      });
+
+      if (!payment) {
+        logger.warn({ transId }, 'Payment not found for transaction ID');
+        throw new Error('Payment not found');
+      }
+
+      // If payment is already confirmed, return success
+      if (payment.status === PaymentStatus.CONFIRMED) {
+        logger.info({ paymentId: payment.id, transId }, 'Payment already confirmed');
+        return {
+          success: true,
+          paymentId: payment.id,
+          status: 'CONFIRMED',
+          message: 'Payment already confirmed'
+        };
+      }
+
+      // Update payment status based on callback status
+      if (status.toUpperCase() === 'SUCCESSFUL' || status.toUpperCase() === 'SUCCESS') {
+        // Confirm payment and trigger commission calculation
+        await this.confirmPayment(payment.id);
+        
+        logger.info({ paymentId: payment.id, transId }, 'Payment confirmed via redirect callback');
+        
+        return {
+          success: true,
+          paymentId: payment.id,
+          status: 'CONFIRMED',
+          message: 'Payment confirmed successfully'
+        };
+      } else if (status.toUpperCase() === 'FAILED') {
+        // Update payment status to failed
+        await db.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.FAILED }
+        });
+
+        // Send failure email
+        try {
+          await sendPaymentFailedEmail(
+            payment.user!.email,
+            payment.user!.firstName,
+            {
+              amount: payment.amount,
+              currency: payment.country!.currency,
+              transactionId: transId,
+              paymentMethod: payment.paymentProvider || 'Mobile Money',
+              errorMessage: 'Payment was not successful',
+              date: payment.createdAt
+            }
+          );
+          logger.info({ paymentId: payment.id, email: payment.user!.email }, 'Payment failure email sent');
+        } catch (emailError: any) {
+          logger.error({ paymentId: payment.id, error: emailError.message }, 'Failed to send payment failure email');
+        }
+
+        logger.info({ paymentId: payment.id, transId }, 'Payment marked as failed');
+        
+        return {
+          success: false,
+          paymentId: payment.id,
+          status: 'FAILED',
+          message: 'Payment failed'
+        };
+      } else {
+        // Status is PENDING or unknown
+        logger.info({ paymentId: payment.id, transId, status }, 'Payment status is pending');
+        
+        return {
+          success: true,
+          paymentId: payment.id,
+          status: payment.status,
+          message: 'Payment is still pending'
+        };
+      }
+    } catch (error: any) {
+      logger.error({ error: error.message, transId, status }, 'Failed to handle payment success callback');
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a user has a confirmed payment (for students)
+   */
+  static async checkUserPaymentStatus(userId: string): Promise<any> {
+    try {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          email: true
+        }
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Only students need to have paid
+      if (user.role !== 'STUDENT') {
+        return {
+          hasPaid: true,
+          isRequired: false,
+          message: 'Payment not required for this user role'
+        };
+      }
+
+      // Check if user has a confirmed payment
+      const confirmedPayment = await db.payment.findFirst({
+        where: {
+          userId: user.id,
+          status: PaymentStatus.CONFIRMED
+        },
+        include: {
+          country: {
+            select: {
+              name: true,
+              currency: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      if (confirmedPayment) {
+        return {
+          hasPaid: true,
+          isRequired: true,
+          payment: {
+            id: confirmedPayment.id,
+            amount: confirmedPayment.amount,
+            currency: confirmedPayment.country.currency,
+            paymentReference: confirmedPayment.paymentReference,
+            verifiedAt: confirmedPayment.verifiedAt,
+            createdAt: confirmedPayment.createdAt
+          },
+          message: 'User has a confirmed payment'
+        };
+      }
+
+      // Check if user has any pending payment
+      const pendingPayment = await db.payment.findFirst({
+        where: {
+          userId: user.id,
+          status: PaymentStatus.PENDING
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return {
+        hasPaid: false,
+        isRequired: true,
+        hasPendingPayment: !!pendingPayment,
+        pendingPaymentId: pendingPayment?.id || null,
+        message: 'User has not completed payment'
+      };
+    } catch (error: any) {
+      logger.error({ error: error.message, userId }, 'Failed to check user payment status');
       throw error;
     }
   }

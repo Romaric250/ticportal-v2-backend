@@ -24,8 +24,8 @@ export declare class BadgeService {
         awardedAt: Date;
         userId: string;
         id: string;
-        badgeId: string;
         earnedAt: Date;
+        badgeId: string;
     }[]>;
     /**
      * Get badge progress for user
@@ -43,11 +43,11 @@ export declare class BadgeService {
         name: string;
         points: number;
         description: string;
+        tier: string;
         badgeId: string;
         category: string;
         icon: string;
         imageUrl: string | null;
-        tier: string;
         rarity: number;
         criteria: string | null;
     }[]>;
@@ -59,11 +59,11 @@ export declare class BadgeService {
         name: string;
         points: number;
         description: string;
+        tier: string;
         badgeId: string;
         category: string;
         icon: string;
         imageUrl: string | null;
-        tier: string;
         rarity: number;
         criteria: string | null;
     } | null>;

@@ -12,11 +12,12 @@ const paymentController = new PaymentController();
 // Get supported payment methods
 router.get('/methods', paymentController.getPaymentMethods);
 
-// Detect payment method from phone number
-router.post('/detect-method', paymentController.detectPaymentMethod);
-
 // Webhook endpoint (no auth required - verified by signature)
 router.post('/webhook/fapshi', paymentController.handleWebhook);
+
+// Payment success callback from Fapshi redirect (no auth required)
+// Frontend calls this after redirect: POST /confirm-success with {transId, status}
+router.post('/confirm-success', paymentController.handlePaymentSuccessCallback);
 
 /**
  * Protected routes - Student
@@ -40,6 +41,20 @@ router.get(
   '/history',
   authenticate,
   paymentController.getPaymentHistory
+);
+
+// Check if user has paid (for students) - detailed response
+router.get(
+  '/check-status',
+  authenticate,
+  paymentController.checkUserPaymentStatus
+);
+
+// Simple payment status check - returns true/false
+router.get(
+  '/status',
+  authenticate,
+  paymentController.getPaymentStatus
 );
 
 /**

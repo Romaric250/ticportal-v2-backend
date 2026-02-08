@@ -14,20 +14,14 @@ export const env = {
     redisUrl: process.env.REDIS_URL ?? "",
     kafkaBrokers: (process.env.KAFKA_BROKERS ?? "localhost:9092").split(","),
     clientUrl: process.env.CLIENT_URL ?? "http://localhost:3000",
+    frontendUrl: process.env.FRONTEND_URL ?? process.env.CLIENT_URL ?? "http://localhost:3000",
     emailFrom: process.env.EMAIL_FROM ?? "no-reply@ticsummit.org",
     resendApiKey: process.env.RESEND_API_KEY ?? "",
     UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN ?? "",
+    // Fapshi Payment Gateway
+    fapshiApiKey: process.env.FAPSHI_API_KEY ?? "",
+    fapshiApiUser: process.env.FAPSHI_API_USER ?? "",
+    fapshiBaseUrl: process.env.FAPSHI_BASE_URL ?? "https://sandbox.fapshi.com",
+    fapshiWebhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",
 };
-// curl -X 'POST' \
-//   'http://localhost:5000/api/auth/register' \
-//   -H 'accept: */*' \
-//   -H 'Content-Type: application/json' \
-//   -d '{
-//   "email": "romaric@ticsummit.org",
-//   "password": "B2qh2699.",
-//   "firstName": "Romaric",
-//   "lastName": "Romaric",
-//   "phone": "2376504954990",
-//   "role": "STUDENT"
-// }'
 //# sourceMappingURL=env.js.map

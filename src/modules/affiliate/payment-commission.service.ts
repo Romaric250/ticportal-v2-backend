@@ -31,13 +31,21 @@ export class PaymentCommissionService {
       }
 
       // Update payment status
+      // Only set verifiedBy if it's a valid ObjectID (not "system" or other strings)
+      const updateData: any = {
+        status: PaymentStatus.CONFIRMED,
+        verifiedAt: new Date()
+      };
+      
+      // Only set verifiedBy if it's a valid MongoDB ObjectID (24 hex characters)
+      if (verifiedBy && /^[0-9a-fA-F]{24}$/.test(verifiedBy)) {
+        updateData.verifiedBy = verifiedBy;
+      }
+      // Otherwise leave it null (system verification)
+
       const confirmedPayment = await db.payment.update({
         where: { id: paymentId },
-        data: {
-          status: PaymentStatus.CONFIRMED,
-          verifiedAt: new Date(),
-          verifiedBy: verifiedBy
-        }
+        data: updateData
       });
 
       // Find referral associated with this payment
@@ -56,6 +64,20 @@ export class PaymentCommissionService {
 
         // Calculate and create commissions
         await this.calculateCommissions(referral.id, payment.country);
+
+        // Update commissions from PENDING to EARNED when payment is confirmed
+        await db.commission.updateMany({
+          where: {
+            referralId: referral.id,
+            status: CommissionStatus.PENDING
+          },
+          data: {
+            status: CommissionStatus.EARNED,
+            earnedAt: new Date()
+          }
+        });
+
+        logger.info({ referralId: referral.id }, 'Commissions updated to EARNED status');
       }
 
       logger.info({ paymentId, referralId: referral?.id }, 'Payment confirmed and commissions calculated');
@@ -98,8 +120,28 @@ export class PaymentCommissionService {
 
       // Calculate affiliate commission
       if (referral.affiliate) {
-        const affiliateCommissionRate = country.affiliateCommissionRate || 9;
+        // Use country rate, fallback to 9% if not set
+        // Handle both decimal (0.09) and percentage (9) formats
+        let affiliateCommissionRate = country.affiliateCommissionRate ?? 9;
+        
+        // If rate is less than 1, it's stored as decimal (0.09), convert to percentage (9)
+        if (affiliateCommissionRate < 1) {
+          affiliateCommissionRate = affiliateCommissionRate * 100;
+          logger.warn({
+            originalRate: country.affiliateCommissionRate,
+            convertedRate: affiliateCommissionRate
+          }, 'Commission rate was stored as decimal, converted to percentage');
+        }
+        
         const affiliateCommissionAmount = (commissionableAmount * affiliateCommissionRate) / 100;
+
+        logger.info({
+          referralId: referral.id,
+          affiliateId: referral.affiliate.id,
+          commissionableAmount,
+          rate: affiliateCommissionRate,
+          amount: affiliateCommissionAmount
+        }, 'Calculating affiliate commission');
 
         await db.commission.create({
           data: {
@@ -124,6 +166,11 @@ export class PaymentCommissionService {
             totalEarned: { increment: affiliateCommissionAmount }
           }
         });
+
+        logger.info({
+          affiliateId: referral.affiliate.id,
+          commissionAmount: affiliateCommissionAmount
+        }, 'Affiliate commission created and stats updated');
       }
 
       // Calculate regional coordinator commission
@@ -143,13 +190,33 @@ export class PaymentCommissionService {
         });
 
         if (regionalCoordinators.length > 0) {
-          const regionalCommissionRate = country.regionalCommissionRate || 6;
+          // Use country rate, fallback to 5% if not set
+          // Handle both decimal (0.05) and percentage (5) formats
+          let regionalCommissionRate = country.regionalCommissionRate ?? 5;
+          
+          // If rate is less than 1, it's stored as decimal (0.05), convert to percentage (5)
+          if (regionalCommissionRate < 1) {
+            regionalCommissionRate = regionalCommissionRate * 100;
+            logger.warn({
+              originalRate: country.regionalCommissionRate,
+              convertedRate: regionalCommissionRate
+            }, 'Regional commission rate was stored as decimal, converted to percentage');
+          }
+          
           const regionalCommissionAmount = (commissionableAmount * regionalCommissionRate) / 100;
 
           // Distribute to first regional coordinator (or implement round-robin)
           const regionalCoordinator = regionalCoordinators[0];
           
           if (regionalCoordinator) {
+            logger.info({
+              referralId: referral.id,
+              coordinatorId: regionalCoordinator.id,
+              commissionableAmount,
+              rate: regionalCommissionRate,
+              amount: regionalCommissionAmount
+            }, 'Calculating regional coordinator commission');
+
             await db.commission.create({
               data: {
                 userId: regionalCoordinator.userId,
@@ -173,6 +240,11 @@ export class PaymentCommissionService {
                 totalEarned: { increment: regionalCommissionAmount }
               }
             });
+
+            logger.info({
+              coordinatorId: regionalCoordinator.id,
+              commissionAmount: regionalCommissionAmount
+            }, 'Regional coordinator commission created and stats updated');
           }
         }
       }
@@ -192,13 +264,33 @@ export class PaymentCommissionService {
       });
 
       if (nationalCoordinators.length > 0) {
-        const nationalCommissionRate = country.nationalCommissionRate || 5;
+        // Use country rate, fallback to 4% if not set
+        // Handle both decimal (0.04) and percentage (4) formats
+        let nationalCommissionRate = country.nationalCommissionRate ?? 4;
+        
+        // If rate is less than 1, it's stored as decimal (0.04), convert to percentage (4)
+        if (nationalCommissionRate < 1) {
+          nationalCommissionRate = nationalCommissionRate * 100;
+          logger.warn({
+            originalRate: country.nationalCommissionRate,
+            convertedRate: nationalCommissionRate
+          }, 'National commission rate was stored as decimal, converted to percentage');
+        }
+        
         const nationalCommissionAmount = (commissionableAmount * nationalCommissionRate) / 100;
 
         // Distribute to first national coordinator
         const nationalCoordinator = nationalCoordinators[0];
 
         if (nationalCoordinator) {
+          logger.info({
+            referralId: referral.id,
+            coordinatorId: nationalCoordinator.id,
+            commissionableAmount,
+            rate: nationalCommissionRate,
+            amount: nationalCommissionAmount
+          }, 'Calculating national coordinator commission');
+
           await db.commission.create({
             data: {
               userId: nationalCoordinator.userId,
@@ -222,13 +314,119 @@ export class PaymentCommissionService {
               totalEarned: { increment: nationalCommissionAmount }
             }
           });
+
+          logger.info({
+            coordinatorId: nationalCoordinator.id,
+            commissionAmount: nationalCommissionAmount
+          }, 'National coordinator commission created and stats updated');
         }
       }
 
       logger.info({ referralId }, 'Commissions calculated successfully');
-    } catch (error) {
-      logger.error({ referralId, error }, 'Error calculating commissions');
+    } catch (error: any) {
+      logger.error({ 
+        referralId, 
+        error: error.message,
+        stack: error.stack 
+      }, 'Error calculating commissions');
       throw error;
+    }
+  }
+
+  /**
+   * Process failed commission calculations
+   * This is called by cron job to retry failed commission calculations
+   */
+  static async processFailedCommissions(): Promise<void> {
+    try {
+      logger.info('🔄 Starting failed commission processing job');
+
+      // Find confirmed payments without commissions
+      const paymentsWithoutCommissions = await db.payment.findMany({
+        where: {
+          status: PaymentStatus.CONFIRMED,
+          verifiedAt: {
+            not: null
+          }
+        },
+        include: {
+          country: true,
+          referral: {
+            include: {
+              affiliate: true
+            }
+          }
+        }
+      });
+
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (const payment of paymentsWithoutCommissions) {
+        try {
+          // Check if commissions already exist for this payment
+          if (!payment.referral) {
+            logger.warn({ paymentId: payment.id }, 'Payment has no referral, skipping');
+            continue;
+          }
+
+          const existingCommissions = await db.commission.findFirst({
+            where: {
+              referralId: payment.referral.id
+            }
+          });
+
+          if (existingCommissions) {
+            // Commissions already exist, skip
+            continue;
+          }
+
+          // Calculate commissions for this payment
+          logger.info({ 
+            paymentId: payment.id, 
+            referralId: payment.referral.id 
+          }, 'Processing missing commissions for payment');
+
+          await this.calculateCommissions(payment.referral.id, payment.country);
+
+          // Update commissions from PENDING to EARNED
+          await db.commission.updateMany({
+            where: {
+              referralId: payment.referral.id,
+              status: CommissionStatus.PENDING
+            },
+            data: {
+              status: CommissionStatus.EARNED,
+              earnedAt: new Date()
+            }
+          });
+
+          processedCount++;
+          logger.info({ 
+            paymentId: payment.id, 
+            referralId: payment.referral.id 
+          }, 'Successfully processed commissions for payment');
+
+        } catch (error: any) {
+          errorCount++;
+          logger.error({ 
+            paymentId: payment.id, 
+            error: error.message 
+          }, 'Failed to process commissions for payment');
+        }
+      }
+
+      logger.info({ 
+        processedCount, 
+        errorCount, 
+        total: paymentsWithoutCommissions.length 
+      }, '✅ Failed commission processing job completed');
+
+    } catch (error: any) {
+      logger.error({ 
+        error: error.message,
+        stack: error.stack 
+      }, '❌ Failed commission processing job error');
     }
   }
 

@@ -13,4 +13,28 @@ export declare const sendMentorAssignmentEmail: (email: string, firstName: strin
 export declare const sendTeamJoinRequestEmail: (email: string, firstName: string, teamName: string, requesterName: string, message?: string) => Promise<void>;
 export declare const sendJoinRequestAcceptedEmail: (email: string, firstName: string, teamName: string, message?: string) => Promise<void>;
 export declare const sendJoinRequestRejectedEmail: (email: string, firstName: string, teamName: string, message?: string) => Promise<void>;
+export declare const sendRoleChangeEmail: (user: any, newRole: string, metadata?: any) => Promise<void>;
+export declare const sendAffiliateActivationEmail: (user: any, profile: any) => Promise<void>;
+export declare const sendPaymentSuccessEmail: (email: string, firstName: string, paymentDetails: {
+    amount: number;
+    currency: string;
+    transactionId: string;
+    paymentMethod: string;
+    date: Date;
+}) => Promise<void>;
+export declare const sendPaymentFailedEmail: (email: string, firstName: string, paymentDetails: {
+    amount: number;
+    currency: string;
+    transactionId?: string;
+    paymentMethod: string;
+    errorMessage?: string;
+    date: Date;
+}) => Promise<void>;
+export declare const sendPaymentPendingEmail: (email: string, firstName: string, paymentDetails: {
+    amount: number;
+    currency: string;
+    transactionId: string;
+    paymentMethod: string;
+    date: Date;
+}) => Promise<void>;
 //# sourceMappingURL=email.d.ts.map

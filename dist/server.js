@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { logger } from "./shared/utils/logger.js";
 import { initializeSocket } from "./socket/index.js";
 import { startNotificationCleanup } from "./jobs/notificationCleanup.js";
+import { startCommissionProcessor } from "./jobs/commissionProcessor.js";
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -15,6 +16,8 @@ const io = new Server(server, {
 // Initialize Socket.io with authentication and event handlers
 initializeSocket(io);
 startNotificationCleanup();
+startCommissionProcessor();
+startCommissionProcessor();
 const port = env.port;
 server.listen(port, () => {
     logger.info(`Server listening on port ${port}`);
