@@ -90,12 +90,12 @@ export class FapshiService {
       }
 
       const payload = {
-        amount:100,
+        amount,
         email,
         userId,
         externalId,
         redirectUrl: redirectUrl || `${env.frontendUrl}/payment-successful`,
-        message: message || `Registration Fee for TiC Summit 20260 - ${externalId}`
+        message: message || `Registration Fee for TiC Summit 2026 - ${externalId}`
       };
 
       const response = await this.client.post<FapshiInitiateResponse>(
