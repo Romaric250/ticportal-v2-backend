@@ -266,9 +266,6 @@ app.use((req, res) => {
   });
 });
 
-// Handle OPTIONS requests explicitly for CORS preflight
-app.options('*', cors());
-
 // Basic error logger (full error middleware to be added later)
 app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
