@@ -65,12 +65,12 @@ export class FapshiService {
                 throw new Error('Minimum payment amount is 100 XAF');
             }
             const payload = {
-                amount: 100,
+                amount,
                 email,
                 userId,
                 externalId,
                 redirectUrl: redirectUrl || `${env.frontendUrl}/payment-successful`,
-                message: message || `Registration Fee for TiC Summit 20260 - ${externalId}`
+                message: message || `Registration Fee for TiC Summit 2026 - ${externalId}`
             };
             const response = await this.client.post('/initiate-pay', payload);
             console.log(" fapshi response:", response);

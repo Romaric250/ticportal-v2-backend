@@ -149,6 +149,7 @@ export declare class DeliverableService {
     }>;
     /**
      * Delete deliverable template
+     * Also deletes all associated submissions (teamDeliverables)
      */
     static deleteTemplate(templateId: string): Promise<void>;
     /**

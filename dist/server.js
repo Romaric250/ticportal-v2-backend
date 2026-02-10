@@ -10,7 +10,12 @@ import { startBadgeProcessor } from "./jobs/badgeProcessor.js";
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: env.clientUrl,
+        origin: [
+            env.clientUrl,
+            "https://ticportal-v2.vercel.app",
+            "http://localhost:3000",
+            "https://portal.ticsummit.org"
+        ],
         credentials: true,
     },
 });

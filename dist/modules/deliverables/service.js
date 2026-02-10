@@ -1,6 +1,7 @@
 import { db } from "../../config/database.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
 import { POINTS_CONFIG } from "../../shared/constants/points.js";
+import { logger } from "../../shared/utils/logger.js";
 // import { sendNotification } from "../../shared/utils/notifications.js";
 // Temporary inline notification function until module is properly resolved
 async function sendNotification(data) {
@@ -175,18 +176,33 @@ export class DeliverableService {
     }
     /**
      * Delete deliverable template
+     * Also deletes all associated submissions (teamDeliverables)
      */
     static async deleteTemplate(templateId) {
-        // Check if template has submissions
+        // Check if template exists
+        const template = await db.deliverableTemplate.findUnique({
+            where: { id: templateId },
+        });
+        if (!template) {
+            throw new Error("Template not found");
+        }
+        // Delete all submissions associated with this template
         const submissionCount = await db.teamDeliverable.count({
             where: { templateId },
         });
         if (submissionCount > 0) {
-            throw new Error("Cannot delete template with existing submissions");
+            logger.info({ templateId, submissionCount }, "Deleting all submissions for template");
+            // Delete all team deliverables (submissions) for this template
+            await db.teamDeliverable.deleteMany({
+                where: { templateId },
+            });
+            logger.info({ templateId, deletedCount: submissionCount }, "All submissions deleted for template");
         }
+        // Now delete the template
         await db.deliverableTemplate.delete({
             where: { id: templateId },
         });
+        logger.info({ templateId }, "Template deleted successfully");
     }
     /**
      * Get all deliverables (admin view)
