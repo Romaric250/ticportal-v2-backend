@@ -604,13 +604,14 @@ export class AffiliateController {
    */
   getSystemLedger = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { page, limit, startDate, endDate } = req.query;
+      const { page, limit, startDate, endDate, transactionStatus } = req.query;
 
       const params: any = {};
       if (page) params.page = parseInt(page as string);
       if (limit) params.limit = parseInt(limit as string);
       if (startDate) params.startDate = new Date(startDate as string);
       if (endDate) params.endDate = new Date(endDate as string);
+      if (transactionStatus) params.transactionStatus = transactionStatus as string;
 
       const result = await AffiliateService.getSystemLedger(params);
 

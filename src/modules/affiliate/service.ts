@@ -1537,13 +1537,16 @@ export class AffiliateService {
     limit?: number;
     startDate?: Date;
     endDate?: Date;
+    transactionStatus?: string; // PENDING | CONFIRMED | FAILED | REFUNDED
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { status: 'CONFIRMED' };
-    
+    const where: any = {};
+    if (params.transactionStatus) {
+      where.status = params.transactionStatus;
+    }
     if (params.startDate || params.endDate) {
       where.createdAt = {};
       if (params.startDate) where.createdAt.gte = params.startDate;
@@ -1586,6 +1589,19 @@ export class AffiliateService {
       const totalCommissions = affiliateCommission + regionalCommission + nationalCommission;
       const ticNet = payment.amount - totalCommissions;
 
+      // Transaction status: from payment record
+      const transactionStatus = payment.status;
+
+      // Commission status: whether commissions were successfully applied
+      let commissionStatus: 'completed' | 'error' | 'pending';
+      if (payment.status !== 'CONFIRMED') {
+        commissionStatus = 'pending';
+      } else if (commissions.length > 0) {
+        commissionStatus = 'completed';
+      } else {
+        commissionStatus = 'error';
+      }
+
       return {
         id: payment.id,
         transactionId: payment.id,
@@ -1604,7 +1620,9 @@ export class AffiliateService {
         regionalCommission,
         nationalCommission,
         ticNet,
-        status: payment.status === 'CONFIRMED' && commissions.length > 0 ? 'completed' : 'error',
+        transactionStatus,
+        commissionStatus,
+        status: commissionStatus, // Keep for backward compatibility
         createdAt: payment.createdAt
       };
     });

@@ -72,8 +72,11 @@ export const authorize = (allowedRoles: UserRole[]) => {
       });
     }
 
-    // Normalize role - JWT payload has userId and role
-    const userRole = user.role;
+    // Normalize role - JWT payload may have different casing (e.g. "admin" vs "ADMIN") or format (e.g. "super-admin" vs "SUPER_ADMIN")
+    const rawRole = user.role;
+    const userRole = typeof rawRole === 'string' 
+      ? (rawRole.replace(/-/g, '_').toUpperCase()) as UserRole 
+      : rawRole;
     
     logger.debug({ 
       userId: user.userId || user.id, 

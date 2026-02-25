@@ -189,28 +189,28 @@ router.delete(
 router.get(
   '/admin/financial-overview',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.getFinancialOverview
 );
 
 router.get(
   '/admin/system-ledger',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.getSystemLedger
 );
 
 router.get(
   '/admin/payouts',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.getPayoutBatches
 );
 
 router.get(
   '/admin/fraud-flags',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.getFraudFlags
 );
 
@@ -220,14 +220,14 @@ router.get(
 router.get(
   '/admin/commission-tiers',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.getCommissionTiers
 );
 
 router.put(
   '/admin/commission-tiers',
   authenticate,
-  authorize([UserRole.ADMIN]),
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
   affiliateController.updateCommissionTiers
 );
 
