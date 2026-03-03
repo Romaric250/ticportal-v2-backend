@@ -523,7 +523,7 @@ export class AffiliateController {
          */
         this.getSystemLedger = async (req, res) => {
             try {
-                const { page, limit, startDate, endDate } = req.query;
+                const { page, limit, startDate, endDate, transactionStatus } = req.query;
                 const params = {};
                 if (page)
                     params.page = parseInt(page);
@@ -533,6 +533,8 @@ export class AffiliateController {
                     params.startDate = new Date(startDate);
                 if (endDate)
                     params.endDate = new Date(endDate);
+                if (transactionStatus)
+                    params.transactionStatus = transactionStatus;
                 const result = await AffiliateService.getSystemLedger(params);
                 res.status(200).json({ success: true, data: result });
             }

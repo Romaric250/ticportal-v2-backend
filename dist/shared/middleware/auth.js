@@ -60,8 +60,11 @@ export const authorize = (allowedRoles) => {
                 error: { message: "Unauthorized - No user found in request" }
             });
         }
-        // Normalize role - JWT payload has userId and role
-        const userRole = user.role;
+        // Normalize role - JWT payload may have different casing (e.g. "admin" vs "ADMIN") or format (e.g. "super-admin" vs "SUPER_ADMIN")
+        const rawRole = user.role;
+        const userRole = typeof rawRole === 'string'
+            ? (rawRole.replace(/-/g, '_').toUpperCase())
+            : rawRole;
         logger.debug({
             userId: user.userId || user.id,
             userRole: userRole,

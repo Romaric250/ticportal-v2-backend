@@ -256,11 +256,62 @@ export class AdminService {
     }
     /**
      * Delete user
+     * Must delete all records that reference the user (no onDelete: Cascade) before deleting.
+     * Runs without transaction to avoid MongoDB server monitor timeout on long bulk deletes.
+     * Includes retry logic for transient connection errors.
      */
     static async deleteUser(userId) {
-        await db.user.delete({
-            where: { id: userId },
-        });
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 1000;
+        const deleteOperations = async () => {
+            // Order matters: Commission/Payment reference StudentReferral
+            await db.oTP.deleteMany({ where: { userId } });
+            await db.refreshToken.deleteMany({ where: { userId } });
+            await db.point.deleteMany({ where: { userId } });
+            await db.userBadge.deleteMany({ where: { userId } });
+            await db.userProgress.deleteMany({ where: { userId } });
+            await db.squadMember.deleteMany({ where: { userId } });
+            await db.teamMember.deleteMany({ where: { userId } });
+            await db.teamJoinRequest.deleteMany({ where: { userId } });
+            await db.teamChatRead.deleteMany({ where: { userId } });
+            await db.teamChat.deleteMany({ where: { senderId: userId } });
+            await db.score.deleteMany({ where: { judgeId: userId } });
+            await db.mentorRequest.deleteMany({ where: { mentorId: userId } });
+            await db.mentorAssignment.deleteMany({ where: { mentorId: userId } });
+            await db.commission.deleteMany({ where: { userId } });
+            await db.payment.deleteMany({ where: { userId } });
+            await db.studentReferral.deleteMany({
+                where: { OR: [{ referrerId: userId }, { studentId: userId }] },
+            });
+            await db.leaderboard.deleteMany({ where: { userId } });
+            await db.portfolio.deleteMany({ where: { userId } });
+            await db.affiliateProfile.deleteMany({ where: { userId } });
+            await db.teamDeliverable.updateMany({
+                where: { reviewedBy: userId },
+                data: { reviewedBy: null },
+            });
+            await db.user.delete({ where: { id: userId } });
+        };
+        const isTransientError = (err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            return (msg.includes("TransientTransactionError") ||
+                msg.includes("server monitor timeout") ||
+                msg.includes("Connection") && msg.includes("interrupted"));
+        };
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                await deleteOperations();
+                return;
+            }
+            catch (err) {
+                if (attempt < MAX_RETRIES && isTransientError(err)) {
+                    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
     }
     /**
      * Get all teams with filters

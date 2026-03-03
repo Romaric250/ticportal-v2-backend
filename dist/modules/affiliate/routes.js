@@ -50,15 +50,15 @@ router.delete('/admin/affiliates/:affiliateId', authenticate, authorize([UserRol
 /**
  * Admin Routes - Financial & Reporting
  */
-router.get('/admin/financial-overview', authenticate, authorize([UserRole.ADMIN]), affiliateController.getFinancialOverview);
-router.get('/admin/system-ledger', authenticate, authorize([UserRole.ADMIN]), affiliateController.getSystemLedger);
-router.get('/admin/payouts', authenticate, authorize([UserRole.ADMIN]), affiliateController.getPayoutBatches);
-router.get('/admin/fraud-flags', authenticate, authorize([UserRole.ADMIN]), affiliateController.getFraudFlags);
+router.get('/admin/financial-overview', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getFinancialOverview);
+router.get('/admin/system-ledger', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getSystemLedger);
+router.get('/admin/payouts', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getPayoutBatches);
+router.get('/admin/fraud-flags', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getFraudFlags);
 /**
  * Admin Routes - Commission Tiers
  */
-router.get('/admin/commission-tiers', authenticate, authorize([UserRole.ADMIN]), affiliateController.getCommissionTiers);
-router.put('/admin/commission-tiers', authenticate, authorize([UserRole.ADMIN]), affiliateController.updateCommissionTiers);
+router.get('/admin/commission-tiers', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getCommissionTiers);
+router.put('/admin/commission-tiers', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.updateCommissionTiers);
 /**
  * Regional Coordinator Routes
  */

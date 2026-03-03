@@ -1308,7 +1308,10 @@ export class AffiliateService {
         const page = params.page || 1;
         const limit = params.limit || 20;
         const skip = (page - 1) * limit;
-        const where = { status: 'CONFIRMED' };
+        const where = {};
+        if (params.transactionStatus) {
+            where.status = params.transactionStatus;
+        }
         if (params.startDate || params.endDate) {
             where.createdAt = {};
             if (params.startDate)
@@ -1348,6 +1351,19 @@ export class AffiliateService {
             const nationalCommission = commissions.find((c) => c.type === 'NATIONAL')?.commissionAmount || 0;
             const totalCommissions = affiliateCommission + regionalCommission + nationalCommission;
             const ticNet = payment.amount - totalCommissions;
+            // Transaction status: from payment record
+            const transactionStatus = payment.status;
+            // Commission status: whether commissions were successfully applied
+            let commissionStatus;
+            if (payment.status !== 'CONFIRMED') {
+                commissionStatus = 'pending';
+            }
+            else if (commissions.length > 0) {
+                commissionStatus = 'completed';
+            }
+            else {
+                commissionStatus = 'error';
+            }
             return {
                 id: payment.id,
                 transactionId: payment.id,
@@ -1366,7 +1382,9 @@ export class AffiliateService {
                 regionalCommission,
                 nationalCommission,
                 ticNet,
-                status: payment.status === 'CONFIRMED' && commissions.length > 0 ? 'completed' : 'error',
+                transactionStatus,
+                commissionStatus,
+                status: commissionStatus, // Keep for backward compatibility
                 createdAt: payment.createdAt
             };
         });

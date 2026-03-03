@@ -182,6 +182,9 @@ export declare class AdminService {
     }>;
     /**
      * Delete user
+     * Must delete all records that reference the user (no onDelete: Cascade) before deleting.
+     * Runs without transaction to avoid MongoDB server monitor timeout on long bulk deletes.
+     * Includes retry logic for transient connection errors.
      */
     static deleteUser(userId: string): Promise<void>;
     /**

@@ -437,6 +437,16 @@ export class FeedService {
         if (!isAuthor && !isAdmin) {
             throw new Error("You don't have permission to delete this post");
         }
+        // Delete comments in correct order to avoid CommentReplies relation violation.
+        // Must delete leaf comments (replies) first, then parents.
+        let comments = await db.feedComment.findMany({ where: { postId } });
+        while (comments.length > 0) {
+            const leaves = comments.filter((c) => !comments.some((r) => r.parentId === c.id));
+            for (const leaf of leaves) {
+                await db.feedComment.delete({ where: { id: leaf.id } });
+            }
+            comments = comments.filter((c) => !leaves.some((l) => l.id === c.id));
+        }
         await db.feedPost.delete({
             where: { id: postId },
         });

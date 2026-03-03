@@ -893,6 +893,7 @@ export declare class AffiliateService {
         limit?: number;
         startDate?: Date;
         endDate?: Date;
+        transactionStatus?: string;
     }): Promise<{
         entries: {
             id: string;
@@ -917,7 +918,9 @@ export declare class AffiliateService {
             regionalCommission: number;
             nationalCommission: number;
             ticNet: number;
-            status: string;
+            transactionStatus: import(".prisma/client").$Enums.PaymentStatus;
+            commissionStatus: "error" | "completed" | "pending";
+            status: "error" | "completed" | "pending";
             createdAt: Date;
         }[];
         pagination: {

@@ -104,7 +104,14 @@ export class AuthService {
       throw new Error("Invalid refresh token");
     }
 
-    const accessToken = generateAccessToken({ userId: payload.userId, role: payload.role });
+    // Fetch current user from DB to get latest role (fixes 403 when role was updated)
+    const user = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: { role: true },
+    });
+    const role = user?.role ?? payload.role;
+
+    const accessToken = generateAccessToken({ userId: payload.userId, role });
     return { accessToken };
   }
 
