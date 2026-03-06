@@ -2,7 +2,7 @@ import { db } from "../../config/database";
 import { logger } from "../../shared/utils/logger";
 import { fapshiService, type ProcessedWebhookEvent } from "../../shared/utils/fapshi";
 import { PaymentCommissionService } from "../affiliate/payment-commission.service";
-import { PaymentStatus, PaymentMethod } from "@prisma/client";
+import { PaymentStatus, PaymentMethod, CommissionStatus, CommissionType, ReferralStatus } from "@prisma/client";
 import { 
   sendPaymentSuccessEmail, 
   sendPaymentFailedEmail,
@@ -588,6 +588,265 @@ export class PaymentService {
       }
     } catch (error: any) {
       logger.error({ error: error.message, transId, status }, 'Failed to handle payment success callback');
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Create manual subscription (payment) for a user
+   * Skips Fapshi - directly creates CONFIRMED payment. Optionally links to affiliate for commissions.
+   */
+  static async createManualSubscription(params: {
+    userId: string;
+    countryId: string;
+    amount: number;
+    affiliateId?: string;
+    referralCode?: string;
+    adminId: string;
+  }): Promise<any> {
+    try {
+      const { userId, countryId, amount, affiliateId, referralCode, adminId } = params;
+
+      logger.info({ userId, countryId, amount, affiliateId, referralCode }, 'Admin creating manual subscription');
+
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error('User not found');
+
+      const country = await db.country.findUnique({ where: { id: countryId } });
+      if (!country) throw new Error('Country not found');
+
+      if (amount < country.studentPrice) {
+        throw new Error(`Amount must be at least ${country.studentPrice} ${country.currency}`);
+      }
+
+      const existingPayment = await db.payment.findFirst({
+        where: { userId, status: PaymentStatus.CONFIRMED }
+      });
+      if (existingPayment) {
+        throw new Error('User already has a confirmed payment');
+      }
+
+      const platformFee = country.platformFee || 300;
+      const commissionableAmount = amount - platformFee;
+      const paymentReference = referralCode
+        ? `TIC-ADMIN-${referralCode}-${Date.now()}`
+        : `TIC-ADMIN-${Date.now()}-${userId.substring(0, 8)}`;
+
+      const payment = await db.payment.create({
+        data: {
+          userId,
+          countryId,
+          amount,
+          platformFee,
+          commissionableAmount,
+          paymentReference,
+          paymentMethod: PaymentMethod.OTHER,
+          paymentProvider: 'ADMIN_MANUAL',
+          status: PaymentStatus.PENDING,
+          metadata: {
+            referralCode: referralCode || null,
+            affiliateId: affiliateId || null,
+            adminId,
+            manualSubscription: true,
+            createdAt: new Date().toISOString()
+          }
+        }
+      });
+
+      let referralId: string | null = null;
+      if (affiliateId || referralCode) {
+        const affiliate = affiliateId
+          ? await db.affiliateProfile.findUnique({
+              where: { id: affiliateId },
+              include: { region: true, country: true }
+            })
+          : referralCode
+            ? await db.affiliateProfile.findFirst({
+                where: { referralCode, status: 'ACTIVE' },
+                include: { region: true, country: true }
+              })
+            : null;
+
+        if (affiliate) {
+          let regionId = affiliate.regionId;
+          if (!regionId && affiliate.countryId) {
+            const firstRegion = await db.region.findFirst({
+              where: { countryId: affiliate.countryId }
+            });
+            regionId = firstRegion?.id ?? null;
+          }
+          if (regionId) {
+            const referralData = {
+              studentId: userId,
+              affiliateId: affiliate.id,
+              countryId,
+              regionId,
+              referralCode: affiliate.referralCode,
+              paymentId: payment.id,
+              status: 'PENDING' as const
+            };
+            const referral = await db.studentReferral.create({ data: referralData });
+            referralId = referral.id;
+            logger.info({ referralId, affiliateId: affiliate.id }, 'Referral record created for manual subscription');
+          }
+        }
+      }
+
+      await PaymentCommissionService.confirmPayment(payment.id, adminId);
+
+      try {
+        const { BadgeService } = await import('../badges/service');
+        await BadgeService.checkAndAwardBadges(user.id);
+      } catch (e: any) {
+        logger.error({ paymentId: payment.id, error: e.message }, 'Badge check failed');
+      }
+
+      try {
+        await sendPaymentSuccessEmail(
+          user.email,
+          user.firstName,
+          {
+            amount,
+            currency: country.currency,
+            transactionId: paymentReference,
+            paymentMethod: 'Admin Manual',
+            date: payment.createdAt
+          }
+        );
+      } catch (e: any) {
+        logger.error({ paymentId: payment.id, error: e.message }, 'Payment success email failed');
+      }
+
+      const confirmed = await db.payment.findUnique({
+        where: { id: payment.id },
+        include: { country: true, referral: true }
+      });
+
+      return {
+        paymentId: confirmed!.id,
+        paymentReference,
+        amount,
+        currency: country.currency,
+        status: 'CONFIRMED',
+        referralId,
+        message: 'Manual subscription created successfully'
+      };
+    } catch (error: any) {
+      logger.error({ error: error.message, params }, 'Failed to create manual subscription');
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Reverse a manual subscription (undo mistaken manual payment)
+   * Only works for payments with metadata.manualSubscription === true
+   */
+  static async reverseManualSubscription(params: {
+    userId: string;
+    adminId: string;
+  }): Promise<any> {
+    try {
+      const { userId, adminId } = params;
+
+      logger.info({ userId, adminId }, 'Admin reversing manual subscription');
+
+      const payment = await db.payment.findFirst({
+        where: {
+          userId,
+          status: PaymentStatus.CONFIRMED,
+        },
+        include: {
+          user: true,
+          country: true,
+          referral: {
+            include: {
+              commissions: {
+                include: { affiliateProfile: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!payment) {
+        throw new Error('No confirmed payment found for this user');
+      }
+
+      const metadata = payment.metadata as Record<string, unknown> | null;
+      if (!metadata || !metadata.manualSubscription) {
+        throw new Error('Only manual subscriptions can be reversed. This payment was not created manually.');
+      }
+
+      const referral = payment.referral;
+      const now = new Date();
+      const reason = `Reversed by admin (manual subscription correction)`;
+
+      // 1. Reverse affiliate stats and revoke commissions
+      if (referral?.commissions) {
+        for (const commission of referral.commissions) {
+          if (commission.affiliateProfileId) {
+            const profile = commission.affiliateProfile;
+            if (profile) {
+              const updates: { totalEarned?: number; totalReferrals?: number; totalStudents?: number } = {};
+              updates.totalEarned = Math.max(0, (profile.totalEarned ?? 0) - commission.commissionAmount);
+              if (commission.type === CommissionType.AFFILIATE) {
+                updates.totalReferrals = Math.max(0, (profile.totalReferrals ?? 0) - 1);
+              } else if (commission.type === CommissionType.REGIONAL || commission.type === CommissionType.NATIONAL) {
+                updates.totalStudents = Math.max(0, (profile.totalStudents ?? 0) - 1);
+              }
+              await db.affiliateProfile.update({
+                where: { id: commission.affiliateProfileId },
+                data: updates,
+              });
+            }
+          }
+          await db.commission.update({
+            where: { id: commission.id },
+            data: {
+              status: CommissionStatus.REVOKED,
+              revokedAt: now,
+              revokedReason: reason,
+            },
+          });
+        }
+      }
+
+      // 2. Update referral status
+      if (referral) {
+        await db.studentReferral.update({
+          where: { id: referral.id },
+          data: { status: ReferralStatus.REFUNDED },
+        });
+      }
+
+      // 3. Mark payment as REFUNDED
+      await db.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.REFUNDED,
+          refundedAt: now,
+          refundReason: reason,
+        },
+      });
+
+      // 4. Revoke Paid Student badge if present
+      try {
+        const { BadgeService } = await import('../badges/service');
+        await BadgeService.revokeBadge(userId, 'paid_student');
+      } catch (e: any) {
+        logger.warn({ userId, error: e.message }, 'Badge revoke failed (may not have badge)');
+      }
+
+      logger.info({ paymentId: payment.id, userId }, 'Manual subscription reversed successfully');
+
+      return {
+        success: true,
+        paymentId: payment.id,
+        message: 'Manual subscription reversed successfully. Student is now marked as not paid.',
+      };
+    } catch (error: any) {
+      logger.error({ error: error.message, params }, 'Failed to reverse manual subscription');
       throw error;
     }
   }

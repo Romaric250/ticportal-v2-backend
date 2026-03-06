@@ -80,6 +80,16 @@ router.get("/dashboard-stats", AdminController.getDetailedDashboardStats);
 router.get("/users", AdminController.getUsers);
 /**
  * @swagger
+ * /api/admin/users/by-region-stats:
+ */
+router.get("/users/by-region-stats", AdminController.getUsersByRegionStats);
+/**
+ * @swagger
+ * /api/admin/users/bulk-delete:
+ */
+router.post("/users/bulk-delete", AdminController.bulkDeleteUsers);
+/**
+ * @swagger
  * /api/admin/users/{userId}:
  *   get:
  *     tags: [Admin - Users]
@@ -97,6 +107,22 @@ router.get("/users", AdminController.getUsers);
  *         description: User not found
  */
 router.get("/users/:userId", AdminController.getUserById);
+/**
+ * @swagger
+ * /api/admin/users/send-verification-otp:
+ *   post:
+ *     tags: [Admin - Users]
+ *     summary: Send OTP to email for verification before creating new user
+ */
+router.post("/users/send-verification-otp", AdminController.sendVerificationOtp);
+/**
+ * @swagger
+ * /api/admin/users/verify-and-create:
+ *   post:
+ *     tags: [Admin - Users]
+ *     summary: Verify OTP and create user
+ */
+router.post("/users/verify-and-create", AdminController.verifyAndCreateUser);
 /**
  * @swagger
  * /api/admin/users:

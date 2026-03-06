@@ -42,6 +42,26 @@ export declare class PaymentService {
      */
     static handlePaymentSuccessCallback(transId: string, status: string): Promise<any>;
     /**
+     * Admin: Create manual subscription (payment) for a user
+     * Skips Fapshi - directly creates CONFIRMED payment. Optionally links to affiliate for commissions.
+     */
+    static createManualSubscription(params: {
+        userId: string;
+        countryId: string;
+        amount: number;
+        affiliateId?: string;
+        referralCode?: string;
+        adminId: string;
+    }): Promise<any>;
+    /**
+     * Admin: Reverse a manual subscription (undo mistaken manual payment)
+     * Only works for payments with metadata.manualSubscription === true
+     */
+    static reverseManualSubscription(params: {
+        userId: string;
+        adminId: string;
+    }): Promise<any>;
+    /**
      * Check if a user has a confirmed payment (for students)
      */
     static checkUserPaymentStatus(userId: string): Promise<any>;

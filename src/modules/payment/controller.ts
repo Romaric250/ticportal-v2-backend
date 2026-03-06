@@ -228,6 +228,82 @@ export class PaymentController {
   };
 
   /**
+   * Admin: Reverse a manual subscription
+   * POST /api/payment/admin/reverse-manual-subscription
+   */
+  reverseManualSubscription = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const adminId = (req as any).user?.userId || (req as any).user?.id;
+      const { userId } = req.body;
+
+      if (!adminId) {
+        res.status(401).json({ success: false, error: { message: 'Unauthorized' } });
+        return;
+      }
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: { message: 'userId is required' },
+        });
+        return;
+      }
+
+      const result = await PaymentService.reverseManualSubscription({
+        userId,
+        adminId,
+      });
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      logger.error({ error: error.message }, 'Error reversing manual subscription');
+      res.status(500).json({
+        success: false,
+        error: { message: error.message || 'Failed to reverse manual subscription' },
+      });
+    }
+  };
+
+  /**
+   * Admin: Create manual subscription for a user
+   * POST /api/payment/admin/manual-subscription
+   */
+  createManualSubscription = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const adminId = (req as any).user?.userId || (req as any).user?.id;
+      const { userId, countryId, amount, affiliateId, referralCode } = req.body;
+
+      if (!adminId) {
+        res.status(401).json({ success: false, error: { message: 'Unauthorized' } });
+        return;
+      }
+      if (!userId || !countryId || !amount) {
+        res.status(400).json({
+          success: false,
+          error: { message: 'userId, countryId, and amount are required' }
+        });
+        return;
+      }
+
+      const result = await PaymentService.createManualSubscription({
+        userId,
+        countryId,
+        amount: Number(amount),
+        affiliateId,
+        referralCode,
+        adminId
+      });
+
+      res.status(201).json({ success: true, data: result });
+    } catch (error: any) {
+      logger.error({ error: error.message }, 'Error creating manual subscription');
+      res.status(500).json({
+        success: false,
+        error: { message: error.message || 'Failed to create manual subscription' }
+      });
+    }
+  };
+
+  /**
    * Simple status check - returns true/false if student has paid
    * GET /api/payment/status
    */

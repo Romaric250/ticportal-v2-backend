@@ -21,6 +21,16 @@ export declare class AdminController {
      */
     static createUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
+     * POST /api/admin/users/send-verification-otp
+     * Admin: Send OTP to email for verification before creating new user
+     */
+    static sendVerificationOtp(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/admin/users/verify-and-create
+     * Admin: Verify OTP and create user
+     */
+    static verifyAndCreateUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
      * PUT /api/admin/users/:userId
      */
     static updateUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
@@ -28,6 +38,14 @@ export declare class AdminController {
      * DELETE /api/admin/users/:userId
      */
     static deleteUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/admin/users/bulk-delete
+     */
+    static bulkDeleteUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * GET /api/admin/users/by-region-stats
+     */
+    static getUsersByRegionStats(req: Request, res: Response): Promise<void>;
     /**
      * GET /api/admin/teams
      */

@@ -40,6 +40,16 @@ export declare class PaymentController {
      */
     checkUserPaymentStatus: (req: Request, res: Response) => Promise<void>;
     /**
+     * Admin: Reverse a manual subscription
+     * POST /api/payment/admin/reverse-manual-subscription
+     */
+    reverseManualSubscription: (req: Request, res: Response) => Promise<void>;
+    /**
+     * Admin: Create manual subscription for a user
+     * POST /api/payment/admin/manual-subscription
+     */
+    createManualSubscription: (req: Request, res: Response) => Promise<void>;
+    /**
      * Simple status check - returns true/false if student has paid
      * GET /api/payment/status
      */

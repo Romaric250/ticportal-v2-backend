@@ -30,6 +30,10 @@ router.get('/status', authenticate, paymentController.getPaymentStatus);
 /**
  * Admin routes
  */
+// Create manual subscription (must be before /:paymentId to avoid route conflict)
+router.post('/admin/manual-subscription', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), paymentController.createManualSubscription);
+// Reverse manual subscription
+router.post('/admin/reverse-manual-subscription', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), paymentController.reverseManualSubscription);
 // Manually verify a payment
 router.post('/:paymentId/verify', authenticate, authorize([UserRole.ADMIN]), paymentController.verifyPayment);
 export default router;

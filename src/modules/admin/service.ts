@@ -3,6 +3,47 @@ import type { Prisma } from "@prisma/client";
 import { UserRole, UserStatus, TeamRole } from "@prisma/client";
 
 export class AdminService {
+  /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
+  private static normalizeRegionName(region: string | null): string {
+    if (!region || !region.trim()) return "Unassigned";
+    const r = region.trim();
+    const lower = r.toLowerCase();
+    if (lower === "north west" || lower === "northwest") return "Northwest";
+    if (lower === "center" || lower === "centre") return "Centre";
+    return r;
+  }
+
+  /**
+   * Get students by region with paid counts
+   */
+  static async getUsersByRegionStats() {
+    const students = await db.user.findMany({
+      where: { role: UserRole.STUDENT },
+      select: {
+        id: true,
+        region: true,
+        payments: {
+          where: { status: "CONFIRMED" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    });
+
+    const byRegion = new Map<string, { total: number; paid: number }>();
+    for (const s of students) {
+      const region = this.normalizeRegionName(s.region);
+      const current = byRegion.get(region) || { total: 0, paid: 0 };
+      current.total++;
+      if (s.payments.length > 0) current.paid++;
+      byRegion.set(region, current);
+    }
+
+    return Array.from(byRegion.entries())
+      .map(([region, stats]) => ({ region, ...stats }))
+      .sort((a, b) => b.total - a.total);
+  }
+
   /**
    * Get dashboard statistics
    */
@@ -138,6 +179,7 @@ export class AdminService {
     jurisdiction?: string;
     status?: UserStatus;
     search?: string;
+    paymentStatus?: "paid" | "not_paid"; // For students: filter by payment
   }) {
     const page = filters.page || 1;
     const limit = filters.limit || 20;
@@ -153,8 +195,8 @@ export class AdminService {
       where.status = filters.status;
     }
 
-    if (filters.jurisdiction) {
-      where.region = { contains: filters.jurisdiction, mode: "insensitive" };
+    if (filters.jurisdiction && filters.jurisdiction !== "All Regions" && filters.jurisdiction !== "All Areas") {
+      where.region = filters.jurisdiction;
     }
 
     if (filters.search) {
@@ -171,6 +213,17 @@ export class AdminService {
       }
       
       where.OR = searchConditions;
+    }
+
+    if (filters.paymentStatus) {
+      where.role = UserRole.STUDENT;
+      if (filters.paymentStatus === "paid") {
+        where.payments = { some: { status: "CONFIRMED" } };
+      } else {
+        where.NOT = {
+          payments: { some: { status: "CONFIRMED" } },
+        };
+      }
     }
 
     const [users, total] = await Promise.all([
@@ -202,17 +255,30 @@ export class AdminService {
             },
             take: 1,
           },
+          payments: {
+            where: { status: "CONFIRMED" },
+            take: 1,
+            select: { id: true, metadata: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
       db.user.count({ where }),
     ]);
 
-    const formattedUsers = users.map((user) => ({
-      ...user,
-      affiliation: user.teamMembers[0]?.team.name || null,
-      jurisdiction: user.region,
-    }));
+    const formattedUsers = users.map((user) => {
+      const { payments, ...rest } = user;
+      const payment = payments[0];
+      const meta = payment?.metadata as Record<string, unknown> | null;
+      const isManualSubscription = !!(meta?.manualSubscription);
+      return {
+        ...rest,
+        affiliation: user.teamMembers[0]?.team.name || null,
+        jurisdiction: user.region,
+        hasPaid: user.role === "STUDENT" ? payments.length > 0 : undefined,
+        isManualSubscription: user.role === "STUDENT" && payments.length > 0 ? isManualSubscription : undefined,
+      };
+    });
 
     return {
       users: formattedUsers,
@@ -254,6 +320,7 @@ export class AdminService {
 
   /**
    * Create user (admin)
+   * Returns user and plainPassword for admin to copy (when password was auto-generated)
    */
   static async createUser(data: {
     email: string;
@@ -274,11 +341,11 @@ export class AdminService {
     }
 
     // Generate random password if not provided
-    const password = data.password || Math.random().toString(36).slice(-8);
+    const plainPassword = data.password || Math.random().toString(36).slice(-8);
     
     // Hash password
     const bcrypt = await import("bcrypt");
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     const user = await db.user.create({
       data: {
@@ -294,10 +361,70 @@ export class AdminService {
       },
     });
 
-    // TODO: Send email with credentials
-    // TODO: Award 10 points for account creation
+    return { user, plainPassword: data.password ? undefined : plainPassword };
+  }
 
-    return user;
+  /**
+   * Admin: Send OTP to email for verification before creating new user
+   * Email may not belong to an existing user
+   */
+  static async sendVerificationOtp(email: string) {
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new Error("User with this email already exists");
+    }
+
+    const { sendVerificationEmail } = await import("../../shared/utils/email");
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await db.adminEmailVerification.create({
+      data: { email, code, expiresAt },
+    });
+
+    await sendVerificationEmail(email, "User", code);
+    return { message: "OTP sent successfully to email" };
+  }
+
+  /**
+   * Admin: Verify OTP and create user
+   * Returns user and plainPassword for admin to copy
+   */
+  static async verifyAndCreateUser(data: {
+    email: string;
+    code: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    school?: string;
+    region?: string;
+    password?: string;
+  }) {
+    const verification = await db.adminEmailVerification.findFirst({
+      where: {
+        email: data.email,
+        code: data.code,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!verification) {
+      throw new Error("Invalid or expired OTP");
+    }
+
+    await db.adminEmailVerification.delete({ where: { id: verification.id } });
+
+    const result = await this.createUser({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      role: data.role,
+      ...(data.school !== undefined && { school: data.school }),
+      ...(data.region !== undefined && { region: data.region }),
+      ...(data.password !== undefined && { password: data.password }),
+    });
+
+    return result;
   }
 
   /**
@@ -321,6 +448,23 @@ export class AdminService {
     // TODO: Send notification about role/status change
 
     return user;
+  }
+
+  /**
+   * Bulk delete users
+   */
+  static async deleteUsers(userIds: string[]): Promise<{ deleted: number; failed: Array<{ userId: string; error: string }> }> {
+    const failed: Array<{ userId: string; error: string }> = [];
+    let deleted = 0;
+    for (const userId of userIds) {
+      try {
+        await this.deleteUser(userId);
+        deleted++;
+      } catch (err: any) {
+        failed.push({ userId, error: err.message || "Unknown error" });
+      }
+    }
+    return { deleted, failed };
   }
 
   /**

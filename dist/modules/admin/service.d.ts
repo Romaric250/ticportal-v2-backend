@@ -1,5 +1,15 @@
 import { UserRole, UserStatus } from "@prisma/client";
 export declare class AdminService {
+    /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
+    private static normalizeRegionName;
+    /**
+     * Get students by region with paid counts
+     */
+    static getUsersByRegionStats(): Promise<{
+        total: number;
+        paid: number;
+        region: string;
+    }[]>;
     /**
      * Get dashboard statistics
      */
@@ -39,10 +49,13 @@ export declare class AdminService {
         jurisdiction?: string;
         status?: UserStatus;
         search?: string;
+        paymentStatus?: "paid" | "not_paid";
     }): Promise<{
         users: {
             affiliation: string | null;
             jurisdiction: string | null;
+            hasPaid: boolean | undefined;
+            isManualSubscription: boolean | undefined;
             id: string;
             createdAt: Date;
             email: string;
@@ -116,6 +129,7 @@ export declare class AdminService {
     }>;
     /**
      * Create user (admin)
+     * Returns user and plainPassword for admin to copy (when password was auto-generated)
      */
     static createUser(data: {
         email: string;
@@ -126,27 +140,76 @@ export declare class AdminService {
         region?: string;
         password?: string;
     }): Promise<{
-        id: string;
-        createdAt: Date;
+        user: {
+            id: string;
+            createdAt: Date;
+            email: string;
+            username: string | null;
+            password: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            status: import(".prisma/client").$Enums.UserStatus;
+            firstName: string;
+            lastName: string;
+            bio: string | null;
+            phone: string | null;
+            profilePhoto: string | null;
+            school: string | null;
+            grade: string | null;
+            country: string | null;
+            region: string | null;
+            gradDate: Date | null;
+            isVerified: boolean;
+            lastLogin: Date | null;
+            squadId: string | null;
+            updatedAt: Date;
+        };
+        plainPassword: string | undefined;
+    }>;
+    /**
+     * Admin: Send OTP to email for verification before creating new user
+     * Email may not belong to an existing user
+     */
+    static sendVerificationOtp(email: string): Promise<{
+        message: string;
+    }>;
+    /**
+     * Admin: Verify OTP and create user
+     * Returns user and plainPassword for admin to copy
+     */
+    static verifyAndCreateUser(data: {
         email: string;
-        username: string | null;
-        password: string;
-        role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.UserStatus;
+        code: string;
         firstName: string;
         lastName: string;
-        bio: string | null;
-        phone: string | null;
-        profilePhoto: string | null;
-        school: string | null;
-        grade: string | null;
-        country: string | null;
-        region: string | null;
-        gradDate: Date | null;
-        isVerified: boolean;
-        lastLogin: Date | null;
-        squadId: string | null;
-        updatedAt: Date;
+        role: UserRole;
+        school?: string;
+        region?: string;
+        password?: string;
+    }): Promise<{
+        user: {
+            id: string;
+            createdAt: Date;
+            email: string;
+            username: string | null;
+            password: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            status: import(".prisma/client").$Enums.UserStatus;
+            firstName: string;
+            lastName: string;
+            bio: string | null;
+            phone: string | null;
+            profilePhoto: string | null;
+            school: string | null;
+            grade: string | null;
+            country: string | null;
+            region: string | null;
+            gradDate: Date | null;
+            isVerified: boolean;
+            lastLogin: Date | null;
+            squadId: string | null;
+            updatedAt: Date;
+        };
+        plainPassword: string | undefined;
     }>;
     /**
      * Update user
@@ -179,6 +242,16 @@ export declare class AdminService {
         lastLogin: Date | null;
         squadId: string | null;
         updatedAt: Date;
+    }>;
+    /**
+     * Bulk delete users
+     */
+    static deleteUsers(userIds: string[]): Promise<{
+        deleted: number;
+        failed: Array<{
+            userId: string;
+            error: string;
+        }>;
     }>;
     /**
      * Delete user

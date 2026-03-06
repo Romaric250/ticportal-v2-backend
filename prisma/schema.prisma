@@ -110,6 +110,18 @@ enum OTPType {
   PASSWORD_RESET
 }
 
+/// Admin email verification for creating new users (no existing user required)
+model AdminEmailVerification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model RefreshToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String   @db.ObjectId
