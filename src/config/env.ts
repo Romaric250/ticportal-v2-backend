@@ -17,7 +17,7 @@ export const env = {
   kafkaBrokers: (process.env.KAFKA_BROKERS ?? "localhost:9092").split(","),
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:3000",
   frontendUrl: process.env.FRONTEND_URL ?? process.env.CLIENT_URL ?? "http://localhost:3000",
-  emailFrom: process.env.EMAIL_FROM ?? "no-reply@ticsummit.org",
+  emailFrom: process.env.EMAIL_FROM ?? "no-reply@email.ticsummit.org",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN ?? "",
   // Fapshi Payment Gateway
