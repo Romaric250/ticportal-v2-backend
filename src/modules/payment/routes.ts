@@ -12,8 +12,10 @@ const paymentController = new PaymentController();
 // Get supported payment methods
 router.get('/methods', paymentController.getPaymentMethods);
 
-// Webhook endpoint (no auth required - verified by signature)
+// Webhook endpoints (no auth required - verified by signature or apiuser/apikey)
+// Fapshi sends POST to notify payment status changes (SUCCESSFUL, FAILED, EXPIRED)
 router.post('/webhook/fapshi', paymentController.handleWebhook);
+router.post('/webhook/payment-status', paymentController.handleWebhook); // Alias for Fapshi dashboard
 
 // Payment success callback from Fapshi redirect (no auth required)
 // Frontend calls this after redirect: POST /confirm-success with {transId, status}

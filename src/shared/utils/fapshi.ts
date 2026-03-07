@@ -140,40 +140,64 @@ export class FapshiService {
   }
 
   /**
-   * Verify webhook signature
-   * 
-   * @param payload - Raw webhook payload
-   * @param signature - Signature from webhook header
-   * @returns true if signature is valid
+   * Verify webhook authenticity
+   * Supports: 1) x-fapshi-signature HMAC, 2) apiuser + apikey headers (per Fapshi docs)
+   *
+   * @param payload - Raw webhook payload (for HMAC)
+   * @param signature - Signature from x-fapshi-signature header (optional)
+   * @param headers - Request headers for apiuser/apikey (optional)
+   * @returns true if valid
    */
-  verifyWebhookSignature(payload: string, signature: string): boolean {
-    try {
-      const expectedSignature = crypto
-        .createHmac('sha256', env.fapshiWebhookSecret)
-        .update(payload)
-        .digest('hex');
-
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-      );
-    } catch (error) {
-      logger.error({ error }, 'Failed to verify webhook signature');
-      return false;
+  verifyWebhookSignature(payload: string, signature?: string, headers?: Record<string, string | undefined>): boolean {
+    // 1. HMAC signature (if webhook secret configured)
+    if (signature && env.fapshiWebhookSecret) {
+      try {
+        const expectedSignature = crypto
+          .createHmac('sha256', env.fapshiWebhookSecret)
+          .update(payload)
+          .digest('hex');
+        if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+          return true;
+        }
+      } catch (error) {
+        logger.error({ error }, 'Failed to verify webhook signature');
+      }
     }
+
+    // 2. apiuser + apikey headers (per Fapshi webhook docs)
+    if (headers?.apiuser && headers?.apikey) {
+      if (headers.apiuser === env.fapshiApiUser && headers.apikey === env.fapshiApiKey) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
    * Process webhook event
-   * 
-   * @param event - Webhook event data
-   * @returns Processed event data
+   * Handles Fapshi payload: transId, status, externalId, amount, payerName, email, etc.
+   *
+   * @param event - Webhook event data (object or array of objects)
+   * @returns Processed event data (or first event if array)
    */
-  async processWebhook(event: FapshiWebhookEvent): Promise<ProcessedWebhookEvent> {
+  async processWebhook(event: FapshiWebhookEvent | FapshiWebhookEvent[]): Promise<ProcessedWebhookEvent> {
     try {
-      const { transId, status, externalId, amount, phone, message } = event;
+      const raw = Array.isArray(event) ? event[0] : event;
+      if (!raw) {
+        throw new Error('Empty webhook payload');
+      }
+      const transId = raw.transId;
+      const status = raw.status;
+      const externalId = raw.externalId ?? (raw as any).externalId;
+      const amount = raw.amount ?? (raw as any).revenue ?? 0;
+      const phone = raw.phone ?? (raw as any).payerName ?? '';
 
       logger.info({ transId, externalId, status }, 'Processing Fapshi webhook');
+
+      if (!externalId) {
+        throw new Error('Webhook missing externalId (payment reference)');
+      }
 
       return {
         transactionId: transId,
@@ -181,7 +205,7 @@ export class FapshiService {
         status: this.mapFapshiStatus(status),
         amount,
         phoneNumber: phone,
-        ...(message && { message }),
+        ...((raw as any).message && { message: (raw as any).message }),
         timestamp: new Date()
       };
     } catch (error: any) {
@@ -192,6 +216,7 @@ export class FapshiService {
 
   /**
    * Map Fapshi status to our internal status
+   * Fapshi sends: SUCCESSFUL, FAILED, EXPIRED, PENDING, CREATED
    */
   private mapFapshiStatus(fapshiStatus: string): PaymentStatusEnum {
     switch (fapshiStatus.toUpperCase()) {
@@ -199,8 +224,10 @@ export class FapshiService {
       case 'SUCCESS':
         return 'CONFIRMED';
       case 'FAILED':
+      case 'EXPIRED':
         return 'FAILED';
       case 'PENDING':
+      case 'CREATED':
         return 'PENDING';
       default:
         return 'PENDING';
@@ -249,12 +276,15 @@ export interface FapshiStatusResponse {
 
 export interface FapshiWebhookEvent {
   transId: string;
-  externalId: string;
+  externalId?: string;
   status: string;
-  amount: number;
-  phone: string;
+  amount?: number;
+  revenue?: number;
+  phone?: string;
+  payerName?: string;
   message?: string;
   date?: string;
+  [key: string]: unknown;
 }
 
 export interface ProcessedWebhookEvent {

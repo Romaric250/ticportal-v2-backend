@@ -86,23 +86,29 @@ export class PaymentController {
         };
         /**
          * Webhook handler for Fapshi payment notifications
+         * Receives: SUCCESSFUL, FAILED, EXPIRED
+         * Verifies via x-fapshi-signature (HMAC) or apiuser/apikey headers
          */
         this.handleWebhook = async (req, res) => {
             try {
                 const signature = req.headers['x-fapshi-signature'];
                 const rawBody = JSON.stringify(req.body);
-                // Verify webhook signature
-                if (!fapshiService.verifyWebhookSignature(rawBody, signature)) {
-                    logger.warn({ body: req.body }, 'Invalid webhook signature');
+                const headers = {
+                    apiuser: req.headers['apiuser'],
+                    apikey: req.headers['apikey'],
+                };
+                if (!fapshiService.verifyWebhookSignature(rawBody, signature, headers)) {
+                    logger.warn({ body: req.body }, 'Invalid webhook signature or credentials');
                     res.status(401).json({ error: 'Invalid signature' });
                     return;
                 }
-                // Process webhook
                 const event = await fapshiService.processWebhook(req.body);
-                // Update payment status in database
                 await PaymentService.handleWebhookEvent(event);
-                // Respond to Fapshi
-                res.status(200).json({ success: true, message: 'Webhook processed' });
+                res.status(200).json({
+                    transId: event.transactionId,
+                    status: event.status,
+                    message: 'Webhook processed',
+                });
             }
             catch (error) {
                 logger.error('Error processing webhook:', error);

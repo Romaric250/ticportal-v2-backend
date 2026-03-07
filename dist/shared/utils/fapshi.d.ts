@@ -34,22 +34,26 @@ export declare class FapshiService {
      */
     checkPaymentStatus(transId: string): Promise<FapshiStatusResponse>;
     /**
-     * Verify webhook signature
+     * Verify webhook authenticity
+     * Supports: 1) x-fapshi-signature HMAC, 2) apiuser + apikey headers (per Fapshi docs)
      *
-     * @param payload - Raw webhook payload
-     * @param signature - Signature from webhook header
-     * @returns true if signature is valid
+     * @param payload - Raw webhook payload (for HMAC)
+     * @param signature - Signature from x-fapshi-signature header (optional)
+     * @param headers - Request headers for apiuser/apikey (optional)
+     * @returns true if valid
      */
-    verifyWebhookSignature(payload: string, signature: string): boolean;
+    verifyWebhookSignature(payload: string, signature?: string, headers?: Record<string, string | undefined>): boolean;
     /**
      * Process webhook event
+     * Handles Fapshi payload: transId, status, externalId, amount, payerName, email, etc.
      *
-     * @param event - Webhook event data
-     * @returns Processed event data
+     * @param event - Webhook event data (object or array of objects)
+     * @returns Processed event data (or first event if array)
      */
-    processWebhook(event: FapshiWebhookEvent): Promise<ProcessedWebhookEvent>;
+    processWebhook(event: FapshiWebhookEvent | FapshiWebhookEvent[]): Promise<ProcessedWebhookEvent>;
     /**
      * Map Fapshi status to our internal status
+     * Fapshi sends: SUCCESSFUL, FAILED, EXPIRED, PENDING, CREATED
      */
     private mapFapshiStatus;
     /**
@@ -74,12 +78,15 @@ export interface FapshiStatusResponse {
 }
 export interface FapshiWebhookEvent {
     transId: string;
-    externalId: string;
+    externalId?: string;
     status: string;
-    amount: number;
-    phone: string;
+    amount?: number;
+    revenue?: number;
+    phone?: string;
+    payerName?: string;
     message?: string;
     date?: string;
+    [key: string]: unknown;
 }
 export interface ProcessedWebhookEvent {
     transactionId: string;

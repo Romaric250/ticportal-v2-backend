@@ -19,6 +19,8 @@ export declare class PaymentController {
     getPaymentHistory: (req: Request, res: Response) => Promise<void>;
     /**
      * Webhook handler for Fapshi payment notifications
+     * Receives: SUCCESSFUL, FAILED, EXPIRED
+     * Verifies via x-fapshi-signature (HMAC) or apiuser/apikey headers
      */
     handleWebhook: (req: Request, res: Response) => Promise<void>;
     /**
