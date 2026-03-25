@@ -5,7 +5,7 @@ import { CronJob } from "cron";
  */
 export declare const healthCheckJob: CronJob<null, null>;
 /**
- * Badge Award Job - Every minute (for testing) or every hour (production)
+ * Badge Award Job - Every hour
  * Automatically checks and awards badges to all users
  */
 export declare const badgeAwardJob: CronJob<null, null>;

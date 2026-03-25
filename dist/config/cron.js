@@ -20,10 +20,10 @@ export const healthCheckJob = new CronJob("*/14 * * * *", () => {
     });
 });
 /**
- * Badge Award Job - Every minute (for testing) or every hour (production)
+ * Badge Award Job - Every hour
  * Automatically checks and awards badges to all users
  */
-export const badgeAwardJob = new CronJob("*/15 * * * *", // Every minute for testing - change to "0 * * * *" for every hour
+export const badgeAwardJob = new CronJob("0 * * * *", // Every hour at :00
 async () => {
     try {
         logger.info("🏅 Badge award cron triggered at " + new Date().toISOString());
@@ -54,8 +54,7 @@ export const startCronJobs = () => {
         logger.info("✅ Health check cron started: Every 14 minutes");
         // Start badge awards
         badgeAwardJob.start();
-        logger.info("✅ Badge award cron started: Every 1 minute (TESTING MODE)");
-        logger.warn("⚠️  For production, change schedule to '0 * * * *' (every hour)");
+        logger.info("✅ Badge award cron started: Every 1 hour");
         logger.info("🚀 All cron jobs running!");
         // Test badge job immediately (optional)
         logger.info("🧪 Testing badge job now...");

@@ -9,12 +9,12 @@ import { logger } from "../shared/utils/logger";
 export const startCommissionProcessor = () => {
   cron.schedule("*/30 * * * *", async () => {
     try {
-      logger.info("💰 [CRON] Commission processor started");
+      logger.info("[CRON] Commission processor started");
       await PaymentCommissionService.processFailedCommissions();
     } catch (error) {
       logger.error(
         { error: (error as Error).message },
-        "❌ [CRON] Commission processor failed"
+        "[CRON] Commission processor failed"
       );
     }
   });

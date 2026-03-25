@@ -40,7 +40,7 @@ export const registerTeamChatHandlers = (io, socket) => {
                 totalSocketsInRoom: socketsInRoom.length,
                 socketIds,
                 userIds
-            }, "✅ [SOCKET] User successfully joined team room - Room membership verified");
+            }, "[SOCKET] User successfully joined team room - Room membership verified");
             // Notify team members that user is online
             const onlineStatusPayload = {
                 teamId,
@@ -73,7 +73,7 @@ export const registerTeamChatHandlers = (io, socket) => {
                 status: "offline",
             };
             socket.to(`team:${teamId}`).emit("team:member:online", offlineStatusPayload);
-            logger.info({ userId: socket.userId, teamId, userName: socket.user?.fullName, payload: offlineStatusPayload }, "📢 [SOCKET] Broadcasting offline status to team");
+            logger.info({ userId: socket.userId, teamId, userName: socket.user?.fullName, payload: offlineStatusPayload }, "[SOCKET] Broadcasting offline status to team");
         }
         catch (error) {
             logger.error({ error, teamId, userId: socket.userId }, "💥 [SOCKET] Error leaving team room");
@@ -90,7 +90,7 @@ export const registerTeamChatHandlers = (io, socket) => {
                 userName: socket.user?.fullName,
                 messagePreview: message?.substring(0, 50),
                 attachmentsCount: attachments?.length || 0
-            }, "🔵 [SOCKET] User attempting to send message");
+            }, "[SOCKET] User attempting to send message");
             if (!socket.userId || !socket.user) {
                 logger.warn({ teamId, socketId: socket.id }, "❌ [SOCKET] Send message failed: Not authenticated");
                 socket.emit("error", { message: "Not authenticated" });

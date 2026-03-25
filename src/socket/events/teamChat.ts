@@ -55,7 +55,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
           socketIds,
           userIds
         },
-        "✅ [SOCKET] User successfully joined team room - Room membership verified"
+        "[SOCKET] User successfully joined team room - Room membership verified"
       );
 
       // Notify team members that user is online
@@ -108,7 +108,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
       
       logger.info(
         { userId: socket.userId, teamId, userName: socket.user?.fullName, payload: offlineStatusPayload },
-        "📢 [SOCKET] Broadcasting offline status to team"
+        "[SOCKET] Broadcasting offline status to team"
       );
     } catch (error) {
       logger.error({ error, teamId, userId: socket.userId }, "💥 [SOCKET] Error leaving team room");
@@ -128,7 +128,7 @@ export const registerTeamChatHandlers = (io: Server, socket: AuthenticatedSocket
           messagePreview: message?.substring(0, 50),
           attachmentsCount: attachments?.length || 0 
         },
-        "🔵 [SOCKET] User attempting to send message"
+        "[SOCKET] User attempting to send message"
       );
 
       if (!socket.userId || !socket.user) {

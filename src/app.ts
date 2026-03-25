@@ -23,7 +23,6 @@ import { generalRateLimit } from "./shared/middleware/rateLimit";
 import { uploadRouter } from "./config/uploadthing";
 import deliverableRoutes from "./modules/deliverables/routes";
 import learningPathRoutes from "./modules/learning-paths/routes";
-// import submissionRoutes from "./modules/submission/routes"; // REMOVED - doesn't exist
 import uploadRoutes from "./modules/upload/routes";
 import { startCronJobs } from './config/cron';
 import badgeRoutes from "./modules/badges/routes";
@@ -36,16 +35,16 @@ import paymentRoutes from "./modules/payment/routes";
 const app = express();
 
 
-// Simplified logging middleware - log all requests and responses
+//logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   const originalJson = res.json.bind(res);
   const originalSend = res.send.bind(res);
   
-  // Store request body
+
   const requestBody = req.body;
   
-  // Override res.json to capture response
+  
   res.json = function(body: any) {
     const duration = Date.now() - startTime;
     
@@ -61,7 +60,6 @@ app.use((req, res, next) => {
     return originalJson(body);
   };
   
-  // Override res.send to capture response
   res.send = function(body: any) {
     const duration = Date.now() - startTime;
     let responseBody = body;
@@ -69,7 +67,6 @@ app.use((req, res, next) => {
     try {
       responseBody = typeof body === 'string' ? JSON.parse(body) : body;
     } catch (e) {
-      // If not JSON, use as is
       responseBody = body;
     }
     
@@ -88,7 +85,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration - must be before other middleware
+// CORS configuration
 const allowedOrigins = [
   env.clientUrl,
   "https://ticportal-v2.vercel.app",
@@ -99,7 +96,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
         return callback(null, true);
       }
@@ -107,7 +103,6 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        // Return false to reject, not an error
         callback(null, false);
       }
     },
@@ -138,18 +133,17 @@ app.use(trackActivity);
 
 // Start all cron jobs (health check + badge awards)
 startCronJobs();
-logger.info("🤖 Cron jobs initialized");
+logger.info("Cron jobs initialized");
 
-// Basic health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// API routes
+
 app.use("/api/auth", authRoutes);
 app.use("/api/defaults", defaultsRoutes);
 
-// UploadThing route
+
 app.use(
   "/api/uploadthing",
   createRouteHandler({

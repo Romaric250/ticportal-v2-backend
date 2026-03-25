@@ -7,14 +7,14 @@ import { logger } from "../shared/utils/logger";
  * This ensures users with confirmed payments receive the "Paid Student" badge
  */
 export const startBadgeProcessor = () => {
-  cron.schedule("*/1 * * * *", async () => {
+  cron.schedule("*/10 * * * *", async () => {
     try {
       logger.info("🏅 [CRON] Badge processor started");
       await BadgeService.processFailedPaymentBadges();
     } catch (error) {
       logger.error(
         { error: (error as Error).message },
-        "❌ [CRON] Badge processor failed"
+        "[CRON] Badge processor failed"
       );
     }
   });
