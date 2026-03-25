@@ -1,3 +1,19 @@
+TIC Portal v2 Backend
+
+The TIC Portal is a web platform that connects students, teams, and mentors.
+This server provides the backend APIs used by the TIC Portal frontend.
+
+API documentation:
+- `swagger/user-profile.yaml`
+- `swagger/README.md`
+TIC Portal v2 backend provides the API used by the TIC Portal frontend (JWT-authenticated REST endpoints).
+
+API documentation:
+- `swagger/user-profile.yaml`: OpenAPI specification
+- https://ticportal-v3-backend.onrender.com/api/docs/ 
+
+
+
 TIC Portal v2 Backend - API Documentation
 
 This folder contains OpenAPI/Swagger documentation for the TIC Portal v2 backend.
@@ -16,21 +32,7 @@ Complete API documentation for TIC Portal v2 Backend.
 
 ## 📚 Available Documentation
 
-### Authentication & Authorization
-- **[AUTH_API.md](./AUTH_API.md)** - Authentication endpoints (register, login, verify, etc.)
-- **[ACTIVITY_TRACKING.md](./ACTIVITY_TRACKING.md)** - Activity tracking and gamification system
 
-### User Management
-- **[USER_PROFILE_API.md](./USER_PROFILE_API.md)** - User profile management and photo upload
-
-### System Defaults
-- **[DEFAULTS_API.md](./DEFAULTS_API.md)** - Default schools and regions for dropdowns
-
-### OpenAPI/Swagger Specs
-- **[swagger/user-profile.yaml](./swagger/user-profile.yaml)** - OpenAPI 3.0 specification for user profile endpoints
-- **[swagger/README.md](./swagger/README.md)** - How to use Swagger documentation
-
----
 
 ##  Quick Start
 
