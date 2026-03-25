@@ -1,3 +1,13 @@
+TIC Portal v2 Backend - API Documentation
+
+This folder contains OpenAPI/Swagger documentation for the TIC Portal v2 backend.
+
+Included files:
+- `swagger/user-profile.yaml`: OpenAPI 3.x specification for the user profile API.
+- `swagger/README.md`: Instructions for using/viewing the Swagger specification.
+
+Notes:
+- Refer to the OpenAPI specification under `docs/swagger/` for endpoint details, request/response shapes, and auth requirements.
 # API Documentation Overview
 
 Complete API documentation for TIC Portal v2 Backend.
@@ -22,12 +32,12 @@ Complete API documentation for TIC Portal v2 Backend.
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Base URL
 ```
 Local: http://localhost:5000/api
-Production: https://api.ticportal.org/api
+Production: 
 ```
 
 ### Authentication
@@ -61,7 +71,7 @@ Each API doc includes:
 
 ---
 
-## 🔧 Testing APIs
+##  Testing APIs
 
 ### Using cURL
 ```bash
@@ -82,24 +92,7 @@ curl -X GET "http://localhost:5000/api/users/profile" \
 
 ---
 
-## 🎯 Common Endpoints
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/auth/register` | Register new user | ❌ |
-| POST | `/auth/login` | Login user | ❌ |
-| POST | `/auth/verify-email` | Verify email with OTP | ❌ |
-| GET | `/users/profile` | Get user profile | ✅ |
-| PUT | `/users/profile` | Update profile | ✅ |
-| PUT | `/users/profile-photo` | Upload profile photo | ✅ |
-| GET | `/defaults/search?type=school&q=query` | Search schools | ❌ |
-| GET | `/defaults/search?type=region&q=query` | Search regions | ❌ |
-| GET | `/defaults?type=school` | Get schools list | ❌ |
-| GET | `/defaults?type=region` | Get regions list | ❌ |
-
----
-
-## 📦 Response Format
+## Response Format
 
 All API responses follow this structure:
 
@@ -127,28 +120,21 @@ All API responses follow this structure:
 
 ---
 
-## 🛠️ Development
+##  Development
 
 ### Environment Variables
-```env
-DATABASE_URL=mongodb://...
-JWT_ACCESS_SECRET=your_secret
-JWT_REFRESH_SECRET=your_secret
-UPLOADTHING_TOKEN=your_token
-RESEND_API_KEY=your_key
-```
 
 See `.env.example` for full list.
 
 ### Running the Server
 ```bash
-npm run dev  # Development with hot reload
-npm start    # Production
+npm run dev  
+npm start
 ```
 
 ---
 
-## 🔗 Related Resources
+## Related Resources
 
 - **Prisma Schema**: `prisma/schema.prisma`
 - **Environment Config**: `src/config/env.ts`
@@ -158,7 +144,7 @@ npm start    # Production
 
 ---
 
-## 📝 Contributing
+## Contributing
 
 When adding new endpoints:
 
@@ -171,7 +157,7 @@ When adding new endpoints:
 
 ---
 
-## 🔒 Security
+## Security
 
 - All passwords are hashed with bcrypt
 - JWT tokens for authentication
@@ -181,7 +167,7 @@ When adding new endpoints:
 
 ---
 
-## 📞 Support
+## Support
 
 For questions or issues:
 - Check the specific API documentation
