@@ -113,7 +113,7 @@ app.use(cookieParser());
 // Activity tracking middleware (tracks all authenticated requests)
 app.use(trackActivity);
 // Start all cron jobs (health check + badge awards)
-startCronJobs();
+// startCronJobs();
 logger.info("Cron jobs initialized");
 app.get("/health", (_req, res) => {
     res.json({ status: "ok" });

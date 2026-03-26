@@ -43,6 +43,7 @@ router.post('/regenerate-code', authenticate, authorize([UserRole.AFFILIATE, Use
  * Admin Routes - Affiliate Management
  */
 router.get('/admin/affiliates', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.listAffiliates);
+router.get('/admin/referral-payment-summary', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.getReferralPaymentSummary);
 router.patch('/admin/affiliates/:affiliateId/suspend', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.suspendAffiliate);
 router.patch('/admin/affiliates/:affiliateId/unsuspend', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.unsuspendAffiliate);
 router.patch('/admin/affiliates/:affiliateId/terminate', authenticate, authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]), affiliateController.terminateAffiliate);

@@ -2,13 +2,21 @@ import { UserRole, UserStatus } from "@prisma/client";
 export declare class AdminService {
     /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
     private static normalizeRegionName;
+    private static readonly MANUAL_PAYMENT_METHODS;
+    private static readonly ONLINE_PAYMENT_METHODS;
     /**
-     * Get students by region with paid counts
+     * Get students by region with paid counts.
+     * Optional `paymentChannel`: `all` | `manual` | `online` — `paid` counts students with at least one confirmed payment in that channel.
      */
-    static getUsersByRegionStats(): Promise<{
+    static getUsersByRegionStats(params?: {
+        paymentChannel?: "all" | "manual" | "online";
+    }): Promise<{
+        region: string;
         total: number;
         paid: number;
-        region: string;
+        paidManual: number;
+        paidOnline: number;
+        paymentChannel: "online" | "all" | "manual";
     }[]>;
     /**
      * Get dashboard statistics
@@ -49,12 +57,13 @@ export declare class AdminService {
         jurisdiction?: string;
         status?: UserStatus;
         search?: string;
-        paymentStatus?: "paid" | "not_paid";
+        paymentStatus?: "paid" | "not_paid" | "manual_paid";
     }): Promise<{
         users: {
             affiliation: string | null;
             jurisdiction: string | null;
             hasPaid: boolean | undefined;
+            isManualChannelPaid: boolean | undefined;
             isManualSubscription: boolean | undefined;
             id: string;
             createdAt: Date;

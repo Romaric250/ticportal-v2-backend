@@ -548,6 +548,18 @@ export declare class AffiliateService {
         newReferralCode: string;
         newReferralLink: string;
     }>;
+    /** Manual-style payments (admin upload / bank / cash). Online = card + mobile money. */
+    private static readonly MANUAL_PAYMENT_METHODS;
+    private static readonly ONLINE_PAYMENT_METHODS;
+    /**
+     * Live referral/student counts per affiliate (fixes drift vs stored totalReferrals when commissions
+     * were created without updating profile counters).
+     */
+    private static getAffiliateReferralStats;
+    /**
+     * Optional filters: commission sum range, with/without commission, payment channel (manual vs online).
+     */
+    private static resolveListAffiliateIdFilters;
     /**
      * Admin: List all affiliates with pagination and filters
      */
@@ -558,9 +570,24 @@ export declare class AffiliateService {
         search?: string;
         regionId?: string;
         countryId?: string;
+        subRole?: AffiliateSubRole;
+        affiliateId?: string;
+        minEarned?: number;
+        maxEarned?: number;
+        earnFilter?: "with_commission" | "no_commission";
+        paymentChannel?: "all" | "manual" | "online";
     }): Promise<{
         affiliates: {
             totalEarned: number;
+            totalReferrals: number;
+            totalStudents: number;
+            listStats: {
+                referralCount: number;
+                paidStudents: number;
+                manualPaidStudents: number;
+                onlinePaidStudents: number;
+                studentsWithCommissions: number;
+            };
             user: {
                 id: string;
                 email: string;
@@ -609,9 +636,7 @@ export declare class AffiliateService {
             suspendedReason: string | null;
             terminatedAt: Date | null;
             terminatedReason: string | null;
-            totalReferrals: number;
             activeReferrals: number;
-            totalStudents: number;
             totalPaid: number;
             bankName: string | null;
             accountNumber: string | null;
@@ -1019,5 +1044,17 @@ export declare class AffiliateService {
         regionalRate: number;
         nationalRate: number;
     }>;
+    /**
+     * Admin: Confirmed paid students per affiliate marketer (manual vs online), for admin dashboards.
+     */
+    static getReferralPaymentSummaryByAffiliate(): Promise<{
+        affiliateId: string;
+        referralCode: string;
+        marketerName: string;
+        regionName: string;
+        totalPaid: number;
+        manualPaid: number;
+        onlinePaid: number;
+    }[]>;
 }
 //# sourceMappingURL=service.d.ts.map

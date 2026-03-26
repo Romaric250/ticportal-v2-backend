@@ -1,5 +1,5 @@
 import { db } from "../../config/database.js";
-import { UserRole, UserStatus, TeamRole } from "@prisma/client";
+import { UserRole, UserStatus, TeamRole, PaymentStatus, PaymentMethod } from "@prisma/client";
 export class AdminService {
     /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
     static normalizeRegionName(region) {
@@ -14,32 +14,58 @@ export class AdminService {
         return r;
     }
     /**
-     * Get students by region with paid counts
+     * Get students by region with paid counts.
+     * Optional `paymentChannel`: `all` | `manual` | `online` — `paid` counts students with at least one confirmed payment in that channel.
      */
-    static async getUsersByRegionStats() {
+    static async getUsersByRegionStats(params) {
+        const channel = params?.paymentChannel ?? "all";
         const students = await db.user.findMany({
             where: { role: UserRole.STUDENT },
             select: {
                 id: true,
                 region: true,
                 payments: {
-                    where: { status: "CONFIRMED" },
-                    take: 1,
-                    select: { id: true },
+                    where: { status: PaymentStatus.CONFIRMED },
+                    select: { paymentMethod: true },
                 },
             },
         });
         const byRegion = new Map();
         for (const s of students) {
             const region = this.normalizeRegionName(s.region);
-            const current = byRegion.get(region) || { total: 0, paid: 0 };
-            current.total++;
+            const cur = byRegion.get(region) || {
+                total: 0,
+                paidAny: 0,
+                paidManualStudents: 0,
+                paidOnlineStudents: 0,
+            };
+            cur.total++;
             if (s.payments.length > 0)
-                current.paid++;
-            byRegion.set(region, current);
+                cur.paidAny++;
+            const hasManual = s.payments.some((p) => this.MANUAL_PAYMENT_METHODS.includes(p.paymentMethod));
+            const hasOnline = s.payments.some((p) => this.ONLINE_PAYMENT_METHODS.includes(p.paymentMethod));
+            if (hasManual)
+                cur.paidManualStudents++;
+            if (hasOnline)
+                cur.paidOnlineStudents++;
+            byRegion.set(region, cur);
         }
         return Array.from(byRegion.entries())
-            .map(([region, stats]) => ({ region, ...stats }))
+            .map(([region, stats]) => {
+            let paid = stats.paidAny;
+            if (channel === "manual")
+                paid = stats.paidManualStudents;
+            else if (channel === "online")
+                paid = stats.paidOnlineStudents;
+            return {
+                region,
+                total: stats.total,
+                paid,
+                paidManual: stats.paidManualStudents,
+                paidOnline: stats.paidOnlineStudents,
+                paymentChannel: channel,
+            };
+        })
             .sort((a, b) => b.total - a.total);
     }
     /**
@@ -181,11 +207,19 @@ export class AdminService {
         if (filters.paymentStatus) {
             where.role = UserRole.STUDENT;
             if (filters.paymentStatus === "paid") {
-                where.payments = { some: { status: "CONFIRMED" } };
+                where.payments = { some: { status: PaymentStatus.CONFIRMED } };
             }
-            else {
+            else if (filters.paymentStatus === "not_paid") {
                 where.NOT = {
-                    payments: { some: { status: "CONFIRMED" } },
+                    payments: { some: { status: PaymentStatus.CONFIRMED } },
+                };
+            }
+            else if (filters.paymentStatus === "manual_paid") {
+                where.payments = {
+                    some: {
+                        status: PaymentStatus.CONFIRMED,
+                        paymentMethod: { in: this.MANUAL_PAYMENT_METHODS },
+                    },
                 };
             }
         }
@@ -219,9 +253,8 @@ export class AdminService {
                         take: 1,
                     },
                     payments: {
-                        where: { status: "CONFIRMED" },
-                        take: 1,
-                        select: { id: true, metadata: true },
+                        where: { status: PaymentStatus.CONFIRMED },
+                        select: { id: true, metadata: true, paymentMethod: true },
                     },
                 },
                 orderBy: { createdAt: "desc" },
@@ -233,11 +266,15 @@ export class AdminService {
             const payment = payments[0];
             const meta = payment?.metadata;
             const isManualSubscription = !!(meta?.manualSubscription);
+            const isManualChannelPaid = user.role === "STUDENT" &&
+                payments.some((p) => this.MANUAL_PAYMENT_METHODS.includes(p.paymentMethod) ||
+                    !!(p.metadata?.manualSubscription));
             return {
                 ...rest,
                 affiliation: user.teamMembers[0]?.team.name || null,
                 jurisdiction: user.region,
                 hasPaid: user.role === "STUDENT" ? payments.length > 0 : undefined,
+                isManualChannelPaid: user.role === "STUDENT" && payments.length > 0 ? isManualChannelPaid : undefined,
                 isManualSubscription: user.role === "STUDENT" && payments.length > 0 ? isManualSubscription : undefined,
             };
         });
@@ -678,4 +715,13 @@ export class AdminService {
         return submissions;
     }
 }
+AdminService.MANUAL_PAYMENT_METHODS = [
+    PaymentMethod.BANK_TRANSFER,
+    PaymentMethod.CASH,
+    PaymentMethod.OTHER,
+];
+AdminService.ONLINE_PAYMENT_METHODS = [
+    PaymentMethod.MOBILE_MONEY,
+    PaymentMethod.CARD,
+];
 //# sourceMappingURL=service.js.map

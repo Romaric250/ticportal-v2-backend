@@ -1,6 +1,6 @@
 import { db } from "../../config/database.js";
 import { logger } from "../../shared/utils/logger.js";
-import { UserRole, AffiliateStatus, AffiliateSubRole, AffiliateTier } from "@prisma/client";
+import { UserRole, AffiliateStatus, AffiliateSubRole, AffiliateTier, PaymentMethod, PaymentStatus, ReferralStatus, } from "@prisma/client";
 import { sendRoleChangeEmail, sendAffiliateActivationEmail } from "../../shared/utils/email.js";
 export class AffiliateService {
     static async createCountry(input) {
@@ -1055,30 +1055,175 @@ export class AffiliateService {
         };
     }
     /**
+     * Live referral/student counts per affiliate (fixes drift vs stored totalReferrals when commissions
+     * were created without updating profile counters).
+     */
+    static async getAffiliateReferralStats(affiliateIds) {
+        if (affiliateIds.length === 0) {
+            return new Map();
+        }
+        const referrals = await db.studentReferral.findMany({
+            where: { affiliateId: { in: affiliateIds } },
+            select: {
+                affiliateId: true,
+                status: true,
+                payment: {
+                    select: { paymentMethod: true, status: true },
+                },
+            },
+        });
+        const paidStatuses = [ReferralStatus.PAID, ReferralStatus.ACTIVATED];
+        const map = new Map();
+        for (const id of affiliateIds) {
+            map.set(id, {
+                referralCount: 0,
+                paidStudents: 0,
+                manualPaidStudents: 0,
+                onlinePaidStudents: 0,
+            });
+        }
+        for (const r of referrals) {
+            const aid = r.affiliateId;
+            if (!aid || !map.has(aid))
+                continue;
+            const row = map.get(aid);
+            row.referralCount += 1;
+            const pm = r.payment?.paymentMethod;
+            const payOk = r.payment?.status === PaymentStatus.CONFIRMED;
+            const refPaid = paidStatuses.includes(r.status) && payOk && pm !== undefined;
+            if (refPaid) {
+                row.paidStudents += 1;
+                if (this.MANUAL_PAYMENT_METHODS.includes(pm)) {
+                    row.manualPaidStudents += 1;
+                }
+                else if (this.ONLINE_PAYMENT_METHODS.includes(pm)) {
+                    row.onlinePaidStudents += 1;
+                }
+            }
+        }
+        return map;
+    }
+    /**
+     * Optional filters: commission sum range, with/without commission, payment channel (manual vs online).
+     */
+    static async resolveListAffiliateIdFilters(params) {
+        const intersections = [];
+        const needEarnFilter = params.earnFilter != null ||
+            params.minEarned != null ||
+            params.maxEarned != null;
+        if (needEarnFilter) {
+            const sums = await db.commission.groupBy({
+                by: ["affiliateProfileId"],
+                where: { affiliateProfileId: { not: null } },
+                _sum: { commissionAmount: true },
+            });
+            const byId = new Map();
+            for (const s of sums) {
+                const id = s.affiliateProfileId;
+                if (!id)
+                    continue;
+                byId.set(id, (s._sum.commissionAmount ?? 0));
+            }
+            if (params.earnFilter === "no_commission") {
+                const all = await db.affiliateProfile.findMany({ select: { id: true } });
+                intersections.push(all.map((a) => a.id).filter((id) => (byId.get(id) ?? 0) === 0));
+            }
+            else {
+                const allProfiles = await db.affiliateProfile.findMany({ select: { id: true } });
+                const ids = allProfiles
+                    .map(({ id }) => id)
+                    .filter((id) => {
+                    const total = byId.get(id) ?? 0;
+                    if (params.earnFilter === "with_commission" && total <= 0)
+                        return false;
+                    if (params.minEarned != null && total < params.minEarned)
+                        return false;
+                    if (params.maxEarned != null && total > params.maxEarned)
+                        return false;
+                    return true;
+                });
+                intersections.push(ids);
+            }
+        }
+        if (params.paymentChannel && params.paymentChannel !== "all") {
+            const methods = params.paymentChannel === "manual"
+                ? this.MANUAL_PAYMENT_METHODS
+                : this.ONLINE_PAYMENT_METHODS;
+            const refs = await db.studentReferral.findMany({
+                where: {
+                    affiliateId: { not: null },
+                    status: { in: [ReferralStatus.PAID, ReferralStatus.ACTIVATED] },
+                    payment: {
+                        status: PaymentStatus.CONFIRMED,
+                        paymentMethod: { in: methods },
+                    },
+                },
+                select: { affiliateId: true },
+            });
+            const unique = [...new Set(refs.map((r) => r.affiliateId).filter(Boolean))];
+            intersections.push(unique);
+        }
+        if (intersections.length === 0)
+            return undefined;
+        let result = new Set(intersections[0]);
+        for (let i = 1; i < intersections.length; i++) {
+            const next = new Set(intersections[i]);
+            result = new Set([...result].filter((id) => next.has(id)));
+        }
+        return [...result];
+    }
+    /**
      * Admin: List all affiliates with pagination and filters
      */
     static async listAffiliates(params) {
         const page = params.page || 1;
         const limit = params.limit || 20;
         const skip = (page - 1) * limit;
+        const idFilter = await this.resolveListAffiliateIdFilters({
+            ...(params.minEarned !== undefined ? { minEarned: params.minEarned } : {}),
+            ...(params.maxEarned !== undefined ? { maxEarned: params.maxEarned } : {}),
+            ...(params.earnFilter !== undefined ? { earnFilter: params.earnFilter } : {}),
+            ...(params.paymentChannel !== undefined ? { paymentChannel: params.paymentChannel } : {}),
+        });
         const where = {};
+        if (params.affiliateId) {
+            if (idFilter !== undefined && !idFilter.includes(params.affiliateId)) {
+                return {
+                    affiliates: [],
+                    pagination: { total: 0, page, limit, pages: 0 },
+                };
+            }
+            where.id = params.affiliateId;
+        }
+        else if (idFilter !== undefined) {
+            if (idFilter.length === 0) {
+                return {
+                    affiliates: [],
+                    pagination: { total: 0, page, limit, pages: 0 },
+                };
+            }
+            where.id = { in: idFilter };
+        }
         if (params.status) {
             where.status = params.status;
+        }
+        if (params.subRole) {
+            where.subRole = params.subRole;
         }
         if (params.regionId) {
             where.regionId = params.regionId;
         }
         if (params.countryId) {
             where.region = {
-                countryId: params.countryId
+                countryId: params.countryId,
             };
         }
         if (params.search) {
             where.OR = [
-                { referralCode: { contains: params.search, mode: 'insensitive' } },
-                { user: { firstName: { contains: params.search, mode: 'insensitive' } } },
-                { user: { lastName: { contains: params.search, mode: 'insensitive' } } },
-                { user: { email: { contains: params.search, mode: 'insensitive' } } }
+                { referralCode: { contains: params.search, mode: "insensitive" } },
+                { user: { firstName: { contains: params.search, mode: "insensitive" } } },
+                { user: { lastName: { contains: params.search, mode: "insensitive" } } },
+                { user: { email: { contains: params.search, mode: "insensitive" } } },
             ];
         }
         const [affiliates, total] = await Promise.all([
@@ -1092,35 +1237,63 @@ export class AffiliateService {
                             id: true,
                             firstName: true,
                             lastName: true,
-                            email: true
-                        }
+                            email: true,
+                        },
                     },
                     region: {
                         include: {
-                            country: true
-                        }
-                    }
+                            country: true,
+                        },
+                    },
                 },
-                orderBy: { createdAt: 'desc' }
+                orderBy: { createdAt: "desc" },
             }),
-            db.affiliateProfile.count({ where })
+            db.affiliateProfile.count({ where }),
         ]);
-        // Recalculate totalEarned from actual commission records for accuracy
+        const ids = affiliates.map((a) => a.id);
+        const statsMap = await this.getAffiliateReferralStats(ids);
+        const commissionRows = await db.commission.findMany({
+            where: { affiliateProfileId: { in: ids } },
+            select: { affiliateProfileId: true, referralId: true },
+        });
+        const distinctReferralsByAffiliate = new Map();
+        for (const c of commissionRows) {
+            if (!c.affiliateProfileId)
+                continue;
+            if (!distinctReferralsByAffiliate.has(c.affiliateProfileId)) {
+                distinctReferralsByAffiliate.set(c.affiliateProfileId, new Set());
+            }
+            distinctReferralsByAffiliate.get(c.affiliateProfileId).add(c.referralId);
+        }
         const affiliatesWithRecalculatedEarnings = await Promise.all(affiliates.map(async (affiliate) => {
-            // Get all commissions for this affiliate
             const commissionsResult = await db.commission.aggregate({
                 where: {
-                    affiliateProfileId: affiliate.id
+                    affiliateProfileId: affiliate.id,
                 },
                 _sum: {
-                    commissionAmount: true
-                }
+                    commissionAmount: true,
+                },
             });
             const actualTotalEarned = commissionsResult._sum.commissionAmount || 0;
-            // Return affiliate with recalculated totalEarned
+            const stats = statsMap.get(affiliate.id) ?? {
+                referralCount: 0,
+                paidStudents: 0,
+                manualPaidStudents: 0,
+                onlinePaidStudents: 0,
+            };
+            const studentsWithCommissions = distinctReferralsByAffiliate.get(affiliate.id)?.size ?? 0;
             return {
                 ...affiliate,
-                totalEarned: actualTotalEarned
+                totalEarned: actualTotalEarned,
+                totalReferrals: stats.referralCount,
+                totalStudents: stats.paidStudents,
+                listStats: {
+                    referralCount: stats.referralCount,
+                    paidStudents: stats.paidStudents,
+                    manualPaidStudents: stats.manualPaidStudents,
+                    onlinePaidStudents: stats.onlinePaidStudents,
+                    studentsWithCommissions,
+                },
             };
         }));
         return {
@@ -1129,8 +1302,8 @@ export class AffiliateService {
                 total,
                 page,
                 limit,
-                pages: Math.ceil(total / limit)
-            }
+                pages: Math.ceil(total / limit),
+            },
         };
     }
     /**
@@ -1605,5 +1778,65 @@ export class AffiliateService {
             nationalRate: data.nationalRate
         };
     }
+    /**
+     * Admin: Confirmed paid students per affiliate marketer (manual vs online), for admin dashboards.
+     */
+    static async getReferralPaymentSummaryByAffiliate() {
+        const rows = await db.studentReferral.findMany({
+            where: {
+                affiliateId: { not: null },
+                status: { in: [ReferralStatus.PAID, ReferralStatus.ACTIVATED] },
+                payment: { status: PaymentStatus.CONFIRMED },
+            },
+            select: {
+                affiliateId: true,
+                payment: { select: { paymentMethod: true } },
+                affiliate: {
+                    select: {
+                        referralCode: true,
+                        user: { select: { firstName: true, lastName: true } },
+                        region: { select: { name: true } },
+                    },
+                },
+            },
+        });
+        const map = new Map();
+        for (const r of rows) {
+            const aid = r.affiliateId;
+            if (!aid || !r.affiliate)
+                continue;
+            const pm = r.payment?.paymentMethod;
+            const isManual = pm !== undefined && this.MANUAL_PAYMENT_METHODS.includes(pm);
+            const isOnline = pm !== undefined && this.ONLINE_PAYMENT_METHODS.includes(pm);
+            if (!map.has(aid)) {
+                map.set(aid, {
+                    affiliateId: aid,
+                    referralCode: r.affiliate.referralCode,
+                    marketerName: `${r.affiliate.user?.firstName ?? ""} ${r.affiliate.user?.lastName ?? ""}`.trim(),
+                    regionName: r.affiliate.region?.name ?? "—",
+                    totalPaid: 0,
+                    manualPaid: 0,
+                    onlinePaid: 0,
+                });
+            }
+            const row = map.get(aid);
+            row.totalPaid += 1;
+            if (isManual)
+                row.manualPaid += 1;
+            if (isOnline)
+                row.onlinePaid += 1;
+        }
+        return [...map.values()].sort((a, b) => b.totalPaid - a.totalPaid);
+    }
 }
+/** Manual-style payments (admin upload / bank / cash). Online = card + mobile money. */
+AffiliateService.MANUAL_PAYMENT_METHODS = [
+    PaymentMethod.BANK_TRANSFER,
+    PaymentMethod.CASH,
+    PaymentMethod.OTHER,
+];
+AffiliateService.ONLINE_PAYMENT_METHODS = [
+    PaymentMethod.MOBILE_MONEY,
+    PaymentMethod.CARD,
+];
 //# sourceMappingURL=service.js.map

@@ -85,6 +85,10 @@ export declare class AffiliateController {
      */
     listAffiliates: (req: Request, res: Response) => Promise<void>;
     /**
+     * Admin: Paid students per affiliate (manual vs online payment method)
+     */
+    getReferralPaymentSummary: (_req: Request, res: Response) => Promise<void>;
+    /**
      * Admin: Suspend affiliate
      */
     suspendAffiliate: (req: Request, res: Response) => Promise<void>;

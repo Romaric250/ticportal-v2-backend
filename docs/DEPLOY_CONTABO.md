@@ -4,6 +4,26 @@ Use this checklist after your **DNS** points your API hostname (e.g. `api.ticsum
 
 **Two ways to get HTTPS:**
 
+docker compose logs api
+docker compose logs -f api
+docker compose logs --tail 100 api
+
+
+
+# for updates
+
+cd ticportal-v2-backend
+git pull
+docker compose up -d --build
+
+
+
+if prisma changes
+
+docker compose run --rm api npx prisma db push
+
+
+
 | Setup | What to use |
 |--------|-------------|
 | **This server already runs Nginx Proxy Manager** (or anything on **80/443**) | Start **only the `api` service** and add a **Proxy Host** in NPM — **do not** start Caddy (see [Nginx Proxy Manager on this server](#nginx-proxy-manager-on-this-server-ports-80443-already-in-use)). |
@@ -270,12 +290,30 @@ Use your team’s preferred workflow for production (some teams run pushes from 
 
 ---
 
-## 11. Later: deploy updates from GitHub
+## 11. After you push new code: deploy updates on the VPS
+
+Every time you merge/push changes and want the server to run the new version:
 
 ```bash
-cd /opt/ticportal-v2-backend   # or your path
+cd /var/www/ticportal/ticportal-v2-backend   # your clone path
 git pull
 docker compose up -d --build
+```
+
+That rebuilds the API image when the `Dockerfile` or app code changed, recreates the container if needed, and keeps the stack running.
+
+**If `prisma/schema.prisma` changed** (new models/fields), apply the schema to production MongoDB:
+
+```bash
+docker compose run --rm api npx prisma db push
+```
+
+**You do not need to** repeat `docker network connect` for NPM after each pull — that only had to be done once per container (unless you recreate the container name/network from scratch).
+
+**Check logs after deploy:**
+
+```bash
+docker compose logs -f --tail 80 api
 ```
 
 ---

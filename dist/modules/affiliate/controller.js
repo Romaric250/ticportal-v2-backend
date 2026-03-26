@@ -409,12 +409,12 @@ export class AffiliateController {
          */
         this.listAffiliates = async (req, res) => {
             try {
-                const { page, limit, status, search, regionId, countryId } = req.query;
+                const { page, limit, status, search, regionId, countryId, subRole, affiliateId, minEarned, maxEarned, earnFilter, paymentChannel, } = req.query;
                 const params = {};
                 if (page)
-                    params.page = parseInt(page);
+                    params.page = parseInt(page, 10);
                 if (limit)
-                    params.limit = parseInt(limit);
+                    params.limit = parseInt(limit, 10);
                 if (status)
                     params.status = status;
                 if (search)
@@ -423,12 +423,41 @@ export class AffiliateController {
                     params.regionId = regionId;
                 if (countryId)
                     params.countryId = countryId;
+                if (subRole && typeof subRole === "string")
+                    params.subRole = subRole;
+                if (affiliateId && typeof affiliateId === "string")
+                    params.affiliateId = affiliateId;
+                if (minEarned !== undefined && minEarned !== "")
+                    params.minEarned = parseFloat(minEarned);
+                if (maxEarned !== undefined && maxEarned !== "")
+                    params.maxEarned = parseFloat(maxEarned);
+                if (earnFilter === "with_commission" || earnFilter === "no_commission") {
+                    params.earnFilter = earnFilter;
+                }
+                if (paymentChannel === "manual" ||
+                    paymentChannel === "online" ||
+                    paymentChannel === "all") {
+                    params.paymentChannel = paymentChannel;
+                }
                 const result = await AffiliateService.listAffiliates(params);
                 res.status(200).json({ success: true, data: result });
             }
             catch (error) {
                 logger.error('Error listing affiliates:', error);
                 res.status(500).json({ error: error.message || 'Failed to list affiliates' });
+            }
+        };
+        /**
+         * Admin: Paid students per affiliate (manual vs online payment method)
+         */
+        this.getReferralPaymentSummary = async (_req, res) => {
+            try {
+                const rows = await AffiliateService.getReferralPaymentSummaryByAffiliate();
+                res.status(200).json({ success: true, data: rows });
+            }
+            catch (error) {
+                logger.error('Error loading referral payment summary:', error);
+                res.status(500).json({ error: error.message || 'Failed to load referral payment summary' });
             }
         };
         /**

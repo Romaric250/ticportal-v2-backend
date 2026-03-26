@@ -155,6 +155,13 @@ router.get(
   affiliateController.listAffiliates
 );
 
+router.get(
+  '/admin/referral-payment-summary',
+  authenticate,
+  authorize([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+  affiliateController.getReferralPaymentSummary
+);
+
 router.patch(
   '/admin/affiliates/:affiliateId/suspend',
   authenticate,

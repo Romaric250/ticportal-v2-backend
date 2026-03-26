@@ -55,7 +55,12 @@ export class AdminController {
       if (jurisdiction) filters.jurisdiction = jurisdiction as string;
       if (status) filters.status = status as UserStatus;
       if (search) filters.search = search as string;
-      if (paymentStatus === "paid" || paymentStatus === "not_paid") filters.paymentStatus = paymentStatus;
+      if (
+        paymentStatus === "paid" ||
+        paymentStatus === "not_paid" ||
+        paymentStatus === "manual_paid"
+      )
+        filters.paymentStatus = paymentStatus;
 
       const result = await AdminService.getUsers(filters);
 
@@ -302,7 +307,14 @@ export class AdminController {
    */
   static async getUsersByRegionStats(req: Request, res: Response) {
     try {
-      const stats = await AdminService.getUsersByRegionStats();
+      const { paymentChannel } = req.query;
+      const channel =
+        paymentChannel === "manual" || paymentChannel === "online" || paymentChannel === "all"
+          ? paymentChannel
+          : "all";
+      const stats = await AdminService.getUsersByRegionStats({
+        paymentChannel: channel,
+      });
       res.json({
         success: true,
         data: stats,

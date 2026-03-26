@@ -485,15 +485,44 @@ export class AffiliateController {
    */
   listAffiliates = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { page, limit, status, search, regionId, countryId } = req.query;
+      const {
+        page,
+        limit,
+        status,
+        search,
+        regionId,
+        countryId,
+        subRole,
+        affiliateId,
+        minEarned,
+        maxEarned,
+        earnFilter,
+        paymentChannel,
+      } = req.query;
 
       const params: any = {};
-      if (page) params.page = parseInt(page as string);
-      if (limit) params.limit = parseInt(limit as string);
+      if (page) params.page = parseInt(page as string, 10);
+      if (limit) params.limit = parseInt(limit as string, 10);
       if (status) params.status = status;
       if (search) params.search = search as string;
       if (regionId) params.regionId = regionId as string;
       if (countryId) params.countryId = countryId as string;
+      if (subRole && typeof subRole === "string") params.subRole = subRole;
+      if (affiliateId && typeof affiliateId === "string") params.affiliateId = affiliateId;
+      if (minEarned !== undefined && minEarned !== "")
+        params.minEarned = parseFloat(minEarned as string);
+      if (maxEarned !== undefined && maxEarned !== "")
+        params.maxEarned = parseFloat(maxEarned as string);
+      if (earnFilter === "with_commission" || earnFilter === "no_commission") {
+        params.earnFilter = earnFilter;
+      }
+      if (
+        paymentChannel === "manual" ||
+        paymentChannel === "online" ||
+        paymentChannel === "all"
+      ) {
+        params.paymentChannel = paymentChannel;
+      }
 
       const result = await AffiliateService.listAffiliates(params);
 
@@ -501,6 +530,19 @@ export class AffiliateController {
     } catch (error: any) {
       logger.error('Error listing affiliates:', error);
       res.status(500).json({ error: error.message || 'Failed to list affiliates' });
+    }
+  };
+
+  /**
+   * Admin: Paid students per affiliate (manual vs online payment method)
+   */
+  getReferralPaymentSummary = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const rows = await AffiliateService.getReferralPaymentSummaryByAffiliate();
+      res.status(200).json({ success: true, data: rows });
+    } catch (error: any) {
+      logger.error('Error loading referral payment summary:', error);
+      res.status(500).json({ error: error.message || 'Failed to load referral payment summary' });
     }
   };
 

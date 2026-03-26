@@ -135,7 +135,7 @@ app.use(cookieParser());
 app.use(trackActivity);
 
 // Start all cron jobs (health check + badge awards)
-startCronJobs();
+// startCronJobs();
 logger.info("Cron jobs initialized");
 
 app.get("/health", (_req, res) => {
