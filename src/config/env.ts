@@ -4,6 +4,8 @@ dotenv.config();
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
+  /** Set true when the app sits behind a reverse proxy (e.g. Caddy/Nginx) so req.ip and rate limits use X-Forwarded-For. */
+  trustProxy: process.env.TRUST_PROXY === "true",
   port: Number(process.env.PORT ?? 5000),
   isRateLimitActive: process.env.IS_RATE_LIMIT_ACTIVE === "true",
   isRedisActive: process.env.IS_REDIS_ACTIVE === "true",

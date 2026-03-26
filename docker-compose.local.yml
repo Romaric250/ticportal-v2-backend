@@ -1,0 +1,17 @@
+# Local Docker test: API only on http://localhost:5005 (no Caddy).
+# Usage: docker compose -f docker-compose.local.yml up --build
+#
+# Requires a .env with DATABASE_URL, JWT secrets, etc. (see docs/DEVELOPMENT.md)
+
+services:
+  api:
+    build: .
+    container_name: ticportal-api-local
+    ports:
+      - "5005:5005"
+    env_file:
+      - .env
+    environment:
+      PORT: "5005"
+      NODE_ENV: production
+      TRUST_PROXY: "false"

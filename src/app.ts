@@ -34,6 +34,9 @@ import paymentRoutes from "./modules/payment/routes";
 
 const app = express();
 
+if (env.trustProxy) {
+  app.set("trust proxy", 1);
+}
 
 //logging middleware
 app.use((req, res, next) => {

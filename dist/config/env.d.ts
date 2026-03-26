@@ -1,5 +1,7 @@
 export declare const env: {
     nodeEnv: string;
+    /** Set true when the app sits behind a reverse proxy (e.g. Caddy/Nginx) so req.ip and rate limits use X-Forwarded-For. */
+    trustProxy: boolean;
     port: number;
     isRateLimitActive: boolean;
     isRedisActive: boolean;

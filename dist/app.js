@@ -32,6 +32,9 @@ import portfolioRoutes from "./modules/portfolio/routes.js";
 import affiliateRoutes from "./modules/affiliate/routes.js";
 import paymentRoutes from "./modules/payment/routes.js";
 const app = express();
+if (env.trustProxy) {
+    app.set("trust proxy", 1);
+}
 //logging middleware
 app.use((req, res, next) => {
     const startTime = Date.now();
