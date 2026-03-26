@@ -1,10 +1,11 @@
-# Deploy on a VPS (Docker + Caddy)
+# Deploy on a VPS (Docker)
 
 For **running locally first** (Node or Docker), see **`docs/DEVELOPMENT.md`**.
 
-For a **Contabo VPS walkthrough** (SSH, Docker, firewall, clone, env, `docker compose up`), see **`docs/DEPLOY_CONTABO.md`**.
+For a **Contabo VPS walkthrough** (including **Nginx Proxy Manager** vs **Caddy**), see **`docs/DEPLOY_CONTABO.md`**.
 
-This stack runs the API in Docker and **Caddy** on ports **80/443** for HTTP and automatic HTTPS (Let’s Encrypt).
+- **Default:** `docker compose up -d --build` starts the **API** and publishes **5005**. Use this when **Nginx Proxy Manager** (or another proxy) already owns **80/443** — configure NPM to forward to `ticportal-api:5005` (see main deploy doc).
+- **Optional Caddy** (clean VPS, nothing on 80/443): `docker compose --profile caddy up -d --build` — Caddy handles **80/443** and Let’s Encrypt; see `deploy/Caddyfile`.
 
 ## Prerequisites
 
@@ -26,30 +27,26 @@ Clone the repo on the VPS, then from the backend root:
    - `CLIENT_URL` / `FRONTEND_URL` — your real frontend URLs (CORS + emails)
    - `TRUST_PROXY=true` is already set in `docker-compose.yml`; keep it when using Caddy.
 
-Build and start:
+**API + NPM (recommended when 80/443 are already in use):**
 
 ```bash
 docker compose up -d --build
 ```
 
-Check logs:
+**API + Caddy (dedicated VPS):**
+
+```bash
+docker compose --profile caddy up -d --build
+```
+
+Logs:
 
 ```bash
 docker compose logs -f api
-docker compose logs -f caddy
+docker compose logs -f caddy   # only if you used --profile caddy
 ```
 
-HTTPS certificates are requested automatically by Caddy once DNS points to this machine and ports 80/443 are reachable.
-
-## API-only (no Caddy on this host)
-
-If you terminate TLS elsewhere (CDN, another proxy), you can run only the API container:
-
-```bash
-docker compose up -d --build api
-```
-
-Map a port in `docker-compose.yml` for `api` (e.g. `ports: ["5005:5005"]` to match internal `PORT`) or put Nginx/Caddy on the host yourself.
+With **Caddy**, HTTPS certificates are issued automatically once DNS points to the server and **80/443** are free. With **NPM**, issue certificates in the NPM UI.
 
 ## Migrations
 
