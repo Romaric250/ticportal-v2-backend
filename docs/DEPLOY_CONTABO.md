@@ -10,6 +10,10 @@ docker compose logs --tail 100 api
 
 
 
+docker network connect nginx-manager_scoobydoo ticportal-api
+docker network connect proxy ticportal-api
+
+
 # for updates
 
 cd ticportal-v2-backend
@@ -21,6 +25,24 @@ docker compose up -d --build
 if prisma changes
 
 docker compose run --rm api npx prisma db push
+
+
+
+
+debug
+
+
+http://localhost:5005/api/admin/users?page=1&limit=20&paymentStatus=manual_paid
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -339,6 +361,55 @@ To run **Caddy** on this machine, **80** and **443** must be free, then:
 ```bash
 docker compose --profile caddy up -d --build
 ```
+
+---
+
+## Troubleshooting: 502 Bad Gateway (OpenResty / Nginx / NPM)
+
+**OpenResty** (and **Nginx Proxy Manager**) return **502** when the reverse proxy **cannot connect** to the upstream you configured, or the upstream **closes the connection** (e.g. app crashed).
+
+Run these **on the VPS** from the backend repo directory (`ticportal-v2-backend`):
+
+### 1. Is the API container running?
+
+```bash
+docker compose ps
+```
+
+You want `ticportal-api` (service `api`) **Up**. If **Exit** or **Restarting**:
+
+```bash
+docker compose logs --tail 120 api
+```
+
+Typical failures: bad **`DATABASE_URL`**, MongoDB IP not allowed in Atlas, missing env vars, Prisma/runtime errors during startup.
+
+### 2. Does the API respond on the host?
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5005/health
+```
+
+You want **`200`**. If **connection refused**, the container is not listening (wrong port mapping, crash) or not started.
+
+### 3. Fix the proxy upstream (NPM / OpenResty)
+
+The proxy must forward to where the API is actually reachable:
+
+| Setup | Forward hostname / IP | Port | Scheme |
+|--------|------------------------|------|--------|
+| **Best:** NPM and `ticportal-api` on the **same Docker network** | `ticportal-api` | `5005` | `http` |
+| **Fallback** (no shared network) | `172.17.0.1` (Docker host gateway on many Linux installs) | `5005` | `http` |
+
+If you use **container name** (`ticportal-api`), run **`docker network connect`** once so NPM’s container can resolve it (see [Nginx Proxy Manager on this server](#nginx-proxy-manager-on-this-server-ports-80443-already-in-use)). Wrong hostname, wrong port (**must be 5005**, not 5000), or **https** to the container while the API speaks **http** will cause **502**.
+
+### 4. Websockets
+
+In Nginx Proxy Manager, enable **Websockets** for this proxy host (Socket.io).
+
+### 5. After `docker compose up -d --build`
+
+If the **image build fails**, the old container might still run or nothing runs — always check **`docker compose ps`** and **`docker compose logs api`** after deploy.
 
 ---
 

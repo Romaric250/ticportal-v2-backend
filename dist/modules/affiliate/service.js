@@ -876,6 +876,10 @@ export class AffiliateService {
                 commissionRate = countryData.nationalCommissionRate ?? 4;
             }
         }
+        // API: percent points (9 = 9%). Legacy DB may store 0.09 — normalize for clients.
+        if (commissionRate != null && commissionRate > 0 && commissionRate <= 1) {
+            commissionRate = commissionRate * 100;
+        }
         return {
             id: profile.id,
             userId: profile.userId,
@@ -884,7 +888,7 @@ export class AffiliateService {
             referralLink: profile.referralLink,
             status: profile.status,
             tier: profile.tier,
-            commissionRate, // Add commission rate
+            commissionRate,
             region: profile.region ? {
                 id: profile.region.id,
                 name: profile.region.name,
