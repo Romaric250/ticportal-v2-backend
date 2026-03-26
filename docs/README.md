@@ -26,4 +26,5 @@ npm run dev
 
 ## Deployment
 
-See **`deploy/README.md`** (Docker Compose + Caddy on a VPS).
+- **Contabo VPS (step-by-step):** [DEPLOY_CONTABO.md](./DEPLOY_CONTABO.md)
+- **Technical notes:** [`deploy/README.md`](../deploy/README.md) (Docker Compose + Caddy)

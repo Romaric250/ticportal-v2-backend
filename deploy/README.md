@@ -2,6 +2,8 @@
 
 For **running locally first** (Node or Docker), see **`docs/DEVELOPMENT.md`**.
 
+For a **Contabo VPS walkthrough** (SSH, Docker, firewall, clone, env, `docker compose up`), see **`docs/DEPLOY_CONTABO.md`**.
+
 This stack runs the API in Docker and **Caddy** on ports **80/443** for HTTP and automatic HTTPS (Let’s Encrypt).
 
 ## Prerequisites
