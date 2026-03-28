@@ -2,7 +2,14 @@ import { db } from "../../config/database";
 import { logger } from "../../shared/utils/logger";
 import { fapshiService, type ProcessedWebhookEvent } from "../../shared/utils/fapshi";
 import { PaymentCommissionService } from "../affiliate/payment-commission.service";
-import { PaymentStatus, PaymentMethod, CommissionStatus, CommissionType, ReferralStatus } from "@prisma/client";
+import {
+  PaymentStatus,
+  PaymentMethod,
+  CommissionStatus,
+  CommissionType,
+  ReferralStatus,
+  UserRole,
+} from "@prisma/client";
 import { 
   sendPaymentSuccessEmail, 
   sendPaymentFailedEmail,
@@ -869,12 +876,12 @@ export class PaymentService {
         throw new Error('User not found');
       }
 
-      // Only students need to have paid
-      if (user.role !== 'STUDENT') {
+      // Only registered students pay the program fee — mentors, judges, admins, affiliates, etc. are never gated.
+      if (user.role !== UserRole.STUDENT) {
         return {
           hasPaid: true,
           isRequired: false,
-          message: 'Payment not required for this user role'
+          message: "Payment not required for this account type (e.g. mentors and staff are not charged the student fee).",
         };
       }
 

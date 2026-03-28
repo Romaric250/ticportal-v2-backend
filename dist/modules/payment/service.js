@@ -2,7 +2,7 @@ import { db } from "../../config/database.js";
 import { logger } from "../../shared/utils/logger.js";
 import { fapshiService } from "../../shared/utils/fapshi.js";
 import { PaymentCommissionService } from "../affiliate/payment-commission.service.js";
-import { PaymentStatus, PaymentMethod, CommissionStatus, CommissionType, ReferralStatus } from "@prisma/client";
+import { PaymentStatus, PaymentMethod, CommissionStatus, CommissionType, ReferralStatus, UserRole, } from "@prisma/client";
 import { sendPaymentSuccessEmail, sendPaymentFailedEmail, sendPaymentPendingEmail } from "../../shared/utils/email.js";
 /**
  * Payment Service
@@ -747,12 +747,12 @@ export class PaymentService {
             if (!user) {
                 throw new Error('User not found');
             }
-            // Only students need to have paid
-            if (user.role !== 'STUDENT') {
+            // Only registered students pay the program fee — mentors, judges, admins, affiliates, etc. are never gated.
+            if (user.role !== UserRole.STUDENT) {
                 return {
                     hasPaid: true,
                     isRequired: false,
-                    message: 'Payment not required for this user role'
+                    message: "Payment not required for this account type (e.g. mentors and staff are not charged the student fee).",
                 };
             }
             // Check if user has a confirmed payment

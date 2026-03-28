@@ -135,6 +135,7 @@ export declare class AdminService {
         lastLogin: Date | null;
         squadId: string | null;
         updatedAt: Date;
+        isReviewer: boolean;
     }>;
     /**
      * Create user (admin)
@@ -171,6 +172,7 @@ export declare class AdminService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         plainPassword: string | undefined;
     }>;
@@ -217,6 +219,7 @@ export declare class AdminService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         plainPassword: string | undefined;
     }>;
@@ -251,6 +254,7 @@ export declare class AdminService {
         lastLogin: Date | null;
         squadId: string | null;
         updatedAt: Date;
+        isReviewer: boolean;
     }>;
     /**
      * Bulk delete users
@@ -269,9 +273,6 @@ export declare class AdminService {
      * Includes retry logic for transient connection errors.
      */
     static deleteUser(userId: string): Promise<void>;
-    /**
-     * Get all teams with filters
-     */
     static getTeams(filters: {
         page?: number;
         limit?: number;
@@ -279,36 +280,26 @@ export declare class AdminService {
         status?: string;
         search?: string;
     }): Promise<{
-        teams: ({
-            members: ({
-                user: {
-                    id: string;
-                    email: string;
-                    firstName: string;
-                    lastName: string;
-                    profilePhoto: string | null;
-                };
-            } & {
-                userId: string;
-                id: string;
-                role: import(".prisma/client").$Enums.TeamRole;
-                teamId: string;
-                joinedAt: Date;
-            })[];
-        } & {
+        teams: {
             id: string;
-            createdAt: Date;
             name: string;
             school: string;
             profileImage: string | null;
             projectTitle: string | null;
             description: string | null;
-        })[];
+            createdAt: Date;
+            memberCount: number;
+            deliverableSubmitted: number;
+            deliverableTotal: number;
+            reviewerAssignmentCount: number;
+        }[];
         pagination: {
             page: number;
             limit: number;
-            total: number;
-            totalPages: number;
+            total: number | null;
+            totalPages: number | null;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
         };
     }>;
     /**
@@ -318,26 +309,12 @@ export declare class AdminService {
         members: ({
             user: {
                 id: string;
-                createdAt: Date;
                 email: string;
-                username: string | null;
-                password: string;
                 role: import(".prisma/client").$Enums.UserRole;
-                status: import(".prisma/client").$Enums.UserStatus;
                 firstName: string;
                 lastName: string;
-                bio: string | null;
-                phone: string | null;
                 profilePhoto: string | null;
                 school: string | null;
-                grade: string | null;
-                country: string | null;
-                region: string | null;
-                gradDate: Date | null;
-                isVerified: boolean;
-                lastLogin: Date | null;
-                squadId: string | null;
-                updatedAt: Date;
             };
         } & {
             userId: string;
@@ -345,6 +322,33 @@ export declare class AdminService {
             role: import(".prisma/client").$Enums.TeamRole;
             teamId: string;
             joinedAt: Date;
+        })[];
+        deliverables: ({
+            template: {
+                id: string;
+                type: import(".prisma/client").$Enums.DeliverableType;
+                title: string;
+                description: string;
+                customType: string | null;
+                contentType: import(".prisma/client").$Enums.DeliverableContentType;
+                dueDate: Date;
+                required: boolean;
+            };
+        } & {
+            id: string;
+            type: import(".prisma/client").$Enums.DeliverableType;
+            description: string | null;
+            teamId: string;
+            submittedAt: Date;
+            customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
+            content: string;
+            reviewedBy: string | null;
+            reviewedAt: Date | null;
+            templateId: string;
+            submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
+            reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
+            feedback: string | null;
         })[];
     } & {
         id: string;

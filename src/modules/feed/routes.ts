@@ -11,8 +11,9 @@ router.get("/feed/trending", authenticate, FeedController.getTrendingPosts);
 router.get("/feed/latest", authenticate, FeedController.getLatestPosts);
 router.get("/feed/search", authenticate, FeedController.searchPosts);
 
-// Posts
+// Posts (quota route must be registered before /feed/posts/:postId)
 router.get("/feed/posts", authenticate, FeedController.getPosts);
+router.get("/feed/posts/quota/daily", authenticate, FeedController.getDailyPostQuota);
 router.get("/feed/posts/:postId", authenticate, FeedController.getPostById);
 router.post("/feed/posts", authenticate, FeedController.createPost);
 router.put("/feed/posts/:postId", authenticate, FeedController.updatePost);

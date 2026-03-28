@@ -31,6 +31,7 @@ import dashboardRoutes from "./modules/dashboard/routes.js";
 import portfolioRoutes from "./modules/portfolio/routes.js";
 import affiliateRoutes from "./modules/affiliate/routes.js";
 import paymentRoutes from "./modules/payment/routes.js";
+import gradingRoutes from "./modules/grading/routes.js";
 const app = express();
 if (env.trustProxy) {
     app.set("trust proxy", 1);
@@ -101,7 +102,6 @@ app.use(cors({
     preflightContinue: false,
     optionsSuccessStatus: 204,
 }));
-// Configure Helmet to not interfere with CORS
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginEmbedderPolicy: false,
@@ -112,7 +112,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 // Activity tracking middleware (tracks all authenticated requests)
 app.use(trackActivity);
-// Start all cron jobs (health check + badge awards)
 // startCronJobs();
 logger.info("Cron jobs initialized");
 app.get("/health", (_req, res) => {
@@ -128,6 +127,7 @@ app.use("/api/squads", squadRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/hackathons", hackathonRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api", gradingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", deliverableRoutes);
 app.use("/api", learningPathRoutes);
@@ -146,20 +146,22 @@ app.use("/api/feed", (req, res, next) => {
     }, `🔥 Feed route hit: ${req.method} ${req.originalUrl}`);
     next();
 });
-app.use("/api", feedRoutes); // Feed routes registered ✅
-app.use("/api", badgeRoutes); // Badge routes registered ✅
-app.use("/api", leaderboardRoutes); // Leaderboard routes registered ✅
-app.use("/api", dashboardRoutes); // Dashboard routes registered ✅
-app.use("/api", portfolioRoutes); // Portfolio routes registered ✅
-app.use("/api/affiliate", affiliateRoutes); // Affiliate routes registered ✅
-app.use("/api/payment", paymentRoutes); // Payment routes registered ✅
-logger.info("✅ Feed routes registered at /api/feed/*");
-logger.info("✅ Badge routes registered at /api/badges/*");
-logger.info("✅ Leaderboard routes registered at /api/leaderboard/*");
-logger.info("✅ Dashboard routes registered at /api/dashboard/*");
-logger.info("✅ Portfolio routes registered at /api/portfolio");
-logger.info("✅ Affiliate routes registered at /api/affiliate");
-logger.info("✅ Payment routes registered at /api/payment");
+app.use("/api", feedRoutes);
+app.use("/api", badgeRoutes);
+app.use("/api", leaderboardRoutes);
+app.use("/api", dashboardRoutes);
+app.use("/api", portfolioRoutes);
+app.use("/api/affiliate", affiliateRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api", gradingRoutes);
+logger.info("Grading routes registered at /api/grading/*, /api/reviewer/*, /api/admin/* (grading)");
+logger.info("Feed routes registered at /api/feed/*");
+logger.info("Badge routes registered at /api/badges/*");
+logger.info("Leaderboard routes registered at /api/leaderboard/*");
+logger.info("Dashboard routes registered at /api/dashboard/*");
+logger.info("Portfolio routes registered at /api/portfolio");
+logger.info("Affiliate routes registered at /api/affiliate");
+logger.info("Payment routes registered at /api/payment");
 logger.info("Feed routes available:");
 logger.info("  POST   /api/feed/posts");
 logger.info("  GET    /api/feed/posts");
@@ -173,14 +175,13 @@ logger.info("  GET    /api/feed/posts/:postId/comments");
 logger.info("  POST   /api/feed/posts/:postId/comments");
 logger.info("  GET    /api/feed/bookmarks");
 logger.info("  GET    /api/feed/trending-tags");
-// app.use("/api/submissions", submissionRoutes); // REMOVED - doesn't exist
-app.use("/api/f", uploadRoutes); // Global file upload
+app.use("/api/f", uploadRoutes);
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({
     definition: {
         openapi: "3.0.0",
         info: {
-            title: "TIC Summit Portal V2 API",
+            title: "TIC Summits Portal V2.0 API",
             version: "1.0.0",
         },
         components: {
@@ -198,12 +199,11 @@ const swaggerSpec = swaggerJsdoc({
             },
         ],
     },
-    apis: ["./src/modules/**/*.ts"], // Include route files
+    apis: ["./src/modules/**/*.ts"],
 });
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Global 404 handler
 app.use((req, res) => {
-    // Ensure CORS headers are set even on 404 responses
     const origin = req.headers.origin;
     const allowedOrigins = [
         env.clientUrl,

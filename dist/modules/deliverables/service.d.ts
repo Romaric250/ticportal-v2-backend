@@ -51,10 +51,10 @@ export declare class DeliverableService {
             content: string;
             reviewedBy: string | null;
             reviewedAt: Date | null;
+            templateId: string;
             submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
             reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
             feedback: string | null;
-            templateId: string;
         })[];
         hackathon: {
             level: import(".prisma/client").$Enums.HackathonLevel;
@@ -194,10 +194,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     })[]>;
     /**
      * Upload deliverable for a team (admin action)
@@ -238,10 +238,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
     /**
      * Approve deliverable
@@ -276,10 +276,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
     /**
      * Reject deliverable with feedback
@@ -314,10 +314,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
     /**
      * Get team's deliverables
@@ -351,10 +351,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     })[]>;
     /**
      * Submit or update deliverable (student action)
@@ -395,10 +395,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
     /**
      * Get deliverable by ID (for viewing before submission)
@@ -436,10 +436,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
     /**
      * Check if deadline has passed
@@ -486,10 +486,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
         feedback: string | null;
-        templateId: string;
     }>;
 }
 //# sourceMappingURL=service.d.ts.map

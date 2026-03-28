@@ -14,12 +14,57 @@ import type {
   PinPostInput,
   RecordViewInput,
 } from "./types";
-import type { FeedCategory, FeedVisibility, UserRole } from "@prisma/client";
+import type { FeedCategory, FeedVisibility } from "@prisma/client";
+import { UserRole } from "@prisma/client";
+
+/** Students only: max feed posts per UTC calendar day. */
+const STUDENT_POSTS_PER_DAY = 2;
+
+function normalizeFeedUserRole(role: unknown): UserRole {
+  if (typeof role === "string") {
+    return role.replace(/-/g, "_").toUpperCase() as UserRole;
+  }
+  return role as UserRole;
+}
+
+function utcCalendarDayBoundsUtc() {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
 
 export class FeedService {
   /**
    * Get posts with advanced filtering and pagination + SMART ALGORITHM
    */
+  /** For students: how many posts today (UTC day) vs daily cap. Others: applies false. */
+  static async getStudentDailyPostQuota(userId: string, userRole: unknown) {
+    const role = normalizeFeedUserRole(userRole);
+    if (role !== UserRole.STUDENT) {
+      return {
+        applies: false,
+        limit: STUDENT_POSTS_PER_DAY,
+        used: 0,
+        remaining: null as number | null,
+      };
+    }
+    const { start, end } = utcCalendarDayBoundsUtc();
+    const used = await db.feedPost.count({
+      where: {
+        authorId: userId,
+        createdAt: { gte: start, lt: end },
+      },
+    });
+    const remaining = Math.max(0, STUDENT_POSTS_PER_DAY - used);
+    return {
+      applies: true,
+      limit: STUDENT_POSTS_PER_DAY,
+      used,
+      remaining,
+    };
+  }
+
   static async getPosts(userId: string, userRole: UserRole, input: GetPostsInput) {
     const {
       category = "all",
@@ -350,12 +395,11 @@ export class FeedService {
 
     // Check if user liked and bookmarked
     const [liked, bookmarked] = await Promise.all([
-      db.feedLike.findUnique({
+      db.feedLike.findFirst({
         where: {
-          postId_userId: {
-            postId,
-            userId,
-          },
+          postId,
+          userId,
+          commentId: null,
         },
       }),
       db.feedBookmark.findUnique({
@@ -387,13 +431,31 @@ export class FeedService {
    * Create a new post
    */
   static async createPost(userId: string, userRole: UserRole, input: CreatePostInput) {
+    const role = normalizeFeedUserRole(userRole);
+
+    // Students: max 2 posts per UTC calendar day
+    if (role === UserRole.STUDENT) {
+      const { start, end } = utcCalendarDayBoundsUtc();
+      const usedToday = await db.feedPost.count({
+        where: {
+          authorId: userId,
+          createdAt: { gte: start, lt: end },
+        },
+      });
+      if (usedToday >= STUDENT_POSTS_PER_DAY) {
+        const err = new Error("Limit of 2 posts per day reached.");
+        (err as { statusCode?: number }).statusCode = 429;
+        throw err;
+      }
+    }
+
     // Validate visibility permissions
-    if (input.visibility === "ADMIN_ONLY" && userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
+    if (input.visibility === "ADMIN_ONLY" && role !== UserRole.ADMIN && role !== UserRole.SUPER_ADMIN) {
       throw new Error("Only admins can create admin-only posts");
     }
 
     // Only admins can mark posts as official
-    const isOfficial = input.status === "PUBLISHED" && (userRole === "ADMIN" || userRole === "SUPER_ADMIN");
+    const isOfficial = input.status === "PUBLISHED" && (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN);
 
     const postData: any = {
       authorId: userId,
@@ -585,12 +647,11 @@ export class FeedService {
       throw new Error("Post not found");
     }
 
-    const existing = await db.feedLike.findUnique({
+    const existing = await db.feedLike.findFirst({
       where: {
-        postId_userId: {
-          postId,
-          userId,
-        },
+        postId,
+        userId,
+        commentId: null,
       },
     });
 
@@ -612,6 +673,7 @@ export class FeedService {
         data: {
           postId,
           userId,
+          commentId: null,
         },
       });
 
@@ -924,12 +986,11 @@ export class FeedService {
    * Toggle like on a comment
    */
   static async toggleCommentLike(userId: string, commentId: string) {
-    const existing = await db.feedLike.findUnique({
+    const existing = await db.feedLike.findFirst({
       where: {
-        commentId_userId: {
-          commentId,
-          userId,
-        },
+        commentId,
+        userId,
+        postId: null,
       },
     });
 
@@ -951,6 +1012,7 @@ export class FeedService {
         data: {
           commentId,
           userId,
+          postId: null,
         },
       });
 

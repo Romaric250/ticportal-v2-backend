@@ -44,6 +44,34 @@ export class FeedController {
         }
     }
     /**
+     * GET /api/feed/posts/quota/daily
+     * Student daily post limit (2/day UTC); non-students get applies: false.
+     */
+    static async getDailyPostQuota(req, res) {
+        try {
+            const userId = req.user?.userId;
+            const userRole = req.user?.role;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized",
+                });
+            }
+            const data = await FeedService.getStudentDailyPostQuota(userId, userRole);
+            res.json({
+                success: true,
+                data,
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, "Failed to get daily post quota");
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to get quota",
+            });
+        }
+    }
+    /**
      * GET /api/feed/posts/:postId
      * Get single post
      */
@@ -102,7 +130,8 @@ export class FeedController {
         }
         catch (error) {
             logger.error({ error: error.message, userId: req.user?.userId }, "Failed to create post");
-            res.status(500).json({
+            const statusCode = typeof error?.statusCode === "number" ? error.statusCode : 500;
+            res.status(statusCode).json({
                 success: false,
                 message: error.message || "Failed to create post",
             });

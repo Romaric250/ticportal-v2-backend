@@ -28,6 +28,7 @@ export class UserService {
         region: true,
         gradDate: true,
         role: true,
+        isReviewer: true,
         isVerified: true,
         lastLogin: true,
         createdAt: true,

@@ -27,6 +27,7 @@ export declare class AuthService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         accessToken: string;
         refreshToken: string;

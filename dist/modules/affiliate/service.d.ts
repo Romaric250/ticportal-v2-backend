@@ -677,6 +677,7 @@ export declare class AffiliateService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         region: ({
             country: {
@@ -758,6 +759,7 @@ export declare class AffiliateService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         region: ({
             country: {
@@ -846,6 +848,7 @@ export declare class AffiliateService {
             lastLogin: Date | null;
             squadId: string | null;
             updatedAt: Date;
+            isReviewer: boolean;
         };
         region: ({
             country: {

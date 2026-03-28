@@ -1,9 +1,16 @@
 import type { CreatePostInput, UpdatePostInput, GetPostsInput, CreateCommentInput, UpdateCommentInput, ReportContentInput, PinPostInput, RecordViewInput } from "./types";
-import type { UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 export declare class FeedService {
     /**
      * Get posts with advanced filtering and pagination + SMART ALGORITHM
      */
+    /** For students: how many posts today (UTC day) vs daily cap. Others: applies false. */
+    static getStudentDailyPostQuota(userId: string, userRole: unknown): Promise<{
+        applies: boolean;
+        limit: number;
+        used: number;
+        remaining: number | null;
+    }>;
     static getPosts(userId: string, userRole: UserRole, input: GetPostsInput): Promise<{
         posts: any[];
         pinnedPosts: any[];

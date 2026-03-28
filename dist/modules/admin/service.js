@@ -476,12 +476,9 @@ export class AdminService {
             }
         }
     }
-    /**
-     * Get all teams with filters
-     */
     static async getTeams(filters) {
-        const page = filters.page || 1;
-        const limit = filters.limit || 20;
+        const page = Math.max(filters.page || 1, 1);
+        const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 20);
         const skip = (page - 1) * limit;
         const where = {};
         if (filters.school) {
@@ -493,37 +490,125 @@ export class AdminService {
                 { projectTitle: { contains: filters.search, mode: "insensitive" } },
             ];
         }
-        const [teams, total] = await Promise.all([
-            db.team.findMany({
+        const hasNarrowWhere = Boolean(filters.search?.trim() || filters.school);
+        const teamSelect = {
+            id: true,
+            name: true,
+            school: true,
+            profileImage: true,
+            projectTitle: true,
+            description: true,
+            createdAt: true,
+        };
+        let teamsRaw;
+        let total = null;
+        let totalPages = null;
+        let hasNextPage;
+        if (hasNarrowWhere) {
+            const [rows, totalCount] = await Promise.all([
+                db.team.findMany({
+                    where,
+                    skip,
+                    take: limit,
+                    select: teamSelect,
+                    orderBy: { id: "desc" },
+                }),
+                db.team.count({ where }),
+            ]);
+            teamsRaw = rows;
+            total = totalCount;
+            totalPages = Math.ceil(totalCount / limit) || 1;
+            hasNextPage = skip + rows.length < totalCount;
+        }
+        else {
+            const rows = await db.team.findMany({
                 where,
                 skip,
-                take: limit,
-                include: {
-                    members: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    firstName: true,
-                                    lastName: true,
-                                    email: true,
-                                    profilePhoto: true,
-                                },
-                            },
-                        },
+                take: limit + 1,
+                select: teamSelect,
+                orderBy: { id: "desc" },
+            });
+            hasNextPage = rows.length > limit;
+            teamsRaw = hasNextPage ? rows.slice(0, limit) : rows;
+        }
+        const teamIds = teamsRaw.map((t) => t.id);
+        const assignmentGroup = teamIds.length === 0
+            ? []
+            : await db.teamAssignment.groupBy({
+                by: ["teamId"],
+                where: { teamId: { in: teamIds } },
+                _count: { _all: true },
+            });
+        const reviewerAssignmentCountByTeam = new Map(assignmentGroup.map((g) => [g.teamId, g._count._all]));
+        const [memberRows, deliverableRows] = await Promise.all([
+            teamIds.length === 0
+                ? Promise.resolve([])
+                : db.teamMember.findMany({
+                    where: { teamId: { in: teamIds } },
+                    select: { teamId: true },
+                }),
+            teamIds.length === 0
+                ? Promise.resolve([])
+                : db.teamDeliverable.findMany({
+                    where: { teamId: { in: teamIds } },
+                    select: {
+                        teamId: true,
+                        templateId: true,
+                        submissionStatus: true,
                     },
-                },
-                orderBy: { createdAt: "desc" },
-            }),
-            db.team.count({ where }),
+                }),
         ]);
+        const memberCountByTeam = new Map();
+        for (const m of memberRows) {
+            memberCountByTeam.set(m.teamId, (memberCountByTeam.get(m.teamId) ?? 0) + 1);
+        }
+        const templateIds = [...new Set(deliverableRows.map((r) => r.templateId))];
+        const templates = templateIds.length === 0
+            ? []
+            : await db.deliverableTemplate.findMany({
+                where: { id: { in: templateIds } },
+                select: { id: true, required: true },
+            });
+        const requiredByTemplateId = new Map(templates.map((x) => [x.id, x.required]));
+        const rowsByTeam = new Map();
+        for (const row of deliverableRows) {
+            const list = rowsByTeam.get(row.teamId);
+            if (list)
+                list.push(row);
+            else
+                rowsByTeam.set(row.teamId, [row]);
+        }
+        const teams = teamsRaw.map((t) => {
+            const rows = rowsByTeam.get(t.id) ?? [];
+            const requiredDeliverables = rows.filter((d) => {
+                const req = requiredByTemplateId.get(d.templateId);
+                return req !== false;
+            });
+            const submitted = requiredDeliverables.filter((d) => d.submissionStatus === "SUBMITTED");
+            return {
+                id: t.id,
+                name: t.name,
+                school: t.school,
+                profileImage: t.profileImage,
+                projectTitle: t.projectTitle,
+                description: t.description,
+                createdAt: t.createdAt,
+                memberCount: memberCountByTeam.get(t.id) ?? 0,
+                deliverableSubmitted: submitted.length,
+                deliverableTotal: requiredDeliverables.length,
+                reviewerAssignmentCount: reviewerAssignmentCountByTeam.get(t.id) ?? 0,
+            };
+        });
+        const hasPrevPage = page > 1;
         return {
             teams,
             pagination: {
                 page,
                 limit,
                 total,
-                totalPages: Math.ceil(total / limit),
+                totalPages,
+                hasNextPage,
+                hasPrevPage,
             },
         };
     }
@@ -536,8 +621,35 @@ export class AdminService {
             include: {
                 members: {
                     include: {
-                        user: true,
+                        user: {
+                            select: {
+                                id: true,
+                                email: true,
+                                firstName: true,
+                                lastName: true,
+                                profilePhoto: true,
+                                role: true,
+                                school: true,
+                            },
+                        },
                     },
+                },
+                deliverables: {
+                    include: {
+                        template: {
+                            select: {
+                                id: true,
+                                title: true,
+                                description: true,
+                                type: true,
+                                customType: true,
+                                contentType: true,
+                                dueDate: true,
+                                required: true,
+                            },
+                        },
+                    },
+                    orderBy: { submittedAt: "desc" },
                 },
             },
         });

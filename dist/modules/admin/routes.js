@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { AdminController } from "./controller.js";
 import { UserRole } from "@prisma/client";
+import { authenticate } from "../../shared/middleware/auth.js";
+import { GradingController } from "../grading/controller.js";
+import { requireAdmin } from "../grading/middleware.js";
 const router = Router();
 // TEMPORARY: Bypass authentication for testing
 // TODO: Add proper authentication middleware
@@ -88,6 +91,8 @@ router.get("/users/by-region-stats", AdminController.getUsersByRegionStats);
  * /api/admin/users/bulk-delete:
  */
 router.post("/users/bulk-delete", AdminController.bulkDeleteUsers);
+/** Must be before GET /users/:userId or "reviewers" is parsed as a user id. */
+router.get("/users/reviewers", authenticate, requireAdmin, GradingController.listReviewers);
 /**
  * @swagger
  * /api/admin/users/{userId}:
@@ -263,6 +268,8 @@ router.delete("/users/:userId", AdminController.deleteUser);
  *         description: List of teams
  */
 router.get("/teams", AdminController.getTeams);
+/** Must be before GET /teams/:teamId or "pending-grades" is parsed as a team id. */
+router.get("/teams/pending-grades", authenticate, requireAdmin, GradingController.pendingGrades);
 /**
  * @swagger
  * /api/admin/teams/{teamId}:

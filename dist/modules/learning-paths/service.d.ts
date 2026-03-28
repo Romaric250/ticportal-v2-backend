@@ -17,9 +17,9 @@ export declare class LearningPathService {
             title: string;
             updatedAt: Date;
             content: string;
+            quiz: Prisma.JsonValue | null;
             order: number;
             pathId: string;
-            quiz: Prisma.JsonValue | null;
         }[];
     } & {
         id: string;
@@ -41,9 +41,9 @@ export declare class LearningPathService {
             title: string;
             updatedAt: Date;
             content: string;
+            quiz: Prisma.JsonValue | null;
             order: number;
             pathId: string;
-            quiz: Prisma.JsonValue | null;
         }[];
     } & {
         id: string;
@@ -119,9 +119,9 @@ export declare class LearningPathService {
         title: string;
         updatedAt: Date;
         content: string;
+        quiz: Prisma.JsonValue | null;
         order: number;
         pathId: string;
-        quiz: Prisma.JsonValue | null;
     }>;
     /**
      * Update module
@@ -137,9 +137,9 @@ export declare class LearningPathService {
         title: string;
         updatedAt: Date;
         content: string;
+        quiz: Prisma.JsonValue | null;
         order: number;
         pathId: string;
-        quiz: Prisma.JsonValue | null;
     }>;
     /**
      * Delete module
@@ -169,9 +169,9 @@ export declare class LearningPathService {
             title: string;
             updatedAt: Date;
             content: string;
+            quiz: Prisma.JsonValue | null;
             order: number;
             pathId: string;
-            quiz: Prisma.JsonValue | null;
         }[];
         id: string;
         createdAt: Date;
@@ -297,8 +297,8 @@ export declare class LearningPathService {
         userId: string;
         id: string;
         learningPathId: string;
-        completedAt: Date;
         totalScore: number | null;
+        completedAt: Date;
     }>;
     /**
      * Unenroll from learning path and delete all progress

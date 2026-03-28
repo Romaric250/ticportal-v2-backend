@@ -36,6 +36,7 @@ model User {
   squadId      String?     @db.ObjectId
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  isReviewer   Boolean     @default(false)
 
   otps                   OTP[]
   refreshTokens          RefreshToken[]
@@ -71,6 +72,10 @@ model User {
   commissions            Commission[]
   payments               Payment[]
   activities             UserActivity[]
+
+  gradingGrades            Grade[]           @relation("GradeReviewer")
+  reviewerTeamAssignments  TeamAssignment[] @relation("ReviewerTeamAssignment")
+  assignedTeamAssignments  TeamAssignment[] @relation("TeamAssignmentAssigner")
 
   @@index([username(sort: Desc)], map: "User_username_idx")
 }
@@ -182,6 +187,10 @@ model Team {
   projectTitle String?
   description  String?
   createdAt    DateTime @default(now())
+
+  grades            Grade[]
+  teamAssignments   TeamAssignment[]
+  teamFinalGrade    TeamFinalGrade?
 
   members           TeamMember[]
   chats             TeamChat[]
@@ -446,6 +455,8 @@ model Point {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model UserActivity {
@@ -792,8 +803,9 @@ model FeedLike {
   comment     FeedComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user        User         @relation("FeedLikes", fields: [userId], references: [id], onDelete: Cascade)
   
-  @@unique([postId, userId])
-  @@unique([commentId, userId])
+  // One like per user per target. Do not use @@unique([postId, userId]) alone: comment likes with postId null
+  // collide on (null, userId) in MongoDB.
+  @@unique([postId, commentId, userId])
   @@index([postId, createdAt(sort: Desc)])
   @@index([commentId])
   @@index([userId])
@@ -1420,4 +1432,100 @@ model SystemConfig {
   updatedAt   DateTime @updatedAt
   
   @@unique([key])
+}
+
+// --- TIC Summit team grading (double review + rubric + leaderboard blend) ---
+
+enum GradeStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AVERAGED
+  PUBLISHED
+}
+
+model GradingRubric {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  /// Full structure: { "sections": [ { "name", "weight", "criteria": [...] } ] }
+  sections    Json
+  maxScore    Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  grades          Grade[]
+  teamFinalGrades TeamFinalGrade[]
+
+  @@index([isActive])
+}
+
+model Grade {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  teamId         String      @db.ObjectId
+  rubricId       String      @db.ObjectId
+  reviewerId     String      @db.ObjectId
+  sectionScores  Json
+  totalScore     Float
+  feedback       String?
+  status         GradeStatus @default(IN_PROGRESS)
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  isFirstReview  Boolean     @default(true)
+  pairedReviewerUserId String? @db.ObjectId
+
+  team    Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  rubric  GradingRubric @relation(fields: [rubricId], references: [id])
+  reviewer User         @relation("GradeReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  teamAssignment TeamAssignment? @relation("AssignmentGrade")
+
+  @@unique([teamId, reviewerId])
+  @@index([teamId, status])
+  @@index([reviewerId, status])
+  @@index([pairedReviewerUserId])
+}
+
+model TeamAssignment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId     String   @db.ObjectId
+  reviewerId String   @db.ObjectId
+  assignedBy String   @db.ObjectId
+  assignedAt DateTime @default(now())
+
+  team     Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  reviewer User @relation("ReviewerTeamAssignment", fields: [reviewerId], references: [id], onDelete: Cascade)
+  assigner User @relation("TeamAssignmentAssigner", fields: [assignedBy], references: [id])
+  grade    Grade? @relation("AssignmentGrade", fields: [teamId, reviewerId], references: [teamId, reviewerId])
+
+  @@unique([teamId, reviewerId])
+  @@index([reviewerId])
+  @@index([teamId])
+}
+
+/// Singleton-style final published score per team after admin finalizes
+model TeamFinalGrade {
+  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId                    String   @unique @db.ObjectId
+  rubricId                  String   @db.ObjectId
+  reviewerAverageScore      Float
+  leaderboardScoreNormalized Float   @default(0)
+  leaderboardWeightPercent Int      @default(0)
+  finalScore                Float
+  publishedAt               DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  rubric GradingRubric @relation(fields: [rubricId], references: [id])
+}
+
+/// Global grading settings (single row: use findFirst or fixed key)
+model GradingSettings {
+  id                         String   @id @default(auto()) @map("_id") @db.ObjectId
+  leaderboardScorePercent    Int      @default(10)
+  /// Raw team points at or above this value count as 100% of the leaderboard portion of the final blend (e.g. 5000).
+  leaderboardPointsMax       Int      @default(5000)
+  /// Max team assignments per reviewer (auto-assign + new manual slots). Null = no limit.
+  maxTeamsPerReviewer        Int?
+  updatedAt                  DateTime @updatedAt
 }

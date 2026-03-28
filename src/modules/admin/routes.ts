@@ -2,6 +2,9 @@ import { Router } from "express";
 import { AdminController } from "./controller";
 import type { Request, Response, NextFunction } from "express";
 import { UserRole } from "@prisma/client";
+import { authenticate } from "../../shared/middleware/auth";
+import { GradingController } from "../grading/controller";
+import { requireAdmin } from "../grading/middleware";
 
 const router = Router();
 
@@ -100,6 +103,9 @@ router.get("/users/by-region-stats", AdminController.getUsersByRegionStats);
  * /api/admin/users/bulk-delete:
  */
 router.post("/users/bulk-delete", AdminController.bulkDeleteUsers);
+
+/** Must be before GET /users/:userId or "reviewers" is parsed as a user id. */
+router.get("/users/reviewers", authenticate, requireAdmin, GradingController.listReviewers);
 
 /**
  * @swagger
@@ -283,6 +289,9 @@ router.delete("/users/:userId", AdminController.deleteUser);
  *         description: List of teams
  */
 router.get("/teams", AdminController.getTeams);
+
+/** Must be before GET /teams/:teamId or "pending-grades" is parsed as a team id. */
+router.get("/teams/pending-grades", authenticate, requireAdmin, GradingController.pendingGrades);
 
 /**
  * @swagger

@@ -18,6 +18,7 @@ export declare class UserService {
         gradDate: Date | null;
         isVerified: boolean;
         lastLogin: Date | null;
+        isReviewer: boolean;
     } | null>;
     static updateProfile(userId: string, input: UpdateUserInput): Promise<{
         id: string;
