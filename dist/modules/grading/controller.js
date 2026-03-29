@@ -373,5 +373,18 @@ export class GradingController {
             return sendErr(res, e);
         }
     }
+    static async adminDeleteGrade(req, res) {
+        try {
+            const { teamId, reviewerId } = req.params;
+            if (!teamId || !reviewerId) {
+                return res.status(400).json({ success: false, message: "teamId and reviewerId required" });
+            }
+            const data = await GradingService.adminDeleteReviewerGrade(teamId, reviewerId);
+            return res.json({ success: true, data });
+        }
+        catch (e) {
+            return sendErr(res, e, 400);
+        }
+    }
 }
 //# sourceMappingURL=controller.js.map

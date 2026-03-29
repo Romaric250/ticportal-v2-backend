@@ -25,5 +25,6 @@ export declare class GradingController {
     static reviewerDashboard(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static gradingReports(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     static gradingReportTeamDetail(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    static adminDeleteGrade(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }
 //# sourceMappingURL=controller.d.ts.map

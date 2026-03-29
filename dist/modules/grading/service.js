@@ -463,6 +463,9 @@ export async function autoAssignReviewers(options) {
     if (reviewers.length < REVIEWERS_PER_TEAM) {
         throw new Error(`Not enough reviewers (need at least ${REVIEWERS_PER_TEAM}, excluding blocked list)`);
     }
+    const reviewerRegionMap = new Map();
+    for (const r of reviewers)
+        reviewerRegionMap.set(r.id, r.region?.trim() || null);
     const teamWhere = options?.teamIds?.length ? { id: { in: options.teamIds } } : {};
     const teams = await db.team.findMany({
         where: teamWhere,
@@ -481,12 +484,13 @@ export async function autoAssignReviewers(options) {
     for (const row of counts) {
         load.set(row.reviewerId, row._count._all);
     }
+    const preferDiffRegion = options?.excludeReviewersSameRegionAsTeam === true;
     const assignedBy = options?.assignedBy ?? reviewers[0].id;
     const sendMail = options?.sendMail !== false;
-    const excludeSameRegion = options?.excludeReviewersSameRegionAsTeam === true;
     const results = [];
     const skipped = [];
     const errors = [];
+    const warnings = [];
     for (const team of teams) {
         const n = team.teamAssignments.length;
         if (n >= REVIEWERS_PER_TEAM)
@@ -495,22 +499,19 @@ export async function autoAssignReviewers(options) {
         const memberIds = new Set(team.members.map((m) => m.userId));
         const existingIds = new Set(team.teamAssignments.map((t) => t.reviewerId));
         const existingList = team.teamAssignments.map((t) => t.reviewerId);
-        let teamRegion = null;
-        if (excludeSameRegion) {
-            teamRegion = await getTeamLeadRegion(team.id);
-        }
+        const teamRegion = await getTeamLeadRegion(team.id);
         let candidates = reviewers
-            .filter((r) => {
-            if (memberIds.has(r.id) || existingIds.has(r.id))
-                return false;
-            if (excludeSameRegion && teamRegion && sameRegion(r.region, teamRegion))
-                return false;
-            return true;
-        })
-            .map((r) => ({ id: r.id, w: load.get(r.id) ?? 0 }))
+            .filter((r) => !memberIds.has(r.id) && !existingIds.has(r.id))
+            .map((r) => ({ id: r.id, w: load.get(r.id) ?? 0, isSameRegion: !!(teamRegion && sameRegion(r.region, teamRegion)) }))
             .sort((x, y) => x.w - y.w);
         if (maxTeams != null) {
             candidates = candidates.filter((c) => c.w < maxTeams);
+        }
+        if (preferDiffRegion && teamRegion) {
+            const diffRegion = candidates.filter((c) => !c.isSameRegion);
+            if (diffRegion.length >= needed) {
+                candidates = diffRegion;
+            }
         }
         if (candidates.length < needed) {
             skipped.push({ teamId: team.id, reason: "not_enough_eligible_reviewers" });
@@ -526,6 +527,15 @@ export async function autoAssignReviewers(options) {
         if (pick.length < needed) {
             skipped.push({ teamId: team.id, reason: "not_enough_eligible_reviewers" });
             continue;
+        }
+        for (const id of pick) {
+            if (teamRegion && sameRegion(reviewerRegionMap.get(id), teamRegion)) {
+                warnings.push({
+                    teamId: team.id,
+                    teamName: team.name ?? null,
+                    message: `Reviewer assigned from the same region (${teamRegion}) as team "${team.name}"`,
+                });
+            }
         }
         try {
             const allIds = [...existingList, ...pick];
@@ -545,18 +555,32 @@ export async function autoAssignReviewers(options) {
             logger.warn({ teamId: team.id, err: message }, "autoAssign: team assignment failed");
         }
     }
-    return { assigned: results.length, teams: results, skipped, errors };
+    return { assigned: results.length, teams: results, skipped, errors, warnings };
 }
 export async function manualAssign(pairs, assignedBy, sendMail = true) {
     const out = [];
+    const warnings = [];
     for (const p of pairs) {
+        const teamRegion = await getTeamLeadRegion(p.teamId);
+        if (teamRegion) {
+            const team = await db.team.findUnique({ where: { id: p.teamId }, select: { name: true } });
+            for (const rid of p.reviewerIds) {
+                const u = await db.user.findUnique({ where: { id: rid }, select: { region: true, firstName: true, lastName: true } });
+                if (sameRegion(u?.region, teamRegion)) {
+                    warnings.push({
+                        teamId: p.teamId,
+                        message: `${u?.firstName ?? ""} ${u?.lastName ?? ""} is from the same region (${teamRegion}) as team "${team?.name ?? p.teamId}"`,
+                    });
+                }
+            }
+        }
         const r = await setTeamReviewerPair(p.teamId, p.reviewerIds, assignedBy, sendMail);
         out.push(r);
     }
-    return { assigned: out.length, teams: out };
+    return { assigned: out.length, teams: out, warnings };
 }
 /** Assign the same N reviewers to many teams (e.g. after filtering by region). */
-export async function bulkAssignReviewersToTeams(teamIds, reviewerIds, assignedBy, sendMail, options) {
+export async function bulkAssignReviewersToTeams(teamIds, reviewerIds, assignedBy, sendMail, _options) {
     if (!teamIds.length)
         throw new Error("teamIds required");
     if (reviewerIds.length !== REVIEWERS_PER_TEAM) {
@@ -565,16 +589,25 @@ export async function bulkAssignReviewersToTeams(teamIds, reviewerIds, assignedB
     const uniq = new Set(reviewerIds);
     if (uniq.size !== reviewerIds.length)
         throw new Error("Duplicate reviewers");
+    const reviewerRegions = new Map();
+    for (const rid of reviewerIds) {
+        const u = await db.user.findUnique({ where: { id: rid }, select: { region: true, firstName: true, lastName: true } });
+        reviewerRegions.set(rid, u?.region?.trim() || null);
+    }
     const results = [];
     const errors = [];
+    const warnings = [];
     for (const teamId of teamIds) {
         try {
-            if (options?.rejectReviewersFromTeamRegion) {
-                const tr = await getTeamLeadRegion(teamId);
+            const tr = await getTeamLeadRegion(teamId);
+            if (tr) {
                 for (const rid of reviewerIds) {
-                    const u = await db.user.findUnique({ where: { id: rid }, select: { region: true } });
-                    if (sameRegion(u?.region, tr)) {
-                        throw new Error(`Reviewer is from the same region as this team`);
+                    if (sameRegion(reviewerRegions.get(rid), tr)) {
+                        const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } });
+                        warnings.push({
+                            teamId,
+                            message: `Reviewer ${rid} is from the same region (${tr}) as team "${team?.name ?? teamId}"`,
+                        });
                     }
                 }
             }
@@ -585,7 +618,7 @@ export async function bulkAssignReviewersToTeams(teamIds, reviewerIds, assignedB
             errors.push({ teamId, message: e instanceof Error ? e.message : String(e) });
         }
     }
-    return { assigned: results.length, teams: results, errors };
+    return { assigned: results.length, teams: results, errors, warnings };
 }
 /** Current reviewer assignments for one team (manual assign pre-fill: 0, 1, or 2 reviewers). */
 export async function getTeamReviewerAssignments(teamId) {
@@ -642,7 +675,6 @@ export async function getAssignmentsForReviewer(reviewerId) {
                     name: true,
                     projectTitle: true,
                     description: true,
-                    profileImage: true,
                 },
             },
         },
@@ -1117,7 +1149,15 @@ export async function publishTeamFinal(teamId) {
         throw new Error("Finalize grades before publishing");
     const team = await db.team.findUnique({
         where: { id: teamId },
-        include: { members: { include: { user: true } } },
+        select: {
+            id: true,
+            name: true,
+            members: {
+                select: {
+                    user: { select: { email: true, firstName: true } },
+                },
+            },
+        },
     });
     if (!team)
         throw new Error("Team not found");
@@ -1209,67 +1249,115 @@ export async function getReviewerDashboard(userId) {
         },
     };
 }
-/** Lean leaderboard payload — single query with explicit selects (fast vs. full include graph). */
+/** Lean leaderboard payload — single combined query to avoid duplicate team fetches. */
 export async function getGradingReports(region) {
-    const [rankedLb, teams] = await Promise.all([
-        getRankedLeaderboardTeamsFull(region != null && region !== "" ? { region } : {}),
-        db.team.findMany({
-            select: {
-                id: true,
-                name: true,
-                school: true,
-                projectTitle: true,
-                teamAssignments: { select: { id: true } },
-                teamFinalGrade: {
-                    select: {
-                        finalScore: true,
-                        publishedAt: true,
-                        reviewerAverageScore: true,
-                    },
+    const settings = await getGradingSettings();
+    const lbWeightPct = settings.leaderboardScorePercent;
+    const cap = effectiveLeaderboardCap(settings);
+    const allTeams = await db.team.findMany({
+        select: {
+            id: true,
+            name: true,
+            school: true,
+            projectTitle: true,
+            teamAssignments: { select: { id: true } },
+            teamFinalGrade: {
+                select: {
+                    finalScore: true,
+                    reviewerAverageScore: true,
+                    leaderboardScoreNormalized: true,
+                    leaderboardWeightPercent: true,
+                    publishedAt: true,
                 },
-                grades: {
-                    select: {
-                        totalScore: true,
-                        feedback: true,
-                        status: true,
-                        reviewer: {
-                            select: { id: true, firstName: true, lastName: true, email: true },
-                        },
+            },
+            grades: {
+                select: {
+                    reviewerId: true,
+                    totalScore: true,
+                    status: true,
+                    feedback: true,
+                    reviewer: {
+                        select: { id: true, firstName: true, lastName: true, email: true },
                     },
                 },
             },
-        }),
+        },
+    });
+    const teamIds = allTeams.map((t) => t.id);
+    const [teamRegions, rawByTeam] = await Promise.all([
+        getTeamRegionsBatch(teamIds),
+        getTeamLeaderboardRawPointsBatch(teamIds),
     ]);
-    const detailById = new Map(teams.map((t) => [t.id, t]));
-    const rows = rankedLb
-        .map((lb) => {
-        const t = detailById.get(lb.teamId);
-        if (!t)
-            return null;
-        const finalScore = t.teamFinalGrade?.finalScore ?? null;
-        const publishedAt = t.teamFinalGrade?.publishedAt?.toISOString() ?? null;
-        /** Prefer live average from ranking row (matches S1/S2); fall back to stored final. */
-        const reviewerAverageScore = lb.reviewerAverageScore ?? t.teamFinalGrade?.reviewerAverageScore ?? null;
-        return {
+    let norm;
+    if (cap > 0) {
+        norm = computeNormalizedLeaderboard(rawByTeam, teamIds, cap);
+    }
+    else {
+        const fullNorm = await normalizeTeamLeaderboardScores();
+        norm = new Map();
+        for (const id of teamIds)
+            norm.set(id, fullNorm.get(id) ?? 0);
+    }
+    const maxCap = effectiveLeaderboardCap(settings);
+    const enriched = [];
+    for (const t of allTeams) {
+        const lb = norm.get(t.id) ?? 0;
+        const fg = t.teamFinalGrade;
+        const teamRegion = teamRegions.get(t.id) ?? null;
+        const done = t.grades
+            .filter((g) => isGradeCompleteForReviewer(g.status))
+            .sort((a, b) => a.reviewerId.localeCompare(b.reviewerId));
+        const scores = done.map((g) => g.totalScore);
+        const score1 = scores[0] ?? null;
+        const score2 = scores[1] ?? null;
+        const score3 = scores[2] ?? null;
+        const finiteScores = scores.filter((s) => typeof s === "number" && Number.isFinite(s));
+        let revAvg = finiteScores.length > 0
+            ? finiteScores.reduce((a, b) => a + b, 0) / finiteScores.length
+            : null;
+        const allReviewersComplete = done.length >= REVIEWERS_PER_TEAM && score1 != null && score2 != null && score3 != null;
+        let blendFinal = null;
+        let revContrib = null;
+        let lbContrib;
+        let rowLbPct = lbWeightPct;
+        if (allReviewersComplete) {
+            revContrib = reviewerContributionPoints(revAvg, lbWeightPct);
+            lbContrib = leaderboardContributionPoints(lb, lbWeightPct);
+            blendFinal = blendReviewerAndLeaderboard(revAvg, lb, lbWeightPct);
+        }
+        else if (fg) {
+            blendFinal = Math.min(100, Math.max(0, fg.finalScore));
+            rowLbPct = fg.leaderboardWeightPercent;
+            revContrib = reviewerContributionPoints(fg.reviewerAverageScore, fg.leaderboardWeightPercent);
+            lbContrib = leaderboardContributionPoints(fg.leaderboardScoreNormalized, fg.leaderboardWeightPercent);
+        }
+        else if (revAvg != null) {
+            revContrib = reviewerContributionPoints(revAvg, lbWeightPct);
+            lbContrib = leaderboardContributionPoints(lb, lbWeightPct);
+            blendFinal = blendReviewerAndLeaderboard(revAvg, lb, lbWeightPct);
+        }
+        else {
+            lbContrib = leaderboardContributionPoints(lb, lbWeightPct);
+        }
+        const storedRevAvg = revAvg ?? fg?.reviewerAverageScore ?? null;
+        enriched.push({
             teamId: t.id,
             teamName: t.name,
             school: t.school,
-            region: lb.region ?? null,
+            region: teamRegion,
             projectTitle: t.projectTitle,
             assignmentCount: t.teamAssignments.length,
-            finalScore,
-            reviewerAverageScore,
-            publishedAt,
-            rank: lb.rank,
-            score1: lb.score1,
-            score2: lb.score2,
-            score3: lb.score3,
-            blendFinal: lb.blendFinal,
-            normalizedLeaderboard: lb.normalizedLeaderboard,
-            rawLeaderboardPoints: lb.rawLeaderboardPoints,
-            leaderboardWeightPercent: lb.leaderboardWeightPercent,
-            reviewerContributionPoints: lb.reviewerContributionPoints,
-            leaderboardContributionPoints: lb.leaderboardContributionPoints,
+            finalScore: fg?.finalScore ?? null,
+            reviewerAverageScore: storedRevAvg,
+            publishedAt: fg?.publishedAt?.toISOString() ?? null,
+            rank: 0,
+            score1, score2, score3,
+            blendFinal,
+            normalizedLeaderboard: lb,
+            rawLeaderboardPoints: rawByTeam.get(t.id) ?? 0,
+            leaderboardWeightPercent: rowLbPct,
+            reviewerContributionPoints: revContrib,
+            leaderboardContributionPoints: lbContrib,
             reviewers: t.grades.map((g) => ({
                 reviewerId: g.reviewer.id,
                 reviewerName: `${g.reviewer.firstName} ${g.reviewer.lastName}`.trim(),
@@ -1278,9 +1366,19 @@ export async function getGradingReports(region) {
                 status: g.status,
                 feedback: g.feedback ?? null,
             })),
-        };
-    })
-        .filter((r) => r != null);
+            sortKey: blendFinal ?? -Infinity,
+        });
+    }
+    let ranked = enriched;
+    if (region?.trim()) {
+        const want = region.trim().toLowerCase();
+        ranked = enriched.filter((r) => (r.region ?? "").toLowerCase() === want);
+    }
+    ranked.sort((a, b) => b.sortKey - a.sortKey);
+    const rows = ranked.map((row, i) => {
+        const { sortKey, ...rest } = row;
+        return { ...rest, rank: i + 1 };
+    });
     return { teams: rows, generatedAt: new Date().toISOString() };
 }
 export async function getGradingReportTeamDetail(teamId) {
@@ -1337,5 +1435,22 @@ export async function getGradingReportTeamDetail(teamId) {
             grade: m.user.grade,
         })),
     };
+}
+/**
+ * Admin-only: delete a single reviewer's grade for a team.
+ * The assignment stays — only the Grade row is removed so the reviewer can re-submit.
+ */
+export async function adminDeleteReviewerGrade(teamId, reviewerId) {
+    const grade = await db.grade.findUnique({
+        where: { teamId_reviewerId: { teamId, reviewerId } },
+        select: { id: true, status: true },
+    });
+    if (!grade) {
+        const err = new Error("No grade found for this reviewer on the given team");
+        err.statusCode = 404;
+        throw err;
+    }
+    await db.grade.delete({ where: { id: grade.id } });
+    return { deleted: true, gradeId: grade.id };
 }
 //# sourceMappingURL=service.js.map

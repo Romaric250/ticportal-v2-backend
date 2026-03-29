@@ -106,7 +106,6 @@ export declare function autoAssignReviewers(options?: {
     teamIds?: string[];
     assignedBy?: string;
     sendMail?: boolean;
-    /** Skip reviewers whose region matches the team lead region (reduces same-region bias). */
     excludeReviewersSameRegionAsTeam?: boolean;
 }): Promise<{
     assigned: number;
@@ -123,6 +122,11 @@ export declare function autoAssignReviewers(options?: {
         teamName: string | null;
         message: string;
     }[];
+    warnings: {
+        teamId: string;
+        teamName: string | null;
+        message: string;
+    }[];
 }>;
 export declare function manualAssign(pairs: {
     teamId: string;
@@ -133,9 +137,13 @@ export declare function manualAssign(pairs: {
         teamId: string;
         reviewerIds: string[];
     }[];
+    warnings: {
+        teamId: string;
+        message: string;
+    }[];
 }>;
 /** Assign the same N reviewers to many teams (e.g. after filtering by region). */
-export declare function bulkAssignReviewersToTeams(teamIds: string[], reviewerIds: string[], assignedBy: string, sendMail: boolean, options?: {
+export declare function bulkAssignReviewersToTeams(teamIds: string[], reviewerIds: string[], assignedBy: string, sendMail: boolean, _options?: {
     rejectReviewersFromTeamRegion?: boolean;
 }): Promise<{
     assigned: number;
@@ -144,6 +152,10 @@ export declare function bulkAssignReviewersToTeams(teamIds: string[], reviewerId
         reviewerIds: string[];
     }[];
     errors: {
+        teamId: string;
+        message: string;
+    }[];
+    warnings: {
         teamId: string;
         message: string;
     }[];
@@ -188,7 +200,6 @@ export declare function getAssignmentsForReviewer(reviewerId: string): Promise<(
     team: {
         id: string;
         name: string;
-        profileImage: string | null;
         projectTitle: string | null;
         description: string | null;
     };
@@ -390,9 +401,10 @@ export declare function getReviewerDashboard(userId: string): Promise<{
         pending: number;
     };
 }>;
-/** Lean leaderboard payload — single query with explicit selects (fast vs. full include graph). */
+/** Lean leaderboard payload — single combined query to avoid duplicate team fetches. */
 export declare function getGradingReports(region?: string | null): Promise<{
     teams: {
+        rank: number;
         teamId: string;
         teamName: string;
         school: string;
@@ -402,7 +414,6 @@ export declare function getGradingReports(region?: string | null): Promise<{
         finalScore: number | null;
         reviewerAverageScore: number | null;
         publishedAt: string | null;
-        rank: number;
         score1: number | null;
         score2: number | null;
         score3: number | null;
@@ -417,7 +428,7 @@ export declare function getGradingReports(region?: string | null): Promise<{
             reviewerName: string;
             email: string;
             totalScore: number;
-            status: import(".prisma/client").$Enums.GradeStatus;
+            status: string;
             feedback: string | null;
         }[];
     }[];
@@ -441,5 +452,13 @@ export declare function getGradingReportTeamDetail(teamId: string): Promise<{
         country: string | null;
         grade: string | null;
     }[];
+}>;
+/**
+ * Admin-only: delete a single reviewer's grade for a team.
+ * The assignment stays — only the Grade row is removed so the reviewer can re-submit.
+ */
+export declare function adminDeleteReviewerGrade(teamId: string, reviewerId: string): Promise<{
+    deleted: boolean;
+    gradeId: string;
 }>;
 //# sourceMappingURL=service.d.ts.map

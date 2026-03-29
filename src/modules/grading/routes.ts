@@ -42,6 +42,9 @@ router.post("/admin/leaderboard/config", requireAdmin, GradingController.leaderb
 router.get("/admin/leaderboard/teams", requireAdmin, GradingController.leaderboardTeams);
 router.post("/admin/leaderboard/apply", requireAdmin, GradingController.leaderboardApply);
 
+// Admin — delete a reviewer's grade (keeps the assignment, lets them re-submit)
+router.delete("/admin/grades/:teamId/:reviewerId", requireAdmin, GradingController.adminDeleteGrade);
+
 // Admin — reports (lean leaderboard + reviewer rows; team detail on demand)
 router.get("/admin/grading/reports", requireAdmin, GradingController.gradingReports);
 router.get("/admin/grading/reports/teams/:teamId/detail", requireAdmin, GradingController.gradingReportTeamDetail);
