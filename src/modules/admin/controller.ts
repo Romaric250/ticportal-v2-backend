@@ -332,14 +332,36 @@ export class AdminController {
    */
   static async getTeams(req: Request, res: Response) {
     try {
-      const { page, limit, school, status, search } = req.query;
+      const { page, limit, school, status, search, region, minDeliverablesSubmitted, includeDeliverableStats } =
+        req.query;
 
       const filters: any = {};
-      if (page) filters.page = parseInt(page as string);
-      if (limit) filters.limit = parseInt(limit as string);
+      const pageStr = Array.isArray(page) ? page[0] : page;
+      const limitStr = Array.isArray(limit) ? limit[0] : limit;
+      if (pageStr !== undefined && pageStr !== "") {
+        const p = parseInt(String(pageStr), 10);
+        if (Number.isFinite(p) && p >= 1) filters.page = p;
+      }
+      if (limitStr !== undefined && limitStr !== "") {
+        const l = parseInt(String(limitStr), 10);
+        if (Number.isFinite(l) && l >= 1) filters.limit = l;
+      }
       if (school) filters.school = school as string;
       if (status) filters.status = status as string;
       if (search) filters.search = search as string;
+      if (region && String(region).trim()) filters.region = String(region).trim();
+      if (minDeliverablesSubmitted !== undefined && minDeliverablesSubmitted !== "") {
+        const n = parseInt(String(minDeliverablesSubmitted), 10);
+        if (Number.isFinite(n) && n >= 1 && n <= 7) {
+          filters.minDeliverablesSubmitted = n;
+        }
+      }
+      const statsParam = Array.isArray(includeDeliverableStats) ? includeDeliverableStats[0] : includeDeliverableStats;
+      if (statsParam === "false" || statsParam === "0") {
+        filters.includeDeliverableStats = false;
+      } else {
+        filters.includeDeliverableStats = true;
+      }
 
       const result = await AdminService.getTeams(filters);
 
@@ -351,6 +373,21 @@ export class AdminController {
       res.status(500).json({
         success: false,
         message: error.message || "Failed to get teams",
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/teams/schools — distinct school names for filters
+   */
+  static async getDistinctTeamSchools(_req: Request, res: Response) {
+    try {
+      const schools = await AdminService.getDistinctTeamSchools();
+      res.json({ success: true, schools });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to load schools",
       });
     }
   }
@@ -598,6 +635,33 @@ export class AdminController {
         success: false,
         message: error.message || "Failed to update team member role",
       });
+    }
+  }
+
+  /**
+   * POST /api/admin/teams
+   */
+  static async adminCreateTeam(req: Request, res: Response) {
+    try {
+      const { name, school, projectTitle, description, leadUserId, memberUserIds } = req.body;
+      if (!name || !school || !leadUserId) {
+        return res.status(400).json({
+          success: false,
+          message: "name, school, and leadUserId are required",
+        });
+      }
+      const team = await AdminService.adminCreateTeam({
+        name,
+        school,
+        projectTitle,
+        description,
+        leadUserId,
+        memberUserIds: Array.isArray(memberUserIds) ? memberUserIds : [],
+      });
+      res.status(201).json({ success: true, data: team });
+    } catch (error: any) {
+      const status = error.message?.includes("not found") ? 404 : 400;
+      res.status(status).json({ success: false, message: error.message || "Failed to create team" });
     }
   }
 

@@ -51,6 +51,10 @@ export declare class AdminController {
      */
     static getTeams(req: Request, res: Response): Promise<void>;
     /**
+     * GET /api/admin/teams/schools — distinct school names for filters
+     */
+    static getDistinctTeamSchools(_req: Request, res: Response): Promise<void>;
+    /**
      * GET /api/admin/teams/:teamId
      */
     static getTeamById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
@@ -82,6 +86,10 @@ export declare class AdminController {
      * PUT /api/admin/teams/:teamId/members/:userId
      */
     static updateTeamMemberRole(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/admin/teams
+     */
+    static adminCreateTeam(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/admin/teams/:teamId/submissions
      */

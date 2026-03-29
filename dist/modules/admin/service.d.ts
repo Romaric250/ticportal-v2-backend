@@ -5,6 +5,11 @@ export declare class AdminService {
     private static readonly MANUAL_PAYMENT_METHODS;
     private static readonly ONLINE_PAYMENT_METHODS;
     /**
+     * Team IDs with at least `min` required deliverables submitted (same rules as list rows: template.required !== false).
+     * Uses DB-side aggregation — avoids loading every submitted row into memory (MongoDB full scan / OOM).
+     */
+    private static teamIdsWithAtLeastNRequiredSubmitted;
+    /**
      * Get students by region with paid counts.
      * Optional `paymentChannel`: `all` | `manual` | `online` — `paid` counts students with at least one confirmed payment in that channel.
      */
@@ -279,12 +284,21 @@ export declare class AdminService {
         school?: string;
         status?: string;
         search?: string;
+        /** Filter teams that have at least one member (prefer lead) in this region. */
+        region?: string;
+        /** Only teams with at least this many required deliverables submitted (1–7). Omitted or 0 = no filter. */
+        minDeliverablesSubmitted?: number;
+        /**
+         * When false, skips scanning TeamDeliverable + templates (fast — e.g. assignment modals).
+         * Counts are returned as 0. Default true for grading/admin lists that need real numbers.
+         */
+        includeDeliverableStats?: boolean;
     }): Promise<{
         teams: {
             id: string;
             name: string;
             school: string;
-            profileImage: string | null;
+            region: string | null;
             projectTitle: string | null;
             description: string | null;
             createdAt: Date;
@@ -302,6 +316,8 @@ export declare class AdminService {
             hasPrevPage: boolean;
         };
     }>;
+    /** Distinct non-empty school names for admin filters (e.g. judging teams tab). */
+    static getDistinctTeamSchools(): Promise<string[]>;
     /**
      * Get team by ID
      */
@@ -345,10 +361,10 @@ export declare class AdminService {
             content: string;
             reviewedBy: string | null;
             reviewedAt: Date | null;
+            feedback: string | null;
             templateId: string;
             submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
             reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-            feedback: string | null;
         })[];
     } & {
         id: string;
@@ -437,6 +453,41 @@ export declare class AdminService {
         role: import(".prisma/client").$Enums.TeamRole;
         teamId: string;
         joinedAt: Date;
+    }>;
+    /**
+     * Admin-create a team: pick a lead, optional members, auto-scaffold deliverables.
+     */
+    static adminCreateTeam(input: {
+        name: string;
+        school: string;
+        projectTitle?: string;
+        description?: string;
+        leadUserId: string;
+        memberUserIds?: string[];
+    }): Promise<{
+        members: ({
+            user: {
+                id: string;
+                email: string;
+                firstName: string;
+                lastName: string;
+                profilePhoto: string | null;
+            };
+        } & {
+            userId: string;
+            id: string;
+            role: import(".prisma/client").$Enums.TeamRole;
+            teamId: string;
+            joinedAt: Date;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        name: string;
+        school: string;
+        profileImage: string | null;
+        projectTitle: string | null;
+        description: string | null;
     }>;
     /**
      * Get team submissions/projects

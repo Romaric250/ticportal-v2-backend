@@ -30,6 +30,7 @@ router.get("/admin/reviewers/workload", requireAdmin, GradingController.reviewer
 
 // Admin — assignments
 router.post("/admin/assignments/auto", requireAdmin, GradingController.autoAssign);
+router.post("/admin/assignments/bulk-same-reviewers", requireAdmin, GradingController.bulkAssignSameReviewers);
 router.post("/admin/assignments/manual", requireAdmin, GradingController.manualAssign);
 router.post("/admin/assignments/unassign", requireAdmin, GradingController.unassignReviewer);
 router.get("/admin/assignments/team/:teamId", requireAdmin, GradingController.assignmentsForTeam);

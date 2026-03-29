@@ -181,7 +181,7 @@ const swaggerSpec = swaggerJsdoc({
     definition: {
         openapi: "3.0.0",
         info: {
-            title: "TIC Summits Portal V2.0 API",
+            title: "TIC Summits Portal V.2.1.0 API",
             version: "1.0.0",
         },
         components: {

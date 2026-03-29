@@ -1,6 +1,7 @@
 import { db } from "../../config/database";
 import type { Prisma } from "@prisma/client";
 import { UserRole, UserStatus, TeamRole, PaymentStatus, PaymentMethod } from "@prisma/client";
+import { DELIVERABLES_COMPLETE_TARGET } from "../grading/service";
 
 export class AdminService {
   /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
@@ -22,6 +23,29 @@ export class AdminService {
     PaymentMethod.MOBILE_MONEY,
     PaymentMethod.CARD,
   ];
+
+  /**
+   * Team IDs with at least `min` required deliverables submitted (same rules as list rows: template.required !== false).
+   * Uses DB-side aggregation — avoids loading every submitted row into memory (MongoDB full scan / OOM).
+   */
+  private static async teamIdsWithAtLeastNRequiredSubmitted(min: number): Promise<string[]> {
+    const allowedTemplates = await db.deliverableTemplate.findMany({
+      where: { NOT: { required: false } },
+      select: { id: true },
+    });
+    const allowedTemplateIds = allowedTemplates.map((t) => t.id);
+    if (allowedTemplateIds.length === 0) return [];
+
+    const grouped = await db.teamDeliverable.groupBy({
+      by: ["teamId"],
+      where: {
+        submissionStatus: "SUBMITTED",
+        templateId: { in: allowedTemplateIds },
+      },
+      _count: { _all: true },
+    });
+    return grouped.filter((g) => g._count._all >= min).map((g) => g.teamId);
+  }
 
   /**
    * Get students by region with paid counts.
@@ -591,9 +615,18 @@ export class AdminService {
     school?: string;
     status?: string;
     search?: string;
+    /** Filter teams that have at least one member (prefer lead) in this region. */
+    region?: string;
+    /** Only teams with at least this many required deliverables submitted (1–7). Omitted or 0 = no filter. */
+    minDeliverablesSubmitted?: number;
+    /**
+     * When false, skips scanning TeamDeliverable + templates (fast — e.g. assignment modals).
+     * Counts are returned as 0. Default true for grading/admin lists that need real numbers.
+     */
+    includeDeliverableStats?: boolean;
   }) {
     const page = Math.max(filters.page || 1, 1);
-    const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 20);
+    const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 500);
     const skip = (page - 1) * limit;
 
     const where: Prisma.TeamWhereInput = {};
@@ -609,13 +642,47 @@ export class AdminService {
       ];
     }
 
-    const hasNarrowWhere = Boolean(filters.search?.trim() || filters.school);
+    if (filters.region?.trim()) {
+      const r = filters.region.trim();
+      where.members = {
+        some: {
+          user: { region: { equals: r, mode: "insensitive" } },
+        },
+      };
+    }
+
+    const includeDeliverableStats = filters.includeDeliverableStats !== false;
+
+    const minDel =
+      filters.minDeliverablesSubmitted != null && Number.isFinite(Number(filters.minDeliverablesSubmitted))
+        ? Math.min(DELIVERABLES_COMPLETE_TARGET, Math.max(0, Math.floor(Number(filters.minDeliverablesSubmitted))))
+        : 0;
+
+    if (minDel >= 1) {
+      const eligibleIds = await AdminService.teamIdsWithAtLeastNRequiredSubmitted(minDel);
+      if (eligibleIds.length === 0) {
+        return {
+          teams: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: page > 1,
+          },
+        };
+      }
+      where.id = { in: eligibleIds };
+    }
+
+    const hasNarrowWhere =
+      Boolean(filters.search?.trim() || filters.school || filters.region?.trim()) || minDel >= 1;
 
     const teamSelect = {
       id: true,
       name: true,
       school: true,
-      profileImage: true,
       projectTitle: true,
       description: true,
       createdAt: true,
@@ -625,7 +692,6 @@ export class AdminService {
       id: string;
       name: string;
       school: string;
-      profileImage: string | null;
       projectTitle: string | null;
       description: string | null;
       createdAt: Date;
@@ -663,78 +729,79 @@ export class AdminService {
 
     const teamIds = teamsRaw.map((t) => t.id);
 
-    const assignmentGroup =
-      teamIds.length === 0
-        ? []
-        : await db.teamAssignment.groupBy({
-            by: ["teamId"],
-            where: { teamId: { in: teamIds } },
-            _count: { _all: true },
-          });
-    const reviewerAssignmentCountByTeam = new Map(assignmentGroup.map((g) => [g.teamId, g._count._all]));
+    if (teamIds.length === 0) {
+      return {
+        teams: [],
+        pagination: { page, limit, total: total ?? 0, totalPages: totalPages ?? 0, hasNextPage, hasPrevPage: page > 1 },
+      };
+    }
 
-    const [memberRows, deliverableRows] = await Promise.all([
-      teamIds.length === 0
-        ? Promise.resolve([] as { teamId: string }[])
-        : db.teamMember.findMany({
-            where: { teamId: { in: teamIds } },
-            select: { teamId: true },
-          }),
-      teamIds.length === 0
-        ? Promise.resolve([] as { teamId: string; templateId: string; submissionStatus: "NOT_SUBMITTED" | "SUBMITTED" }[])
-        : db.teamDeliverable.findMany({
-            where: { teamId: { in: teamIds } },
-            select: {
-              teamId: true,
-              templateId: true,
-              submissionStatus: true,
-            },
-          }),
+    const [leadRows, assignmentGroup, memberGroup] = await Promise.all([
+      db.teamMember.findMany({
+        where: { teamId: { in: teamIds }, role: TeamRole.LEAD },
+        include: { user: { select: { region: true } } },
+      }),
+      db.teamAssignment.groupBy({
+        by: ["teamId"],
+        where: { teamId: { in: teamIds } },
+        _count: { _all: true },
+      }),
+      db.teamMember.groupBy({
+        by: ["teamId"],
+        where: { teamId: { in: teamIds } },
+        _count: { _all: true },
+      }),
     ]);
 
-    const memberCountByTeam = new Map<string, number>();
-    for (const m of memberRows) {
-      memberCountByTeam.set(m.teamId, (memberCountByTeam.get(m.teamId) ?? 0) + 1);
-    }
+    const regionByTeamId = new Map(leadRows.map((row) => [row.teamId, row.user.region?.trim() || null]));
+    const reviewerAssignmentCountByTeam = new Map(assignmentGroup.map((g) => [g.teamId, g._count._all]));
+    const memberCountByTeam = new Map(memberGroup.map((g) => [g.teamId, g._count._all]));
 
-    const templateIds = [...new Set(deliverableRows.map((r) => r.templateId))];
-    const templates =
-      templateIds.length === 0
-        ? []
-        : await db.deliverableTemplate.findMany({
-            where: { id: { in: templateIds } },
-            select: { id: true, required: true },
-          });
-    const requiredByTemplateId = new Map(templates.map((x) => [x.id, x.required]));
+    let deliverableTotalByTeam = new Map<string, number>();
+    let deliverableSubmittedByTeam = new Map<string, number>();
 
-    const rowsByTeam = new Map<string, typeof deliverableRows>();
-    for (const row of deliverableRows) {
-      const list = rowsByTeam.get(row.teamId);
-      if (list) list.push(row);
-      else rowsByTeam.set(row.teamId, [row]);
-    }
-
-    const teams = teamsRaw.map((t) => {
-      const rows = rowsByTeam.get(t.id) ?? [];
-      const requiredDeliverables = rows.filter((d) => {
-        const req = requiredByTemplateId.get(d.templateId);
-        return req !== false;
+    if (includeDeliverableStats) {
+      const optionalTemplates = await db.deliverableTemplate.findMany({
+        where: { required: false },
+        select: { id: true },
       });
-      const submitted = requiredDeliverables.filter((d) => d.submissionStatus === "SUBMITTED");
-      return {
-        id: t.id,
-        name: t.name,
-        school: t.school,
-        profileImage: t.profileImage,
-        projectTitle: t.projectTitle,
-        description: t.description,
-        createdAt: t.createdAt,
-        memberCount: memberCountByTeam.get(t.id) ?? 0,
-        deliverableSubmitted: submitted.length,
-        deliverableTotal: requiredDeliverables.length,
-        reviewerAssignmentCount: reviewerAssignmentCountByTeam.get(t.id) ?? 0,
+      const optionalIds = optionalTemplates.map((t) => t.id);
+
+      const baseWhere = {
+        teamId: { in: teamIds },
+        ...(optionalIds.length > 0 ? { templateId: { notIn: optionalIds } } : {}),
       };
-    });
+
+      const [totalGroup, submittedGroup] = await Promise.all([
+        db.teamDeliverable.groupBy({
+          by: ["teamId"],
+          where: baseWhere,
+          _count: { _all: true },
+        }),
+        db.teamDeliverable.groupBy({
+          by: ["teamId"],
+          where: { ...baseWhere, submissionStatus: "SUBMITTED" },
+          _count: { _all: true },
+        }),
+      ]);
+
+      deliverableTotalByTeam = new Map(totalGroup.map((g) => [g.teamId, g._count._all]));
+      deliverableSubmittedByTeam = new Map(submittedGroup.map((g) => [g.teamId, g._count._all]));
+    }
+
+    let teams = teamsRaw.map((t) => ({
+      id: t.id,
+      name: t.name,
+      school: t.school,
+      region: regionByTeamId.get(t.id) ?? null,
+      projectTitle: t.projectTitle,
+      description: t.description,
+      createdAt: t.createdAt,
+      memberCount: memberCountByTeam.get(t.id) ?? 0,
+      deliverableSubmitted: deliverableSubmittedByTeam.get(t.id) ?? 0,
+      deliverableTotal: deliverableTotalByTeam.get(t.id) ?? 0,
+      reviewerAssignmentCount: reviewerAssignmentCountByTeam.get(t.id) ?? 0,
+    }));
 
     const hasPrevPage = page > 1;
 
@@ -749,6 +816,16 @@ export class AdminService {
         hasPrevPage,
       },
     };
+  }
+
+  /** Distinct non-empty school names for admin filters (e.g. judging teams tab). */
+  static async getDistinctTeamSchools(): Promise<string[]> {
+    const rows = await db.team.findMany({
+      select: { school: true },
+      distinct: ["school"],
+      orderBy: { school: "asc" },
+    });
+    return rows.map((r) => r.school?.trim()).filter((s): s is string => Boolean(s));
   }
 
   /**
@@ -994,6 +1071,83 @@ export class AdminService {
     });
 
     return updatedMember;
+  }
+
+  /**
+   * Admin-create a team: pick a lead, optional members, auto-scaffold deliverables.
+   */
+  static async adminCreateTeam(input: {
+    name: string;
+    school: string;
+    projectTitle?: string;
+    description?: string;
+    leadUserId: string;
+    memberUserIds?: string[];
+  }) {
+    const { name, school, projectTitle, description, leadUserId, memberUserIds = [] } = input;
+
+    const lead = await db.user.findUnique({ where: { id: leadUserId }, select: { id: true } });
+    if (!lead) throw new Error("Lead user not found");
+
+    const existingMembership = await db.teamMember.findFirst({
+      where: { userId: leadUserId },
+      select: { teamId: true, team: { select: { name: true } } },
+    });
+    if (existingMembership) {
+      throw new Error(`Lead is already a member of team "${existingMembership.team.name}"`);
+    }
+
+    const uniqueMembers = [...new Set(memberUserIds)].filter((id) => id !== leadUserId);
+
+    for (const uid of uniqueMembers) {
+      const u = await db.user.findUnique({ where: { id: uid }, select: { id: true } });
+      if (!u) throw new Error(`Member user ${uid} not found`);
+      const m = await db.teamMember.findFirst({
+        where: { userId: uid },
+        select: { teamId: true, team: { select: { name: true } } },
+      });
+      if (m) throw new Error(`User ${uid} is already a member of team "${m.team.name}"`);
+    }
+
+    const team = await db.team.create({
+      data: {
+        name,
+        school,
+        projectTitle: projectTitle || null,
+        description: description || null,
+        members: {
+          create: [
+            { userId: leadUserId, role: TeamRole.LEAD },
+            ...uniqueMembers.map((uid) => ({ userId: uid, role: TeamRole.MEMBER })),
+          ],
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true, profilePhoto: true },
+            },
+          },
+        },
+      },
+    });
+
+    const templates = await db.deliverableTemplate.findMany();
+    if (templates.length > 0) {
+      await db.teamDeliverable.createMany({
+        data: templates.map((t) => ({
+          teamId: team.id,
+          templateId: t.id,
+          type: t.type,
+          customType: t.customType,
+          contentType: t.contentType,
+          content: "",
+        })),
+      });
+    }
+
+    return team;
   }
 
   /**

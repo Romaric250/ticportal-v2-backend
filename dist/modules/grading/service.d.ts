@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { type SectionScoreInput } from "./scoring";
+/** Used for Teams tab sort: prioritize teams that submitted all required deliverables (e.g. 7). */
+export declare const DELIVERABLES_COMPLETE_TARGET = 7;
 export declare function getGradingSettings(): Promise<{
     id: string;
     updatedAt: Date;
@@ -60,6 +62,8 @@ export declare function listReviewers(): Promise<{
     role: import(".prisma/client").$Enums.UserRole;
     firstName: string;
     lastName: string;
+    school: string | null;
+    region: string | null;
     isReviewer: boolean;
 }[]>;
 export declare function reviewerWorkload(): Promise<{
@@ -82,6 +86,7 @@ export declare function getPendingGradesTeams(): Promise<{
     status: string;
     score1: number | null;
     score2: number | null;
+    score3: number | null;
     canFinalize: boolean;
 }[]>;
 export declare function createAssignmentsForTeam(teamId: string, reviewerIds: string[], assignedBy: string, sendMail: boolean): Promise<{
@@ -101,6 +106,8 @@ export declare function autoAssignReviewers(options?: {
     teamIds?: string[];
     assignedBy?: string;
     sendMail?: boolean;
+    /** Skip reviewers whose region matches the team lead region (reduces same-region bias). */
+    excludeReviewersSameRegionAsTeam?: boolean;
 }): Promise<{
     assigned: number;
     teams: {
@@ -125,6 +132,20 @@ export declare function manualAssign(pairs: {
     teams: {
         teamId: string;
         reviewerIds: string[];
+    }[];
+}>;
+/** Assign the same N reviewers to many teams (e.g. after filtering by region). */
+export declare function bulkAssignReviewersToTeams(teamIds: string[], reviewerIds: string[], assignedBy: string, sendMail: boolean, options?: {
+    rejectReviewersFromTeamRegion?: boolean;
+}): Promise<{
+    assigned: number;
+    teams: {
+        teamId: string;
+        reviewerIds: string[];
+    }[];
+    errors: {
+        teamId: string;
+        message: string;
     }[];
 }>;
 /** Current reviewer assignments for one team (manual assign pre-fill: 0, 1, or 2 reviewers). */
@@ -189,9 +210,9 @@ export declare function submitGrade(teamId: string, reviewerId: string, body: {
     rubricId: string;
     reviewedAt: Date | null;
     reviewerId: string;
-    feedback: string | null;
     sectionScores: Prisma.JsonValue;
     totalScore: number;
+    feedback: string | null;
     isFirstReview: boolean;
     pairedReviewerUserId: string | null;
 }>;
@@ -222,6 +243,8 @@ export declare function getTeamReviews(teamId: string, viewerUserId: string, isA
         submitted: boolean;
         scoresHidden: boolean;
     }[];
+    /** Until this reviewer submits, peer progress is hidden (blind review). */
+    peersHiddenUntilYouSubmit: boolean;
 }>;
 export declare function teamLeaderboardPoints(teamId: string): Promise<number>;
 export declare function normalizeTeamLeaderboardScores(): Promise<Map<string, number>>;
@@ -263,6 +286,10 @@ export type LeaderboardTeamsPageResult = {
         score1: number | null;
         /** Second reviewer total score, null if not submitted yet. */
         score2: number | null;
+        /** Third reviewer total score (stable order by reviewerId), null if not submitted yet. */
+        score3: number | null;
+        /** Team region (lead member, else first member). */
+        region: string | null;
         /** Average of completed reviewer scores (same basis as finalize). */
         reviewerAverageScore: number | null;
         /** Points toward final 0–100 from reviewers: avg × (100 − leaderboardWeightPercent)%. */
@@ -293,8 +320,11 @@ export type LeaderboardTeamsPageResult = {
 };
 /**
  * Full live ranking (blend-based). Used by admin reports and paginated leaderboard API.
+ * @param opts.region When set, only teams whose lead (or member) region matches (case-insensitive) are ranked.
  */
-export declare function getRankedLeaderboardTeamsFull(): Promise<LeaderboardTeamsPageResult["teams"]>;
+export declare function getRankedLeaderboardTeamsFull(opts?: {
+    region?: string | null;
+}): Promise<LeaderboardTeamsPageResult["teams"]>;
 /**
  * Paginated admin leaderboard: global rank by blend score (finalized score when present, else live preview).
  * Preview = reviewerAverage × (1 − w) + normalizedLeaderboard × w, capped at 100.
@@ -302,6 +332,7 @@ export declare function getRankedLeaderboardTeamsFull(): Promise<LeaderboardTeam
 export declare function getLeaderboardTeamsReport(params?: {
     page?: number;
     limit?: number;
+    region?: string | null;
 }): Promise<LeaderboardTeamsPageResult>;
 export declare function finalizeTeamGradesBulk(teamIds: string[]): Promise<{
     succeeded: string[];
@@ -343,10 +374,15 @@ export declare function getReviewerDashboard(userId: string): Promise<{
             totalScore: number;
             feedback: string | null;
         } | null;
+        /** @deprecated Use otherReviewers; kept for older clients (first peer when you have submitted). */
         pairedReviewer: {
             name: string;
             submitted: boolean;
         } | null;
+        otherReviewers: {
+            name: string;
+            submitted: boolean;
+        }[];
     }[];
     stats: {
         totalAssigned: number;
@@ -355,11 +391,12 @@ export declare function getReviewerDashboard(userId: string): Promise<{
     };
 }>;
 /** Lean leaderboard payload — single query with explicit selects (fast vs. full include graph). */
-export declare function getGradingReports(): Promise<{
+export declare function getGradingReports(region?: string | null): Promise<{
     teams: {
         teamId: string;
         teamName: string;
         school: string;
+        region: string | null;
         projectTitle: string | null;
         assignmentCount: number;
         finalScore: number | null;
@@ -368,6 +405,7 @@ export declare function getGradingReports(): Promise<{
         rank: number;
         score1: number | null;
         score2: number | null;
+        score3: number | null;
         blendFinal: number | null;
         normalizedLeaderboard: number;
         rawLeaderboardPoints: number;

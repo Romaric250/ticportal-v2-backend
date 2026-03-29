@@ -102,7 +102,7 @@ export class GradingController {
 
   static async autoAssign(req: Request, res: Response) {
     try {
-      const { excludeReviewerIds, teamIds, sendMail } = req.body || {};
+      const { excludeReviewerIds, teamIds, sendMail, excludeReviewersSameRegionAsTeam } = req.body || {};
       const assignedBy = requireUid(req, res);
       if (!assignedBy) return;
       const data = await GradingService.autoAssignReviewers({
@@ -110,7 +110,34 @@ export class GradingController {
         teamIds,
         assignedBy,
         sendMail,
+        excludeReviewersSameRegionAsTeam: Boolean(excludeReviewersSameRegionAsTeam),
       });
+      return res.json({ success: true, data });
+    } catch (e) {
+      return sendErr(res, e, 400);
+    }
+  }
+
+  static async bulkAssignSameReviewers(req: Request, res: Response) {
+    try {
+      const { teamIds, reviewerIds, sendMail, rejectReviewersFromTeamRegion } = req.body as {
+        teamIds?: string[];
+        reviewerIds?: string[];
+        sendMail?: boolean;
+        rejectReviewersFromTeamRegion?: boolean;
+      };
+      if (!Array.isArray(teamIds) || !Array.isArray(reviewerIds)) {
+        return res.status(400).json({ success: false, message: "teamIds and reviewerIds arrays required" });
+      }
+      const assignedBy = requireUid(req, res);
+      if (!assignedBy) return;
+      const data = await GradingService.bulkAssignReviewersToTeams(
+        teamIds,
+        reviewerIds,
+        assignedBy,
+        sendMail !== false,
+        { rejectReviewersFromTeamRegion: Boolean(rejectReviewersFromTeamRegion) }
+      );
       return res.json({ success: true, data });
     } catch (e) {
       return sendErr(res, e, 400);
@@ -301,9 +328,11 @@ export class GradingController {
 
   static async leaderboardTeams(req: Request, res: Response) {
     try {
+      const region = typeof req.query.region === "string" ? req.query.region : undefined;
       const data = await GradingService.getLeaderboardTeamsReport({
         ...(req.query.page != null ? { page: Number(req.query.page) } : {}),
         ...(req.query.limit != null ? { limit: Number(req.query.limit) } : {}),
+        ...(region != null && region !== "" ? { region } : {}),
       });
       return res.json({ success: true, data });
     } catch (e) {
@@ -345,9 +374,10 @@ export class GradingController {
     }
   }
 
-  static async gradingReports(_req: Request, res: Response) {
+  static async gradingReports(req: Request, res: Response) {
     try {
-      const data = await GradingService.getGradingReports();
+      const region = typeof req.query.region === "string" ? req.query.region : undefined;
+      const data = await GradingService.getGradingReports(region && region !== "" ? region : undefined);
       return res.json({ success: true, data });
     } catch (e) {
       return sendErr(res, e);

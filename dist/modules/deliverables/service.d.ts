@@ -51,10 +51,10 @@ export declare class DeliverableService {
             content: string;
             reviewedBy: string | null;
             reviewedAt: Date | null;
+            feedback: string | null;
             templateId: string;
             submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
             reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-            feedback: string | null;
         })[];
         hackathon: {
             level: import(".prisma/client").$Enums.HackathonLevel;
@@ -166,6 +166,10 @@ export declare class DeliverableService {
             name: string;
             school: string;
         };
+        reviewer: {
+            firstName: string;
+            lastName: string;
+        } | null;
         template: {
             id: string;
             type: import(".prisma/client").$Enums.DeliverableType;
@@ -179,10 +183,6 @@ export declare class DeliverableService {
             dueDate: Date;
             required: boolean;
         };
-        reviewer: {
-            firstName: string;
-            lastName: string;
-        } | null;
     } & {
         id: string;
         type: import(".prisma/client").$Enums.DeliverableType;
@@ -194,10 +194,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     })[]>;
     /**
      * Upload deliverable for a team (admin action)
@@ -238,10 +238,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
     /**
      * Approve deliverable
@@ -276,10 +276,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
     /**
      * Reject deliverable with feedback
@@ -314,15 +314,19 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
     /**
      * Get team's deliverables
      */
     static getTeamDeliverables(teamId: string): Promise<({
+        reviewer: {
+            firstName: string;
+            lastName: string;
+        } | null;
         template: {
             id: string;
             type: import(".prisma/client").$Enums.DeliverableType;
@@ -336,10 +340,6 @@ export declare class DeliverableService {
             dueDate: Date;
             required: boolean;
         };
-        reviewer: {
-            firstName: string;
-            lastName: string;
-        } | null;
     } & {
         id: string;
         type: import(".prisma/client").$Enums.DeliverableType;
@@ -351,10 +351,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     })[]>;
     /**
      * Submit or update deliverable (student action)
@@ -395,10 +395,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
     /**
      * Get deliverable by ID (for viewing before submission)
@@ -408,6 +408,10 @@ export declare class DeliverableService {
             id: string;
             name: string;
         };
+        reviewer: {
+            firstName: string;
+            lastName: string;
+        } | null;
         template: {
             id: string;
             type: import(".prisma/client").$Enums.DeliverableType;
@@ -421,10 +425,6 @@ export declare class DeliverableService {
             dueDate: Date;
             required: boolean;
         };
-        reviewer: {
-            firstName: string;
-            lastName: string;
-        } | null;
     } & {
         id: string;
         type: import(".prisma/client").$Enums.DeliverableType;
@@ -436,10 +436,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
     /**
      * Check if deadline has passed
@@ -486,10 +486,10 @@ export declare class DeliverableService {
         content: string;
         reviewedBy: string | null;
         reviewedAt: Date | null;
+        feedback: string | null;
         templateId: string;
         submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
         reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
-        feedback: string | null;
     }>;
 }
 //# sourceMappingURL=service.d.ts.map

@@ -1,9 +1,62 @@
-import { GradeStatus, Prisma } from "@prisma/client";
+import { GradeStatus, Prisma, TeamRole } from "@prisma/client";
 import { db } from "../../config/database.js";
 import { logger } from "../../shared/utils/logger.js";
 import { buildEmptySectionScores, computeTotalScore, parseRubricSections, } from "./scoring.js";
 import { notifyGradeFinalized, notifyPeerReviewSubmitted, notifyReviewerStatusGranted, notifyTeamAssignment, } from "./notifications.js";
-const REVIEWERS_PER_TEAM = 2;
+const REVIEWERS_PER_TEAM = 3;
+/** Used for Teams tab sort: prioritize teams that submitted all required deliverables (e.g. 7). */
+export const DELIVERABLES_COMPLETE_TARGET = 7;
+async function getTeamLeadRegion(teamId) {
+    const lead = await db.teamMember.findFirst({
+        where: { teamId, role: TeamRole.LEAD },
+        include: { user: { select: { region: true } } },
+    });
+    const r = lead?.user?.region?.trim();
+    if (r)
+        return r;
+    const anyMember = await db.teamMember.findFirst({
+        where: { teamId },
+        include: { user: { select: { region: true } } },
+    });
+    return anyMember?.user?.region?.trim() || null;
+}
+function sameRegion(a, b) {
+    if (!a?.trim() || !b?.trim())
+        return false;
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+async function getTeamRegionsBatch(teamIds) {
+    const map = new Map();
+    for (const id of teamIds)
+        map.set(id, null);
+    if (teamIds.length === 0)
+        return map;
+    const leads = await db.teamMember.findMany({
+        where: { teamId: { in: teamIds }, role: TeamRole.LEAD },
+        include: { user: { select: { region: true } } },
+    });
+    for (const row of leads) {
+        map.set(row.teamId, row.user.region?.trim() || null);
+    }
+    const missing = teamIds.filter((id) => !map.get(id));
+    if (missing.length === 0)
+        return map;
+    const rest = await db.teamMember.findMany({
+        where: { teamId: { in: missing } },
+        include: { user: { select: { region: true } } },
+        orderBy: { joinedAt: "asc" },
+    });
+    const seen = new Set();
+    for (const row of rest) {
+        if (seen.has(row.teamId))
+            continue;
+        seen.add(row.teamId);
+        if (!map.get(row.teamId)) {
+            map.set(row.teamId, row.user.region?.trim() || null);
+        }
+    }
+    return map;
+}
 /** Reviewer has finished their rubric (submitted, or past admin finalize / publish). */
 function isGradeCompleteForReviewer(status) {
     return (status === GradeStatus.SUBMITTED ||
@@ -111,18 +164,18 @@ export async function unassignReviewer(teamId, reviewerId, options) {
             throw new Error("assignedBy required");
         const sendMail = options?.sendMail !== false;
         const current = await db.teamAssignment.findMany({ where: { teamId } });
-        const other = current.find((c) => c.reviewerId !== reviewerId);
-        if (!other) {
-            const err = new Error("This team only has one reviewer assigned. Unassign without replacement, then assign a full pair manually.");
+        const others = current.filter((c) => c.reviewerId !== reviewerId).map((c) => c.reviewerId);
+        if (others.length !== REVIEWERS_PER_TEAM - 1) {
+            const err = new Error(`Replacement requires exactly ${REVIEWERS_PER_TEAM - 1} other reviewer(s) on this team; use manual assign to fix assignments.`);
             err.statusCode = 400;
             throw err;
         }
-        if (replacement === reviewerId || replacement === other.reviewerId) {
+        if (replacement === reviewerId || others.includes(replacement)) {
             const err = new Error("Choose a different reviewer for the replacement");
             err.statusCode = 400;
             throw err;
         }
-        return setTeamReviewerPair(teamId, [other.reviewerId, replacement], assignedBy, sendMail);
+        return setTeamReviewerPair(teamId, [...others, replacement], assignedBy, sendMail);
     }
     await assertCanUnassignReviewer(teamId, reviewerId);
     await removeReviewerFromTeamDb(teamId, reviewerId);
@@ -226,6 +279,8 @@ export async function listReviewers() {
             lastName: true,
             role: true,
             isReviewer: true,
+            region: true,
+            school: true,
         },
         orderBy: { lastName: "asc" },
     });
@@ -274,6 +329,7 @@ export async function getPendingGradesTeams() {
             .sort((a, b) => a.reviewerId.localeCompare(b.reviewerId));
         const score1 = submittedGrades[0]?.totalScore ?? null;
         const score2 = submittedGrades[1]?.totalScore ?? null;
+        const score3 = submittedGrades[2]?.totalScore ?? null;
         return {
             teamId: t.id,
             teamName: t.name,
@@ -285,6 +341,7 @@ export async function getPendingGradesTeams() {
             status,
             score1,
             score2,
+            score3,
             canFinalize: readyToFinalize,
         };
     })
@@ -317,10 +374,6 @@ export async function createAssignmentsForTeam(teamId, reviewerIds, assignedBy, 
         if (!u?.isReviewer)
             throw new Error(`User ${rid} is not a reviewer`);
     }
-    const a = reviewerIds[0];
-    const b = reviewerIds[1];
-    if (!a || !b)
-        throw new Error("Invalid reviewer pair");
     const rubricJson = { sections: parseRubricSections(rubric.sections) };
     const empty = buildEmptySectionScores(rubricJson);
     await db.$transaction(async (tx) => {
@@ -330,7 +383,6 @@ export async function createAssignmentsForTeam(teamId, reviewerIds, assignedBy, 
                 create: { teamId, reviewerId: rid, assignedBy },
                 update: {},
             });
-            const pairId = rid === a ? b : a;
             await tx.grade.upsert({
                 where: { teamId_reviewerId: { teamId, reviewerId: rid } },
                 create: {
@@ -340,10 +392,10 @@ export async function createAssignmentsForTeam(teamId, reviewerIds, assignedBy, 
                     sectionScores: empty,
                     totalScore: 0,
                     status: GradeStatus.IN_PROGRESS,
-                    pairedReviewerUserId: pairId,
+                    pairedReviewerUserId: null,
                 },
                 update: {
-                    pairedReviewerUserId: pairId,
+                    pairedReviewerUserId: null,
                     rubricId: rubric.id,
                 },
             });
@@ -406,10 +458,10 @@ export async function autoAssignReviewers(options) {
             isReviewer: true,
             ...(exclude.size > 0 ? { id: { notIn: [...exclude] } } : {}),
         },
-        select: { id: true },
+        select: { id: true, region: true },
     });
     if (reviewers.length < REVIEWERS_PER_TEAM) {
-        throw new Error("Not enough reviewers (need at least 2, excluding blocked list)");
+        throw new Error(`Not enough reviewers (need at least ${REVIEWERS_PER_TEAM}, excluding blocked list)`);
     }
     const teamWhere = options?.teamIds?.length ? { id: { in: options.teamIds } } : {};
     const teams = await db.team.findMany({
@@ -431,6 +483,7 @@ export async function autoAssignReviewers(options) {
     }
     const assignedBy = options?.assignedBy ?? reviewers[0].id;
     const sendMail = options?.sendMail !== false;
+    const excludeSameRegion = options?.excludeReviewersSameRegionAsTeam === true;
     const results = [];
     const skipped = [];
     const errors = [];
@@ -441,8 +494,19 @@ export async function autoAssignReviewers(options) {
         const needed = REVIEWERS_PER_TEAM - n;
         const memberIds = new Set(team.members.map((m) => m.userId));
         const existingIds = new Set(team.teamAssignments.map((t) => t.reviewerId));
+        const existingList = team.teamAssignments.map((t) => t.reviewerId);
+        let teamRegion = null;
+        if (excludeSameRegion) {
+            teamRegion = await getTeamLeadRegion(team.id);
+        }
         let candidates = reviewers
-            .filter((r) => !memberIds.has(r.id) && !existingIds.has(r.id))
+            .filter((r) => {
+            if (memberIds.has(r.id) || existingIds.has(r.id))
+                return false;
+            if (excludeSameRegion && teamRegion && sameRegion(r.region, teamRegion))
+                return false;
+            return true;
+        })
             .map((r) => ({ id: r.id, w: load.get(r.id) ?? 0 }))
             .sort((x, y) => x.w - y.w);
         if (maxTeams != null) {
@@ -464,21 +528,12 @@ export async function autoAssignReviewers(options) {
             continue;
         }
         try {
-            if (n === 0) {
-                const a = pick[0];
-                const b = pick[1];
-                await setTeamReviewerPair(team.id, [a, b], assignedBy, sendMail);
-                load.set(a, (load.get(a) ?? 0) + 1);
-                load.set(b, (load.get(b) ?? 0) + 1);
-                results.push({ teamId: team.id, reviewerIds: [a, b] });
+            const allIds = [...existingList, ...pick];
+            await setTeamReviewerPair(team.id, allIds, assignedBy, sendMail);
+            for (const id of pick) {
+                load.set(id, (load.get(id) ?? 0) + 1);
             }
-            else {
-                const existing = team.teamAssignments[0].reviewerId;
-                const newR = pick[0];
-                await setTeamReviewerPair(team.id, [existing, newR], assignedBy, sendMail);
-                load.set(newR, (load.get(newR) ?? 0) + 1);
-                results.push({ teamId: team.id, reviewerIds: [existing, newR] });
-            }
+            results.push({ teamId: team.id, reviewerIds: allIds });
         }
         catch (e) {
             const message = e instanceof Error ? e.message : String(e);
@@ -499,6 +554,38 @@ export async function manualAssign(pairs, assignedBy, sendMail = true) {
         out.push(r);
     }
     return { assigned: out.length, teams: out };
+}
+/** Assign the same N reviewers to many teams (e.g. after filtering by region). */
+export async function bulkAssignReviewersToTeams(teamIds, reviewerIds, assignedBy, sendMail, options) {
+    if (!teamIds.length)
+        throw new Error("teamIds required");
+    if (reviewerIds.length !== REVIEWERS_PER_TEAM) {
+        throw new Error(`Exactly ${REVIEWERS_PER_TEAM} reviewers required`);
+    }
+    const uniq = new Set(reviewerIds);
+    if (uniq.size !== reviewerIds.length)
+        throw new Error("Duplicate reviewers");
+    const results = [];
+    const errors = [];
+    for (const teamId of teamIds) {
+        try {
+            if (options?.rejectReviewersFromTeamRegion) {
+                const tr = await getTeamLeadRegion(teamId);
+                for (const rid of reviewerIds) {
+                    const u = await db.user.findUnique({ where: { id: rid }, select: { region: true } });
+                    if (sameRegion(u?.region, tr)) {
+                        throw new Error(`Reviewer is from the same region as this team`);
+                    }
+                }
+            }
+            await setTeamReviewerPair(teamId, reviewerIds, assignedBy, sendMail);
+            results.push({ teamId, reviewerIds });
+        }
+        catch (e) {
+            errors.push({ teamId, message: e instanceof Error ? e.message : String(e) });
+        }
+    }
+    return { assigned: results.length, teams: results, errors };
 }
 /** Current reviewer assignments for one team (manual assign pre-fill: 0, 1, or 2 reviewers). */
 export async function getTeamReviewerAssignments(teamId) {
@@ -592,14 +679,18 @@ export async function submitGrade(teamId, reviewerId, body) {
             submittedAt: new Date(),
         },
     });
-    const pairId = grade.pairedReviewerUserId;
-    if (pairId) {
-        const other = await db.user.findUnique({ where: { id: pairId } });
-        const reviewer = await db.user.findUnique({ where: { id: reviewerId } });
-        const team = await db.team.findUnique({ where: { id: teamId } });
-        if (other && reviewer && team) {
-            const pairName = `${reviewer.firstName} ${reviewer.lastName}`;
-            await notifyPeerReviewSubmitted(other.email, other.firstName, team.name, pairName);
+    const others = await db.teamAssignment.findMany({
+        where: { teamId, reviewerId: { not: reviewerId } },
+        select: { reviewerId: true },
+    });
+    const reviewer = await db.user.findUnique({ where: { id: reviewerId } });
+    const team = await db.team.findUnique({ where: { id: teamId } });
+    if (reviewer && team) {
+        const pairName = `${reviewer.firstName} ${reviewer.lastName}`;
+        for (const o of others) {
+            const other = await db.user.findUnique({ where: { id: o.reviewerId } });
+            if (other)
+                await notifyPeerReviewSubmitted(other.email, other.firstName, team.name, pairName);
         }
     }
     return updated;
@@ -634,13 +725,16 @@ export async function getTeamReviews(teamId, viewerUserId, isAdmin) {
         }));
     }
     const mine = grades.find((g) => g.reviewerId === viewerUserId);
-    const others = grades
-        .filter((g) => g.reviewerId !== viewerUserId)
-        .map((g) => ({
-        reviewerName: `${g.reviewer.firstName} ${g.reviewer.lastName}`,
-        submitted: g.status === GradeStatus.SUBMITTED,
-        scoresHidden: true,
-    }));
+    const viewerSubmitted = mine?.status === GradeStatus.SUBMITTED;
+    const others = viewerSubmitted || !mine
+        ? grades
+            .filter((g) => g.reviewerId !== viewerUserId)
+            .map((g) => ({
+            reviewerName: `${g.reviewer.firstName} ${g.reviewer.lastName}`,
+            submitted: g.status === GradeStatus.SUBMITTED,
+            scoresHidden: true,
+        }))
+        : [];
     return {
         mine: mine
             ? {
@@ -653,6 +747,8 @@ export async function getTeamReviews(teamId, viewerUserId, isAdmin) {
             }
             : null,
         others,
+        /** Until this reviewer submits, peer progress is hidden (blind review). */
+        peersHiddenUntilYouSubmit: mine ? !viewerSubmitted : false,
     };
 }
 export async function teamLeaderboardPoints(teamId) {
@@ -729,14 +825,25 @@ export async function finalizeTeamGrade(teamId) {
         where: { teamId, status: GradeStatus.SUBMITTED },
     });
     if (grades.length < REVIEWERS_PER_TEAM) {
-        throw new Error("Both reviewers must submit before finalizing");
+        throw new Error(`All ${REVIEWERS_PER_TEAM} reviewers must submit before finalizing`);
     }
     const scores = grades.map((g) => g.totalScore);
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const s0 = scores[0] ?? 0;
-    const s1 = scores[1] ?? 0;
-    const mid = (s0 + s1) / 2;
-    const diffPct = mid > 0 ? (Math.abs(s0 - s1) / mid) * 100 : s0 !== s1 ? 100 : 0;
+    let diffPct = 0;
+    if (scores.length >= 2) {
+        let maxPairDiff = 0;
+        for (let i = 0; i < scores.length; i++) {
+            for (let j = i + 1; j < scores.length; j++) {
+                const s0 = scores[i] ?? 0;
+                const s1 = scores[j] ?? 0;
+                const mid = (s0 + s1) / 2;
+                const d = mid > 0 ? (Math.abs(s0 - s1) / mid) * 100 : s0 !== s1 ? 100 : 0;
+                if (d > maxPairDiff)
+                    maxPairDiff = d;
+            }
+        }
+        diffPct = maxPairDiff;
+    }
     const settings = await getGradingSettings();
     const lbNorm = await getNormalizedLeaderboardScoreForTeam(teamId);
     const finalScore = blendReviewerAndLeaderboard(avg, lbNorm, settings.leaderboardScorePercent);
@@ -806,8 +913,9 @@ const LEADERBOARD_TEAMS_MAX_LIMIT = 100;
 const LEADERBOARD_TEAMS_DEFAULT_LIMIT = 20;
 /**
  * Full live ranking (blend-based). Used by admin reports and paginated leaderboard API.
+ * @param opts.region When set, only teams whose lead (or member) region matches (case-insensitive) are ranked.
  */
-export async function getRankedLeaderboardTeamsFull() {
+export async function getRankedLeaderboardTeamsFull(opts) {
     const settings = await getGradingSettings();
     const lbWeightPct = settings.leaderboardScorePercent;
     const cap = effectiveLeaderboardCap(settings);
@@ -834,6 +942,7 @@ export async function getRankedLeaderboardTeamsFull() {
         },
     });
     const teamIds = allTeams.map((t) => t.id);
+    const teamRegions = await getTeamRegionsBatch(teamIds);
     let rawByTeam;
     let norm;
     if (cap > 0) {
@@ -859,26 +968,29 @@ export async function getRankedLeaderboardTeamsFull() {
         const scores = done.map((g) => g.totalScore);
         const score1 = scores[0] ?? null;
         const score2 = scores[1] ?? null;
+        const score3 = scores[2] ?? null;
+        const teamRegion = teamRegions.get(t.id) ?? null;
         const finiteScores = scores.filter((s) => typeof s === "number" && Number.isFinite(s));
         /** Unweighted mean of submitted reviewer totals (rubric 0–100). */
         let reviewerAverageScore = null;
         if (finiteScores.length > 0) {
             reviewerAverageScore = finiteScores.reduce((a, b) => a + b, 0) / finiteScores.length;
         }
-        const bothReviewersComplete = done.length >= REVIEWERS_PER_TEAM &&
+        const allReviewersComplete = done.length >= REVIEWERS_PER_TEAM &&
             score1 != null &&
             score2 != null &&
+            score3 != null &&
             Number.isFinite(score1) &&
-            Number.isFinite(score2);
+            Number.isFinite(score2) &&
+            Number.isFinite(score3);
         let blendFinal = null;
         let reviewerContributionPts = null;
         let leaderboardContributionPts;
         /** Weight % for LB shown on row: current settings when live; else stored on final grade. */
         let rowLeaderboardWeightPercent = lbWeightPct;
-        if (bothReviewersComplete) {
+        if (allReviewersComplete) {
             /**
-             * Both reviews in: always derive Final, Wtd rev, and LB pts from **live** S1/S2 and **live** normalized LB
-             * so Rev avg / Wtd rev / LB pts / Final stay consistent. Stored TeamFinalGrade does not override the report.
+             * All reviews in: always derive Final, Wtd rev, and LB pts from **live** scores and **live** normalized LB.
              */
             rowLeaderboardWeightPercent = lbWeightPct;
             reviewerContributionPts = reviewerContributionPoints(reviewerAverageScore, lbWeightPct);
@@ -904,12 +1016,14 @@ export async function getRankedLeaderboardTeamsFull() {
         enriched.push({
             teamId: t.id,
             teamName: t.name,
+            region: teamRegion,
             rawLeaderboardPoints: rawByTeam.get(t.id) ?? 0,
             normalizedLeaderboard: lb,
             leaderboardPointsMax: maxCap,
             leaderboardWeightPercent: rowLeaderboardWeightPercent,
             score1,
             score2,
+            score3,
             reviewerAverageScore,
             reviewerContributionPoints: reviewerContributionPts,
             leaderboardContributionPoints: leaderboardContributionPts,
@@ -918,8 +1032,13 @@ export async function getRankedLeaderboardTeamsFull() {
             sortKey,
         });
     }
-    enriched.sort((a, b) => b.sortKey - a.sortKey);
-    return enriched.map((row, i) => {
+    let ranked = enriched;
+    if (opts?.region?.trim()) {
+        const want = opts.region.trim().toLowerCase();
+        ranked = enriched.filter((r) => (r.region ?? "").toLowerCase() === want);
+    }
+    ranked.sort((a, b) => b.sortKey - a.sortKey);
+    return ranked.map((row, i) => {
         const { sortKey, ...rest } = row;
         return { ...rest, rank: i + 1 };
     });
@@ -931,7 +1050,7 @@ export async function getRankedLeaderboardTeamsFull() {
 export async function getLeaderboardTeamsReport(params) {
     const page = Math.max(1, Math.floor(Number(params?.page) || 1));
     const limit = Math.min(LEADERBOARD_TEAMS_MAX_LIMIT, Math.max(1, Math.floor(Number(params?.limit) || LEADERBOARD_TEAMS_DEFAULT_LIMIT)));
-    const ranked = await getRankedLeaderboardTeamsFull();
+    const ranked = await getRankedLeaderboardTeamsFull(params?.region != null && params.region !== "" ? { region: params.region } : {});
     const total = ranked.length;
     const totalPages = total === 0 ? 1 : Math.ceil(total / limit);
     const skip = (page - 1) * limit;
@@ -1034,20 +1153,19 @@ export async function getReviewerDashboard(userId) {
             where: { teamId: a.teamId },
             include: { template: { select: { title: true } } },
         });
-        let pairedReviewer = null;
-        if (grade?.pairedReviewerUserId) {
-            const p = await db.user.findUnique({ where: { id: grade.pairedReviewerUserId } });
+        const otherAssignments = await db.teamAssignment.findMany({
+            where: { teamId: a.teamId, reviewerId: { not: userId } },
+            include: { reviewer: { select: { firstName: true, lastName: true } } },
+        });
+        const otherReviewers = [];
+        for (const asg of otherAssignments) {
             const pg = await db.grade.findUnique({
-                where: {
-                    teamId_reviewerId: { teamId: a.teamId, reviewerId: grade.pairedReviewerUserId },
-                },
+                where: { teamId_reviewerId: { teamId: a.teamId, reviewerId: asg.reviewerId } },
             });
-            if (p) {
-                pairedReviewer = {
-                    name: `${p.firstName} ${p.lastName}`,
-                    submitted: pg?.status === GradeStatus.SUBMITTED,
-                };
-            }
+            otherReviewers.push({
+                name: `${asg.reviewer.firstName} ${asg.reviewer.lastName}`,
+                submitted: pg?.status === GradeStatus.SUBMITTED,
+            });
         }
         assignedTeams.push({
             teamId: a.team.id,
@@ -1070,7 +1188,9 @@ export async function getReviewerDashboard(userId) {
                     feedback: grade.feedback ?? null,
                 }
                 : null,
-            pairedReviewer,
+            /** @deprecated Use otherReviewers; kept for older clients (first peer when you have submitted). */
+            pairedReviewer: otherReviewers[0] ?? null,
+            otherReviewers,
         });
     }
     const totalAssigned = assignedTeams.length;
@@ -1090,9 +1210,9 @@ export async function getReviewerDashboard(userId) {
     };
 }
 /** Lean leaderboard payload — single query with explicit selects (fast vs. full include graph). */
-export async function getGradingReports() {
+export async function getGradingReports(region) {
     const [rankedLb, teams] = await Promise.all([
-        getRankedLeaderboardTeamsFull(),
+        getRankedLeaderboardTeamsFull(region != null && region !== "" ? { region } : {}),
         db.team.findMany({
             select: {
                 id: true,
@@ -1134,6 +1254,7 @@ export async function getGradingReports() {
             teamId: t.id,
             teamName: t.name,
             school: t.school,
+            region: lb.region ?? null,
             projectTitle: t.projectTitle,
             assignmentCount: t.teamAssignments.length,
             finalScore,
@@ -1142,6 +1263,7 @@ export async function getGradingReports() {
             rank: lb.rank,
             score1: lb.score1,
             score2: lb.score2,
+            score3: lb.score3,
             blendFinal: lb.blendFinal,
             normalizedLeaderboard: lb.normalizedLeaderboard,
             rawLeaderboardPoints: lb.rawLeaderboardPoints,

@@ -215,6 +215,8 @@ model TeamMember {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
 }
 
 enum TeamRole {
@@ -683,6 +685,9 @@ model TeamDeliverable {
   template     DeliverableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   reviewer     User?              @relation("DeliverableReviewer", fields: [reviewedBy], references: [id])
   
+  @@index([teamId])
+  @@index([templateId])
+  @@index([submissionStatus, templateId])
   @@map("team_deliverables")
 }
 

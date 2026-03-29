@@ -268,6 +268,9 @@ router.delete("/users/:userId", AdminController.deleteUser);
  *         description: List of teams
  */
 router.get("/teams", AdminController.getTeams);
+router.post("/teams", AdminController.adminCreateTeam);
+/** Must be before GET /teams/:teamId or the path is captured as a team id. */
+router.get("/teams/schools", AdminController.getDistinctTeamSchools);
 /** Must be before GET /teams/:teamId or "pending-grades" is parsed as a team id. */
 router.get("/teams/pending-grades", authenticate, requireAdmin, GradingController.pendingGrades);
 /**
