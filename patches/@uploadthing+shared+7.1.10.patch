@@ -1,0 +1,30 @@
+diff --git a/node_modules/@uploadthing/shared/dist/index.cjs b/node_modules/@uploadthing/shared/dist/index.cjs
+index 610063e..104d4b8 100644
+--- a/node_modules/@uploadthing/shared/dist/index.cjs
++++ b/node_modules/@uploadthing/shared/dist/index.cjs
+@@ -573,8 +573,8 @@ const generateSignedURL = (url, secretKey, opts) => effect_Micro.gen(function* (
+ 	parsedURL.searchParams.append("expires", expirationTime.toString());
+ 	if (opts.data) Object.entries(opts.data).forEach(([key, value]) => {
+ 		if (value == null) return;
+-		const encoded = encodeURIComponent(value);
+-		parsedURL.searchParams.append(key, encoded);
++		// URLSearchParams.append encodes once; do not pre-encode (double-encoding breaks HMAC / "Expired signature")
++		parsedURL.searchParams.append(key, value);
+ 	});
+ 	const signature = yield* signPayload(parsedURL.toString(), secretKey);
+ 	parsedURL.searchParams.append("signature", signature);
+diff --git a/node_modules/@uploadthing/shared/dist/index.js b/node_modules/@uploadthing/shared/dist/index.js
+index 81b1824..309f755 100644
+--- a/node_modules/@uploadthing/shared/dist/index.js
++++ b/node_modules/@uploadthing/shared/dist/index.js
+@@ -550,8 +550,8 @@ const generateSignedURL = (url, secretKey, opts) => Micro.gen(function* () {
+ 	parsedURL.searchParams.append("expires", expirationTime.toString());
+ 	if (opts.data) Object.entries(opts.data).forEach(([key, value]) => {
+ 		if (value == null) return;
+-		const encoded = encodeURIComponent(value);
+-		parsedURL.searchParams.append(key, encoded);
++		// URLSearchParams.append encodes once; do not pre-encode (double-encoding breaks HMAC / "Expired signature")
++		parsedURL.searchParams.append(key, value);
+ 	});
+ 	const signature = yield* signPayload(parsedURL.toString(), secretKey);
+ 	parsedURL.searchParams.append("signature", signature);

@@ -21,12 +21,21 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL ?? process.env.CLIENT_URL ?? "http://localhost:3000",
   emailFrom: process.env.EMAIL_FROM ?? "no-reply@ticsummit.org",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
-  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN ?? "",
+  /** Strip quotes / BOM — bad bytes break token JSON + HMAC on ingest ("Expired signature") */
+  uploadthingToken: (() => {
+    let t = (process.env.UPLOADTHING_TOKEN ?? "").trim().replace(/^\uFEFF/, "");
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+      t = t.slice(1, -1).trim();
+    }
+    return t;
+  })(),
   // Fapshi Payment Gateway
   fapshiApiKey: process.env.FAPSHI_API_KEY ?? "",
   fapshiApiUser: process.env.FAPSHI_API_USER ?? "",
   fapshiBaseUrl: process.env.FAPSHI_BASE_URL ?? "https://sandbox.fapshi.com",
   fapshiWebhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",
+  // Google Drive API (for checking public access on deliverable links)
+  googleApiKey: process.env.GOOGLE_API_KEY ?? "",
 };
 
 

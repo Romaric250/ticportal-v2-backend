@@ -1,4 +1,5 @@
 import { DeliverableType, SubmissionStatus, ReviewStatus } from "@prisma/client";
+import { type GDriveCheckResult } from "./gdrive-checker";
 /**
  * Deliverable Service
  * Handles all deliverable template and submission operations
@@ -457,6 +458,90 @@ export declare class DeliverableService {
         teamId?: string;
         isAdmin?: boolean;
     }): Promise<{
+        team: {
+            id: string;
+            name: string;
+            school: string;
+        };
+        template: {
+            id: string;
+            type: import(".prisma/client").$Enums.DeliverableType;
+            createdAt: Date;
+            title: string;
+            updatedAt: Date;
+            description: string;
+            hackathonId: string | null;
+            customType: string | null;
+            contentType: import(".prisma/client").$Enums.DeliverableContentType;
+            dueDate: Date;
+            required: boolean;
+        };
+    } & {
+        id: string;
+        type: import(".prisma/client").$Enums.DeliverableType;
+        description: string | null;
+        teamId: string;
+        submittedAt: Date;
+        customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
+        content: string;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        feedback: string | null;
+        templateId: string;
+        submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
+        reviewStatus: import(".prisma/client").$Enums.ReviewStatus;
+    }>;
+    /**
+     * Check Google Drive access for a single deliverable.
+     */
+    static checkDeliverableAccess(deliverableId: string): Promise<{
+        deliverableId: string;
+        result: GDriveCheckResult;
+    }>;
+    /**
+     * Bulk-check Google Drive access for all URL-type submitted deliverables.
+     * Returns per-deliverable results + summary stats.
+     */
+    static bulkCheckDeliverableAccess(filters?: {
+        templateId?: string;
+    }): Promise<{
+        stats: {
+            total: number;
+            googleDriveLinks: number;
+            accessible: number;
+            notAccessible: number;
+            checkFailed: number;
+            nonGoogleDrive: number;
+        };
+        items: Array<{
+            deliverableId: string;
+            teamId: string;
+            teamName: string;
+            teamSchool: string;
+            teamRegion: string;
+            members: Array<{
+                name: string;
+                email: string;
+                phone: string;
+                school: string;
+                region: string;
+                role: string;
+            }>;
+            templateTitle: string;
+            templateId: string;
+            content: string;
+            contentType: string;
+            submissionStatus: string;
+            reviewStatus: string;
+            accessResult: GDriveCheckResult;
+        }>;
+    }>;
+    /**
+     * Reject a deliverable for access issues — un-submits it, stores feedback,
+     * sends an email to all team members.
+     */
+    static rejectDeliverableForAccess(deliverableId: string, reviewerId?: string): Promise<{
         team: {
             id: string;
             name: string;

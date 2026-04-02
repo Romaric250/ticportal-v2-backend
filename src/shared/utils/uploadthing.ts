@@ -3,7 +3,7 @@ import { logger } from "./logger";
 import { UTApi } from "uploadthing/server";
 
 // Initialize UTApi with your token
-const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
+const utapi = new UTApi({ token: env.uploadthingToken });
 
 interface UploadThingResponse {
   data: {

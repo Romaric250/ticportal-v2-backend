@@ -1,0 +1,13 @@
+diff --git a/node_modules/uploadthing/server/index.js b/node_modules/uploadthing/server/index.js
+index 08c7dbf..85df845 100644
+--- a/node_modules/uploadthing/server/index.js
++++ b/node_modules/uploadthing/server/index.js
+@@ -43,7 +43,7 @@ const uploadWithoutProgress = (file, presigned) => Effect.gen(function* () {
+ 	const formData = new FormData();
+ 	formData.append("file", file);
+ 	const httpClient = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+-	const json = yield* HttpClientRequest.put(presigned.url).pipe(HttpClientRequest.bodyFormData(formData), HttpClientRequest.setHeader("Range", "bytes=0-"), HttpClientRequest.setHeader("x-uploadthing-version", version), httpClient.execute, Effect.tapError(logHttpClientError("Failed to upload file")), Effect.mapError((e) => new UploadThingError$1({
++	const json = yield* HttpClientRequest.put(presigned.url).pipe(HttpClientRequest.bodyFormData(formData), HttpClientRequest.setHeader("x-uploadthing-version", version), httpClient.execute, Effect.tapError(logHttpClientError("Failed to upload file")), Effect.mapError((e) => new UploadThingError$1({
+ 		code: "UPLOAD_FAILED",
+ 		message: "Failed to upload file",
+ 		cause: e

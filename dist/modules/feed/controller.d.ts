@@ -7,7 +7,7 @@ export declare class FeedController {
     static getPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/feed/posts/quota/daily
-     * Student daily post limit (2/day UTC); non-students get applies: false.
+     * Student daily post limit (1/day UTC); non-students get applies: false.
      */
     static getDailyPostQuota(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**

@@ -6,7 +6,7 @@ import { FeedPointsService } from "./points.service.js";
 import { BadgeService } from "../badges/service.js";
 import { UserRole } from "@prisma/client";
 /** Students only: max feed posts per UTC calendar day. */
-const STUDENT_POSTS_PER_DAY = 2;
+const STUDENT_POSTS_PER_DAY = 1;
 function normalizeFeedUserRole(role) {
     if (typeof role === "string") {
         return role.replace(/-/g, "_").toUpperCase();
@@ -363,7 +363,7 @@ export class FeedService {
      */
     static async createPost(userId, userRole, input) {
         const role = normalizeFeedUserRole(userRole);
-        // Students: max 2 posts per UTC calendar day
+        // Students: max 1 post per UTC calendar day
         if (role === UserRole.STUDENT) {
             const { start, end } = utcCalendarDayBoundsUtc();
             const usedToday = await db.feedPost.count({
@@ -373,7 +373,7 @@ export class FeedService {
                 },
             });
             if (usedToday >= STUDENT_POSTS_PER_DAY) {
-                const err = new Error("Limit of 2 posts per day reached.");
+                const err = new Error("Limit of 1 post per day reached.");
                 err.statusCode = 429;
                 throw err;
             }

@@ -1,5 +1,6 @@
 import { DeliverableService } from "./service.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus } from "@prisma/client";
+import { checkGDriveAccess } from "./gdrive-checker.js";
 export class DeliverableController {
     /**
      * GET /api/admin/deliverable-templates
@@ -500,6 +501,76 @@ export class DeliverableController {
                 success: false,
                 message: error.message || "Failed to delete submission",
             });
+        }
+    }
+    /**
+     * GET /api/admin/deliverables/access-check
+     * Bulk-check GDrive access for all submitted URL deliverables.
+     */
+    static async bulkCheckAccess(req, res) {
+        try {
+            const { templateId } = req.query;
+            const result = await DeliverableService.bulkCheckDeliverableAccess({
+                templateId: templateId,
+            });
+            res.json({ success: true, data: result });
+        }
+        catch (error) {
+            res.status(500).json({ success: false, message: error.message || "Access check failed" });
+        }
+    }
+    /**
+     * GET /api/admin/deliverables/:deliverableId/access-check
+     * Check GDrive access for a single deliverable.
+     */
+    static async checkSingleAccess(req, res) {
+        try {
+            const { deliverableId } = req.params;
+            if (!deliverableId) {
+                return res.status(400).json({ success: false, message: "Deliverable ID required" });
+            }
+            const result = await DeliverableService.checkDeliverableAccess(deliverableId);
+            res.json({ success: true, data: result });
+        }
+        catch (error) {
+            const code = error.message.includes("not found") ? 404 : 500;
+            res.status(code).json({ success: false, message: error.message });
+        }
+    }
+    /**
+     * POST /api/admin/deliverables/:deliverableId/reject-access
+     * Reject a deliverable for access issues — un-submits + emails team.
+     */
+    static async rejectForAccess(req, res) {
+        try {
+            const { deliverableId } = req.params;
+            if (!deliverableId) {
+                return res.status(400).json({ success: false, message: "Deliverable ID required" });
+            }
+            const reviewerId = req.user?.id;
+            const result = await DeliverableService.rejectDeliverableForAccess(deliverableId, reviewerId);
+            res.json({ success: true, message: "Deliverable rejected for access issues", data: result });
+        }
+        catch (error) {
+            const code = error.message.includes("not found") ? 404 : 500;
+            res.status(code).json({ success: false, message: error.message });
+        }
+    }
+    /**
+     * POST /api/deliverables/check-url-access
+     * Check if a Google Drive URL is publicly accessible (any authenticated user).
+     */
+    static async checkUrlAccess(req, res) {
+        try {
+            const { url } = req.body;
+            if (!url || typeof url !== "string") {
+                return res.status(400).json({ success: false, message: "URL is required" });
+            }
+            const result = await checkGDriveAccess(url);
+            res.json({ success: true, data: { accessible: result.accessible, error: result.error } });
+        }
+        catch (error) {
+            res.status(500).json({ success: false, message: "Could not check URL access" });
         }
     }
 }

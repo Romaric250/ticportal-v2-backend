@@ -196,6 +196,20 @@ export declare function listAllAssignments(): Promise<{
         lastName: string;
     };
 }[]>;
+/**
+ * Remove every assignment that is still safe to unassign (same rules as single unassign:
+ * no team finalization; grade missing or IN_PROGRESS with no submission).
+ */
+export declare function unassignAllEligibleDraftAssignments(): Promise<{
+    removed: number;
+    attempted: number;
+    ineligibleCount: number;
+    failed: {
+        teamId: string;
+        reviewerId: string;
+        message: string;
+    }[];
+}>;
 export declare function getAssignmentsForReviewer(reviewerId: string): Promise<({
     team: {
         id: string;
@@ -423,6 +437,8 @@ export declare function getGradingReports(region?: string | null): Promise<{
         leaderboardWeightPercent: number;
         reviewerContributionPoints: number | null;
         leaderboardContributionPoints: number;
+        /** Deliverables with submissionStatus SUBMITTED */
+        submittedDeliverableCount: number;
         reviewers: {
             reviewerId: string;
             reviewerName: string;
@@ -441,6 +457,16 @@ export declare function getGradingReportTeamDetail(teamId: string): Promise<{
     projectTitle: string | null;
     description: string | null;
     createdAt: string;
+    deliverables: {
+        id: string;
+        type: import(".prisma/client").$Enums.DeliverableType;
+        customType: string | null;
+        contentType: import(".prisma/client").$Enums.DeliverableContentType;
+        content: string;
+        description: string | null;
+        submissionStatus: import(".prisma/client").$Enums.SubmissionStatus;
+        templateTitle: string;
+    }[];
     members: {
         role: import(".prisma/client").$Enums.TeamRole;
         joinedAt: string;
@@ -454,11 +480,12 @@ export declare function getGradingReportTeamDetail(teamId: string): Promise<{
     }[];
 }>;
 /**
- * Admin-only: delete a single reviewer's grade for a team.
- * The assignment stays — only the Grade row is removed so the reviewer can re-submit.
+ * Admin-only: remove a reviewer's grade and their team assignment.
+ * TeamAssignment references Grade — must delete assignment (or use removeReviewerFromTeamDb) before grade.
  */
 export declare function adminDeleteReviewerGrade(teamId: string, reviewerId: string): Promise<{
     deleted: boolean;
-    gradeId: string;
+    gradeId: string | null;
+    unassigned: boolean;
 }>;
 //# sourceMappingURL=service.d.ts.map

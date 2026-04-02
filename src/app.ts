@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
-import { createRouteHandler } from "uploadthing/express";
 import { env } from "./config/env";
 import { logger } from "./shared/utils/logger";
 import { trackActivity } from "./shared/middleware/activityTracker";
@@ -20,7 +19,6 @@ import notificationRoutes from "./modules/notifications/routes";
 import adminRoutes from "./modules/admin/routes";
 import { authenticate } from "./shared/middleware/auth";
 import { generalRateLimit } from "./shared/middleware/rateLimit";
-import { uploadRouter } from "./config/uploadthing";
 import deliverableRoutes from "./modules/deliverables/routes";
 import learningPathRoutes from "./modules/learning-paths/routes";
 import uploadRoutes from "./modules/upload/routes";
@@ -146,13 +144,6 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/defaults", defaultsRoutes);
 
-
-app.use(
-  "/api/uploadthing",
-  createRouteHandler({
-    router: uploadRouter,
-  }),
-);
 
 app.use("/api/users", authenticate, userRoutes);
 app.use("/api/squads", squadRoutes);

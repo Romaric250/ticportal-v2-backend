@@ -208,6 +208,15 @@ export class GradingController {
     }
   }
 
+  static async unassignAllEligible(_req: Request, res: Response) {
+    try {
+      const data = await GradingService.unassignAllEligibleDraftAssignments();
+      return res.json({ success: true, data });
+    } catch (e) {
+      return sendErr(res, e);
+    }
+  }
+
   static async reviewerAssignments(req: Request, res: Response) {
     try {
       const id = requireUid(req, res);

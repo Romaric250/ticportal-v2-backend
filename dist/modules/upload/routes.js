@@ -1,48 +1,51 @@
 import { Router } from "express";
-import { UTApi } from "uploadthing/server";
+import multer from "multer";
+import { env } from "../../config/env.js";
+import { logger } from "../../shared/utils/logger.js";
+import { uploadBufferWithUploadThing } from "./uploadthingService.js";
 const router = Router();
-const utapi = new UTApi();
+const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12 MB
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_FILE_SIZE },
+});
 /**
- * POST /upload
- * Upload file from base64 string (like team/user profile uploads)
+ * POST /api/f/upload
+ * Accepts a file via FormData, uploads to UploadThing via UTApi,
+ * and returns the file URL.
  */
-router.post("/upload", async (req, res) => {
+router.post("/upload", upload.single("file"), async (req, res) => {
     try {
-        const { file, fileName } = req.body;
-        console.log("file data:", fileName);
+        if (!env.uploadthingToken) {
+            logger.error("UPLOADTHING_TOKEN is missing or empty");
+            return res.status(500).json({
+                success: false,
+                message: "File uploads are not configured on the server.",
+            });
+        }
+        const file = req.file;
         if (!file) {
             return res.status(400).json({
                 success: false,
-                message: "No file data provided",
+                message: "No file provided. Please select a file and try again.",
             });
         }
-        // Convert base64 to File object for uploadthing
-        const base64Data = file.split(',')[1]; // Remove data:image/png;base64, prefix
-        const mimeType = file.split(';')[0].split(':')[1]; // Extract mime type
-        const buffer = Buffer.from(base64Data, 'base64');
-        // Create a File-like object
-        const fileBlob = new File([buffer], fileName || 'upload', { type: mimeType });
-        // Upload to uploadthing (same as team profile)
-        const uploadedFile = await utapi.uploadFiles(fileBlob);
-        console.log("uploaded: file", uploadedFile);
-        if (!uploadedFile || !uploadedFile.data) {
-            throw new Error("Upload failed");
-        }
+        const safeName = (file.originalname || "upload").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const uploaded = await uploadBufferWithUploadThing({
+            buffer: file.buffer,
+            filename: safeName,
+            mimeType: file.mimetype || "application/octet-stream",
+        });
         return res.json({
             success: true,
-            data: {
-                url: uploadedFile.data.url,
-                key: uploadedFile.data.key,
-                name: uploadedFile.data.name,
-                size: uploadedFile.data.size,
-            },
+            data: uploaded,
         });
     }
     catch (error) {
-        console.error("Upload error:", error);
+        logger.error({ err: error.message, stack: error.stack, cause: error.cause }, "File upload failed");
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to upload file",
+            message: "Error uploading file. Please try again.",
         });
     }
 });

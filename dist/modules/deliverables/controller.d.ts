@@ -64,5 +64,25 @@ export declare class DeliverableController {
      * DELETE /api/admin/deliverables/:deliverableId (Admin)
      */
     static adminDeleteSubmission(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * GET /api/admin/deliverables/access-check
+     * Bulk-check GDrive access for all submitted URL deliverables.
+     */
+    static bulkCheckAccess(req: Request, res: Response): Promise<void>;
+    /**
+     * GET /api/admin/deliverables/:deliverableId/access-check
+     * Check GDrive access for a single deliverable.
+     */
+    static checkSingleAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/admin/deliverables/:deliverableId/reject-access
+     * Reject a deliverable for access issues — un-submits + emails team.
+     */
+    static rejectForAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * POST /api/deliverables/check-url-access
+     * Check if a Google Drive URL is publicly accessible (any authenticated user).
+     */
+    static checkUrlAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=controller.d.ts.map

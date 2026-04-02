@@ -1,4 +1,4 @@
-import { GradeStatus, Prisma, TeamRole } from "@prisma/client";
+import { GradeStatus, Prisma, SubmissionStatus, TeamRole } from "@prisma/client";
 import { db } from "../../config/database";
 import { logger } from "../../shared/utils/logger";
 import {
@@ -16,6 +16,9 @@ import {
 } from "./notifications";
 
 const REVIEWERS_PER_TEAM = 3;
+
+/** Prisma default interactive tx timeout is 5s; bulk unassign / slow DB can exceed it. */
+const ASSIGNMENT_TX = { maxWait: 15_000, timeout: 60_000 } as const;
 
 /** Used for Teams tab sort: prioritize teams that submitted all required deliverables (e.g. 7). */
 export const DELIVERABLES_COMPLETE_TARGET = 7;
@@ -156,21 +159,24 @@ async function assertCanUnassignReviewer(teamId: string, reviewerId: string) {
  * or Prisma rejects the operation (AssignmentGrade relation).
  */
 async function removeReviewerFromTeamDb(teamId: string, reviewerId: string) {
-  await db.$transaction(async (tx) => {
-    const other = await tx.teamAssignment.findFirst({
-      where: { teamId, reviewerId: { not: reviewerId } },
-    });
-    if (other) {
-      await tx.grade.updateMany({
-        where: { teamId, reviewerId: other.reviewerId },
-        data: { pairedReviewerUserId: null },
+  await db.$transaction(
+    async (tx) => {
+      const other = await tx.teamAssignment.findFirst({
+        where: { teamId, reviewerId: { not: reviewerId } },
       });
-    }
-    await tx.teamAssignment.delete({
-      where: { teamId_reviewerId: { teamId, reviewerId } },
-    });
-    await tx.grade.deleteMany({ where: { teamId, reviewerId } });
-  });
+      if (other) {
+        await tx.grade.updateMany({
+          where: { teamId, reviewerId: other.reviewerId },
+          data: { pairedReviewerUserId: null },
+        });
+      }
+      await tx.teamAssignment.delete({
+        where: { teamId_reviewerId: { teamId, reviewerId } },
+      });
+      await tx.grade.deleteMany({ where: { teamId, reviewerId } });
+    },
+    ASSIGNMENT_TX,
+  );
 }
 
 /**
@@ -772,6 +778,49 @@ export async function listAllAssignments() {
     },
     orderBy: { assignedAt: "desc" },
   });
+}
+
+/**
+ * Remove every assignment that is still safe to unassign (same rules as single unassign:
+ * no team finalization; grade missing or IN_PROGRESS with no submission).
+ */
+export async function unassignAllEligibleDraftAssignments(): Promise<{
+  removed: number;
+  attempted: number;
+  ineligibleCount: number;
+  failed: { teamId: string; reviewerId: string; message: string }[];
+}> {
+  const rows = await listAllAssignments();
+  const eligibleRows = rows.filter((row) => {
+    if (row.team?.teamFinalGrade?.id) return false;
+    const g = row.grade;
+    if (!g) return true;
+    return g.status === GradeStatus.IN_PROGRESS && g.submittedAt == null;
+  });
+
+  let removed = 0;
+  const failed: { teamId: string; reviewerId: string; message: string }[] = [];
+
+  for (const row of eligibleRows) {
+    try {
+      await assertCanUnassignReviewer(row.teamId, row.reviewerId);
+      await removeReviewerFromTeamDb(row.teamId, row.reviewerId);
+      removed++;
+    } catch (e) {
+      failed.push({
+        teamId: row.teamId,
+        reviewerId: row.reviewerId,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  return {
+    removed,
+    attempted: eligibleRows.length,
+    ineligibleCount: rows.length - eligibleRows.length,
+    failed,
+  };
 }
 
 export async function getAssignmentsForReviewer(reviewerId: string) {
@@ -1550,10 +1599,23 @@ export async function getGradingReports(region?: string | null) {
 
   const teamIds = allTeams.map((t) => t.id);
 
-  const [teamRegions, rawByTeam] = await Promise.all([
+  const [teamRegions, rawByTeam, deliverableSubmittedCounts] = await Promise.all([
     getTeamRegionsBatch(teamIds),
     getTeamLeaderboardRawPointsBatch(teamIds),
+    teamIds.length === 0
+      ? Promise.resolve([] as { teamId: string; _count: { _all: number } }[])
+      : db.teamDeliverable.groupBy({
+          by: ["teamId"],
+          where: {
+            teamId: { in: teamIds },
+            submissionStatus: SubmissionStatus.SUBMITTED,
+          },
+          _count: { _all: true },
+        }),
   ]);
+  const submittedDeliverablesByTeam = new Map<string, number>(
+    deliverableSubmittedCounts.map((r) => [r.teamId, r._count._all]),
+  );
 
   let norm: Map<string, number>;
   if (cap > 0) {
@@ -1574,6 +1636,8 @@ export async function getGradingReports(region?: string | null) {
     blendFinal: number | null; normalizedLeaderboard: number; rawLeaderboardPoints: number;
     leaderboardWeightPercent: number; reviewerContributionPoints: number | null;
     leaderboardContributionPoints: number;
+    /** Deliverables with submissionStatus SUBMITTED */
+    submittedDeliverableCount: number;
     reviewers: { reviewerId: string; reviewerName: string; email: string; totalScore: number; status: string; feedback: string | null }[];
     sortKey: number;
   };
@@ -1642,6 +1706,7 @@ export async function getGradingReports(region?: string | null) {
       leaderboardWeightPercent: rowLbPct,
       reviewerContributionPoints: revContrib,
       leaderboardContributionPoints: lbContrib,
+      submittedDeliverableCount: submittedDeliverablesByTeam.get(t.id) ?? 0,
       reviewers: t.grades.map((g) => ({
         reviewerId: g.reviewer.id,
         reviewerName: `${g.reviewer.firstName} ${g.reviewer.lastName}`.trim(),
@@ -1698,6 +1763,19 @@ export async function getGradingReportTeamDetail(teamId: string) {
           },
         },
       },
+      deliverables: {
+        orderBy: { submittedAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          customType: true,
+          contentType: true,
+          content: true,
+          description: true,
+          submissionStatus: true,
+          template: { select: { title: true } },
+        },
+      },
     },
   });
   if (!team) {
@@ -1712,6 +1790,16 @@ export async function getGradingReportTeamDetail(teamId: string) {
     projectTitle: team.projectTitle,
     description: team.description,
     createdAt: team.createdAt.toISOString(),
+    deliverables: team.deliverables.map((d) => ({
+      id: d.id,
+      type: d.type,
+      customType: d.customType,
+      contentType: d.contentType,
+      content: d.content,
+      description: d.description,
+      submissionStatus: d.submissionStatus,
+      templateTitle: d.template?.title ?? null,
+    })),
     members: team.members.map((m) => ({
       role: m.role,
       joinedAt: m.joinedAt.toISOString(),
@@ -1727,21 +1815,27 @@ export async function getGradingReportTeamDetail(teamId: string) {
 }
 
 /**
- * Admin-only: delete a single reviewer's grade for a team.
- * The assignment stays — only the Grade row is removed so the reviewer can re-submit.
+ * Admin-only: remove a reviewer's grade and their team assignment.
+ * TeamAssignment references Grade — must delete assignment (or use removeReviewerFromTeamDb) before grade.
  */
 export async function adminDeleteReviewerGrade(teamId: string, reviewerId: string) {
+  const assignment = await db.teamAssignment.findUnique({
+    where: { teamId_reviewerId: { teamId, reviewerId } },
+    select: { id: true },
+  });
   const grade = await db.grade.findUnique({
     where: { teamId_reviewerId: { teamId, reviewerId } },
-    select: { id: true, status: true },
+    select: { id: true },
   });
-  if (!grade) {
-    const err = new Error("No grade found for this reviewer on the given team");
-    (err as any).statusCode = 404;
+  if (!assignment && !grade) {
+    const err = new Error("No grade or assignment found for this reviewer on the given team");
+    (err as { statusCode?: number }).statusCode = 404;
     throw err;
   }
-
-  await db.grade.delete({ where: { id: grade.id } });
-
-  return { deleted: true, gradeId: grade.id };
+  if (assignment) {
+    await removeReviewerFromTeamDb(teamId, reviewerId);
+    return { deleted: true, gradeId: grade?.id ?? null, unassigned: true };
+  }
+  await db.grade.delete({ where: { id: grade!.id } });
+  return { deleted: true, gradeId: grade!.id, unassigned: false };
 }

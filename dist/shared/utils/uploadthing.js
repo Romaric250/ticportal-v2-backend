@@ -2,7 +2,7 @@ import { env } from "../../config/env.js";
 import { logger } from "./logger.js";
 import { UTApi } from "uploadthing/server";
 // Initialize UTApi with your token
-const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
+const utapi = new UTApi({ token: env.uploadthingToken });
 /**
  * Validates a base64 image string
  * @param base64String The base64 string to validate

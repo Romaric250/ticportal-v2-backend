@@ -20,10 +20,13 @@ router.post("/admin/deliverable-templates", DeliverableController.createTemplate
 router.put("/admin/deliverable-templates/:templateId", DeliverableController.updateTemplate);
 router.delete("/admin/deliverable-templates/:templateId", DeliverableController.deleteTemplate);
 // Admin - Deliverable Submissions Management (New Routes)
+router.get("/admin/deliverables/access-check", DeliverableController.bulkCheckAccess);
 router.get("/admin/deliverables", DeliverableController.getDeliverables);
 router.post("/admin/deliverables/:teamId", DeliverableController.uploadDeliverable);
 router.post("/admin/deliverables/:deliverableId/approve", DeliverableController.approveDeliverable);
 router.post("/admin/deliverables/:deliverableId/reject", DeliverableController.rejectDeliverable);
+router.post("/admin/deliverables/:deliverableId/reject-access", DeliverableController.rejectForAccess);
+router.get("/admin/deliverables/:deliverableId/access-check", DeliverableController.checkSingleAccess);
 router.delete("/admin/deliverables/:deliverableId", DeliverableController.adminDeleteSubmission);
 // Admin - Deliverable Submissions Management (Old Routes - For Backward Compatibility)
 router.get("/admin/teams/deliverables", DeliverableController.getDeliverables);
@@ -38,6 +41,8 @@ router.get("/deliverable-templates", DeliverableController.getTemplatesForTeams)
 router.get("/deliverables/team/:teamId", DeliverableController.getTeamDeliverables);
 // Get single deliverable details
 router.get("/deliverables/:deliverableId", DeliverableController.getDeliverableById);
+// Check Google Drive URL access (any user)
+router.post("/deliverables/check-url-access", DeliverableController.checkUrlAccess);
 // Submit or update deliverable (before deadline)
 router.post("/deliverables/:deliverableId/submit", DeliverableController.submitDeliverable);
 // Delete submission (reset to empty)

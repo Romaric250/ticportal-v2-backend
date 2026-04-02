@@ -12,6 +12,7 @@ export declare class GradingController {
     static unassignReviewer(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static assignmentsForTeam(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     static listAssignments(_req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    static unassignAllEligible(_req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     static reviewerAssignments(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static submitGrade(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static getTeamReviews(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

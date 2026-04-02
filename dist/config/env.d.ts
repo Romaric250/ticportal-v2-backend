@@ -17,10 +17,12 @@ export declare const env: {
     frontendUrl: string;
     emailFrom: string;
     resendApiKey: string;
-    UPLOADTHING_TOKEN: string;
+    /** Strip quotes / BOM — bad bytes break token JSON + HMAC on ingest ("Expired signature") */
+    uploadthingToken: string;
     fapshiApiKey: string;
     fapshiApiUser: string;
     fapshiBaseUrl: string;
     fapshiWebhookSecret: string;
+    googleApiKey: string;
 };
 //# sourceMappingURL=env.d.ts.map

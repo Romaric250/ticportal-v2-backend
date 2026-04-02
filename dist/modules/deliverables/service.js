@@ -2,6 +2,9 @@ import { db } from "../../config/database.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
 import { POINTS_CONFIG } from "../../shared/constants/points.js";
 import { logger } from "../../shared/utils/logger.js";
+import { checkGDriveAccess, isGoogleDriveUrl, bulkCheckGDriveAccess } from "./gdrive-checker.js";
+import { sendEmail } from "../../shared/utils/email.js";
+import { env } from "../../config/env.js";
 // import { sendNotification } from "../../shared/utils/notifications.js";
 // Temporary inline notification function until module is properly resolved
 async function sendNotification(data) {
@@ -683,5 +686,221 @@ export class DeliverableService {
         });
         return reset;
     }
+    /**
+     * Check Google Drive access for a single deliverable.
+     */
+    static async checkDeliverableAccess(deliverableId) {
+        const d = await db.teamDeliverable.findUnique({
+            where: { id: deliverableId },
+            select: { id: true, content: true, contentType: true },
+        });
+        if (!d)
+            throw new Error("Deliverable not found");
+        const result = await checkGDriveAccess(d.content);
+        return { deliverableId: d.id, result };
+    }
+    /**
+     * Bulk-check Google Drive access for all URL-type submitted deliverables.
+     * Returns per-deliverable results + summary stats.
+     */
+    static async bulkCheckDeliverableAccess(filters) {
+        const where = {
+            submissionStatus: "SUBMITTED",
+            content: { not: "" },
+        };
+        if (filters?.templateId)
+            where.templateId = filters.templateId;
+        const deliverables = await db.teamDeliverable.findMany({
+            where,
+            select: {
+                id: true,
+                teamId: true,
+                templateId: true,
+                content: true,
+                contentType: true,
+                submissionStatus: true,
+                reviewStatus: true,
+                team: {
+                    select: {
+                        id: true,
+                        name: true,
+                        school: true,
+                        members: {
+                            select: {
+                                role: true,
+                                user: {
+                                    select: {
+                                        id: true,
+                                        firstName: true,
+                                        lastName: true,
+                                        email: true,
+                                        phone: true,
+                                        school: true,
+                                        region: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                template: { select: { id: true, title: true } },
+            },
+        });
+        const gdriveItems = deliverables.filter((d) => d.contentType === "URL" && isGoogleDriveUrl(d.content));
+        const accessMap = await bulkCheckGDriveAccess(gdriveItems.map((d) => ({ id: d.id, url: d.content })));
+        let accessible = 0;
+        let notAccessible = 0;
+        let checkFailed = 0;
+        const items = gdriveItems.map((d) => {
+            const accessResult = accessMap.get(d.id) || {
+                isGoogleDrive: true,
+                fileId: null,
+                isFolder: false,
+                accessible: null,
+                error: "Check not run",
+            };
+            if (accessResult.accessible === true)
+                accessible++;
+            else if (accessResult.accessible === false)
+                notAccessible++;
+            else
+                checkFailed++;
+            const lead = d.team.members.find((m) => m.role === "LEAD");
+            const teamRegion = lead?.user.region || "";
+            const members = d.team.members.map((m) => ({
+                name: `${m.user.firstName} ${m.user.lastName}`.trim(),
+                email: m.user.email,
+                phone: m.user.phone || "",
+                school: m.user.school || "",
+                region: m.user.region || "",
+                role: m.role,
+            }));
+            return {
+                deliverableId: d.id,
+                teamId: d.teamId,
+                teamName: d.team.name,
+                teamSchool: d.team.school || "",
+                teamRegion,
+                members,
+                templateTitle: d.template.title,
+                templateId: d.template.id,
+                content: d.content,
+                contentType: d.contentType,
+                submissionStatus: d.submissionStatus,
+                reviewStatus: d.reviewStatus,
+                accessResult,
+            };
+        });
+        return {
+            stats: {
+                total: deliverables.length,
+                googleDriveLinks: gdriveItems.length,
+                accessible,
+                notAccessible,
+                checkFailed,
+                nonGoogleDrive: deliverables.length - gdriveItems.length,
+            },
+            items,
+        };
+    }
+    /**
+     * Reject a deliverable for access issues — un-submits it, stores feedback,
+     * sends an email to all team members.
+     */
+    static async rejectDeliverableForAccess(deliverableId, reviewerId) {
+        const deliverable = await db.teamDeliverable.findUnique({
+            where: { id: deliverableId },
+            include: {
+                template: true,
+                team: {
+                    select: {
+                        id: true,
+                        name: true,
+                        members: {
+                            select: {
+                                user: { select: { id: true, email: true, firstName: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!deliverable)
+            throw new Error("Deliverable not found");
+        let validReviewerId = null;
+        if (reviewerId && reviewerId.length === 24)
+            validReviewerId = reviewerId;
+        const reason = "Your Google Drive link is not publicly accessible. Please update the sharing settings to 'Anyone with the link' and re-submit.";
+        const updated = await db.teamDeliverable.update({
+            where: { id: deliverableId },
+            data: {
+                submissionStatus: SubmissionStatus.NOT_SUBMITTED,
+                reviewStatus: ReviewStatus.REJECTED,
+                feedback: reason,
+                reviewedAt: new Date(),
+                reviewedBy: validReviewerId,
+            },
+            include: {
+                team: { select: { id: true, name: true, school: true } },
+                template: true,
+            },
+        });
+        const members = deliverable.team.members;
+        const templateTitle = deliverable.template.title;
+        const teamName = deliverable.team.name;
+        for (const m of members) {
+            try {
+                await sendNotification({
+                    userId: m.user.id,
+                    type: "DELIVERABLE_REJECTED",
+                    title: "Deliverable Access Issue",
+                    message: `"${templateTitle}" was rejected because the link is not publicly accessible. Please fix sharing settings and re-submit.`,
+                    metadata: { deliverableId: updated.id, reason },
+                });
+            }
+            catch (_) { }
+            try {
+                const emailContent = `
+          <p>Hello ${m.user.firstName},</p>
+          <p>Your team <strong>${teamName}</strong>'s deliverable <strong>"${templateTitle}"</strong> has been rejected because the submitted Google Drive link is <strong>not publicly accessible</strong>.</p>
+          <div class="info-box">
+            <p><strong>What you need to do:</strong></p>
+            <p>1. Open the Google Drive link you submitted<br>
+            2. Click <strong>Share</strong><br>
+            3. Change access to <strong>"Anyone with the link"</strong><br>
+            4. Re-submit the deliverable on the portal</p>
+          </div>
+          <p>Please fix this as soon as possible so your submission can be reviewed.</p>
+          <a href="${env.clientUrl}/student/team/deliverables" class="button">Go to Deliverables</a>
+        `;
+                await sendEmail(m.user.email, `Action Required: "${templateTitle}" — Access Issue`, wrapEmailTemplate(emailContent));
+            }
+            catch (e) {
+                logger.warn({ email: m.user.email, err: e.message }, "Failed to send access rejection email");
+            }
+        }
+        return updated;
+    }
+}
+function wrapEmailTemplate(content) {
+    return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#111827}
+.container{max-width:600px;margin:0 auto;background-color:#111827}
+.header{background-color:#111827;padding:30px 20px;text-align:center;border-bottom:2px solid #fff}
+.logo{font-size:24px;font-weight:bold;color:#fff;letter-spacing:2px}
+.content{background-color:#fff;padding:30px 25px;color:#111827;line-height:1.6}
+.content p{margin:0 0 16px;font-size:14px}
+.button{display:inline-block;padding:12px 24px;margin:16px 0;background-color:#111827;color:#fff !important;text-decoration:none;border-radius:4px;font-weight:600;font-size:14px}
+.footer{background-color:#111827;padding:25px 20px;text-align:center;color:#fff;font-size:12px;border-top:2px solid #fff}
+.footer p{margin:5px 0;opacity:.8}
+.footer a{color:#fff;text-decoration:none;font-weight:600}
+.info-box{background-color:#f9fafb;border-left:4px solid #111827;padding:14px;margin:16px 0;font-size:13px}
+</style></head><body><div class="container">
+<div class="header"><div class="logo">TIC PORTAL</div></div>
+<div class="content">${content}</div>
+<div class="footer"><p>TIC Summit Portal</p><p>Building Africa's Tech Future</p><p><a href="https://ticsummit.org">ticsummit.org</a></p></div>
+</div></body></html>`;
 }
 //# sourceMappingURL=service.js.map
