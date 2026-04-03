@@ -1,6 +1,6 @@
-import { FeedService } from "./service.js";
-import { FeedPointsService } from "./points.service.js";
-import { logger } from "../../shared/utils/logger.js";
+import { FeedService } from "./service";
+import { FeedPointsService } from "./points.service";
+import { logger } from "../../shared/utils/logger";
 export class FeedController {
     /**
      * GET /api/feed/posts

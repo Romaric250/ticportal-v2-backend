@@ -1,8 +1,8 @@
-import { db } from "../../config/database.js";
-import { logger } from "../../shared/utils/logger.js";
-import { BADGES, ALL_BADGES } from "./badges.js";
+import { db } from "../../config/database";
+import { logger } from "../../shared/utils/logger";
+import { BADGES, ALL_BADGES } from "./badges";
 import { PaymentStatus } from "@prisma/client";
-import { sendBadgeEarnedEmail } from "../../shared/utils/email.js";
+import { sendBadgeEarnedEmail } from "../../shared/utils/email";
 export class BadgeService {
     /**
      * Check and award badges to user based on their activity

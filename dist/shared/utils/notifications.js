@@ -1,5 +1,5 @@
-import { db } from "../../config/database.js";
-import { io } from "../../server.js";
+import { db } from "../../config/database";
+import { io } from "../../server";
 /**
  * Send notification to user
  * Creates notification in DB and emits via Socket.io

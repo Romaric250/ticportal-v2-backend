@@ -1,5 +1,5 @@
 import rateLimit from "express-rate-limit";
-import { env } from "../../config/env.js";
+import { env } from "../../config/env";
 // Create a bypass middleware when rate limiting is disabled
 const bypassMiddleware = (req, res, next) => {
     next();

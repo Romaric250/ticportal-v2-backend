@@ -1,7 +1,7 @@
-import { db } from "../../config/database.js";
-import { logger } from "../../shared/utils/logger.js";
-import { activityService } from "../../shared/services/activity.js";
-import { FEED_POINTS, FEED_ACTIVITIES } from "./constants.js";
+import { db } from "../../config/database";
+import { logger } from "../../shared/utils/logger";
+import { activityService } from "../../shared/services/activity";
+import { FEED_POINTS, FEED_ACTIVITIES } from "./constants";
 export class FeedPointsService {
     /**
      * Award points for creating a post

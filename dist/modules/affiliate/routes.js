@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { AffiliateController } from "./controller.js";
-import { authenticate, authorize } from "../../shared/middleware/auth.js";
+import { AffiliateController } from './controller';
+import { authenticate, authorize } from '../../shared/middleware/auth';
 import { UserRole } from '@prisma/client';
 const router = Router();
 const affiliateController = new AffiliateController();

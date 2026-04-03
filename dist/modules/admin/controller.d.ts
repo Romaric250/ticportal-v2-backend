@@ -15,33 +15,33 @@ export declare class AdminController {
     /**
      * GET /api/admin/users/:userId
      */
-    static getUserById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getUserById(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/users
      */
-    static createUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static createUser(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/users/send-verification-otp
      * Admin: Send OTP to email for verification before creating new user
      */
-    static sendVerificationOtp(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static sendVerificationOtp(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/users/verify-and-create
      * Admin: Verify OTP and create user
      */
-    static verifyAndCreateUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static verifyAndCreateUser(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/admin/users/:userId
      */
-    static updateUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateUser(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/admin/users/:userId
      */
-    static deleteUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deleteUser(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/users/bulk-delete
      */
-    static bulkDeleteUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static bulkDeleteUsers(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/admin/users/by-region-stats
      */
@@ -57,15 +57,15 @@ export declare class AdminController {
     /**
      * GET /api/admin/teams/:teamId
      */
-    static getTeamById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getTeamById(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/admin/teams/:teamId
      */
-    static updateTeam(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateTeam(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/admin/teams/:teamId
      */
-    static deleteTeam(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deleteTeam(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/users/import
      */
@@ -73,26 +73,26 @@ export declare class AdminController {
     /**
      * GET /api/admin/teams/:teamId/members
      */
-    static getTeamMembers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getTeamMembers(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/teams/:teamId/members
      */
-    static addTeamMember(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static addTeamMember(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/admin/teams/:teamId/members/:userId
      */
-    static removeTeamMember(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static removeTeamMember(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/admin/teams/:teamId/members/:userId
      */
-    static updateTeamMemberRole(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateTeamMemberRole(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/admin/teams
      */
-    static adminCreateTeam(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminCreateTeam(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/admin/teams/:teamId/submissions
      */
-    static getTeamSubmissions(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getTeamSubmissions(req: Request, res: Response): Promise<any>;
 }
 //# sourceMappingURL=controller.d.ts.map

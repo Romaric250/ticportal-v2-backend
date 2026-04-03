@@ -1,4 +1,4 @@
-import { getCache, setCache } from "../utils/cache.js";
+import { getCache, setCache } from "../utils/cache";
 export const cacheMiddleware = (ttl = 300) => {
     return async (req, res, next) => {
         if (req.method !== "GET") {

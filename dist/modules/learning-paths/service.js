@@ -1,6 +1,6 @@
-import { db } from "../../config/database.js";
+import { db } from "../../config/database";
 import { LearningPathAudience } from "@prisma/client";
-import { POINTS_CONFIG } from "../../shared/constants/points.js";
+import { POINTS_CONFIG } from "../../shared/constants/points";
 export class LearningPathService {
     /**
      * Get all learning paths

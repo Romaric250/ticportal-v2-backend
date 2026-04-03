@@ -1,4 +1,4 @@
-import { LearningPathService } from "./service.js";
+import { LearningPathService } from "./service";
 import { LearningPathAudience } from "@prisma/client";
 export class LearningPathController {
     /**

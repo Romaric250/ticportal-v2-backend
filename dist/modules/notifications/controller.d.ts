@@ -4,6 +4,6 @@ export declare class NotificationController {
     static getUnreadCount(req: Request, res: Response): Promise<void>;
     static markAsRead(req: Request, res: Response): Promise<void>;
     static markAllAsRead(req: Request, res: Response): Promise<void>;
-    static deleteNotification(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deleteNotification(req: Request, res: Response): Promise<any>;
 }
 //# sourceMappingURL=controller.d.ts.map

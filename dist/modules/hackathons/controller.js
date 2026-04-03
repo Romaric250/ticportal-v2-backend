@@ -1,4 +1,4 @@
-import { HackathonService } from "./service.js";
+import { HackathonService } from "./service";
 export class HackathonController {
     static async getHackathons(req, res) {
         try {

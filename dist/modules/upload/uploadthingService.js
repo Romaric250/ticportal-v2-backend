@@ -1,5 +1,5 @@
 import { UTApi } from "uploadthing/server";
-import { env } from "../../config/env.js";
+import { env } from "../../config/env";
 let utapiSingleton = null;
 /** Effect's client passes a `URL` to fetch; normalize to `href` so the wire URL matches signed bytes. */
 function uploadThingFetch(input, init) {

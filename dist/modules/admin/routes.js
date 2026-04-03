@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { AdminController } from "./controller.js";
+import { AdminController } from "./controller";
 import { UserRole } from "@prisma/client";
-import { authenticate } from "../../shared/middleware/auth.js";
-import { GradingController } from "../grading/controller.js";
-import { requireAdmin } from "../grading/middleware.js";
+import { authenticate } from "../../shared/middleware/auth";
+import { GradingController } from "../grading/controller";
+import { requireAdmin } from "../grading/middleware";
 const router = Router();
 // TEMPORARY: Bypass authentication for testing
 // TODO: Add proper authentication middleware

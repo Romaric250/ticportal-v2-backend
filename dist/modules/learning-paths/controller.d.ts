@@ -14,7 +14,7 @@ export declare class LearningPathController {
      *       401:
      *         description: User not authenticated
      */
-    static getPathsForUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPathsForUser(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/enroll:
@@ -38,7 +38,7 @@ export declare class LearningPathController {
      *       404:
      *         description: Learning path not found
      */
-    static enrollInPath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static enrollInPath(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/progress:
@@ -57,7 +57,7 @@ export declare class LearningPathController {
      *       200:
      *         description: Progress details with completed modules
      */
-    static getUserProgress(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getUserProgress(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/modules/{moduleId}/submit-quiz:
@@ -98,7 +98,7 @@ export declare class LearningPathController {
      *       409:
      *         description: Module already completed
      */
-    static submitQuiz(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static submitQuiz(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/modules/{moduleId}/complete:
@@ -126,16 +126,16 @@ export declare class LearningPathController {
      *       409:
      *         description: Module already completed
      */
-    static completeModule(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    static createPath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static completeModule(req: Request, res: Response): Promise<any>;
+    static createPath(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/admin/learning-paths/:pathId
      */
-    static updatePath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updatePath(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/admin/learning-paths/:pathId
      */
-    static deletePath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deletePath(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/admin/learning-paths:
@@ -242,7 +242,7 @@ export declare class LearningPathController {
      *       200:
      *         description: Learning path deleted
      */
-    static getPathById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPathById(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/admin/learning-paths/{pathId}/modules:
@@ -294,7 +294,7 @@ export declare class LearningPathController {
      *       201:
      *         description: Module added
      */
-    static addModule(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static addModule(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/admin/learning-paths/{pathId}/modules/{moduleId}:
@@ -351,11 +351,11 @@ export declare class LearningPathController {
      *       200:
      *         description: Module deleted
      */
-    static updateModule(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateModule(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/admin/learning-paths/:pathId/modules/:moduleId
      */
-    static deleteModule(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deleteModule(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/modules/{moduleId}/status:
@@ -398,7 +398,7 @@ export declare class LearningPathController {
      *       404:
      *         description: Module not found
      */
-    static getModuleStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getModuleStatus(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/modules:
@@ -448,7 +448,7 @@ export declare class LearningPathController {
      *       404:
      *         description: Learning path not found
      */
-    static getPathModules(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPathModules(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/complete:
@@ -471,7 +471,7 @@ export declare class LearningPathController {
      *       404:
      *         description: Learning path not found
      */
-    static completeLearningPath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static completeLearningPath(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/{pathId}/unenroll:
@@ -492,7 +492,7 @@ export declare class LearningPathController {
      *       404:
      *         description: Not enrolled in this learning path
      */
-    static unenrollFromPath(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static unenrollFromPath(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/enrollments:
@@ -533,7 +533,7 @@ export declare class LearningPathController {
      *                         type: string
      *                         format: date-time
      */
-    static getAllEnrollmentStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getAllEnrollmentStatus(req: Request, res: Response): Promise<any>;
     /**
      * @swagger
      * /api/learning-paths/calculate-progress:
@@ -570,6 +570,6 @@ export declare class LearningPathController {
      *                       isCompleted:
      *                         type: boolean
      */
-    static calculateProgress(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static calculateProgress(req: Request, res: Response): Promise<any>;
 }
 //# sourceMappingURL=controller.d.ts.map

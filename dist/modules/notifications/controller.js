@@ -1,5 +1,5 @@
-import { NotificationService } from "./service.js";
-import { MarkNotificationReadSchema } from "./types.js";
+import { NotificationService } from "./service";
+import { MarkNotificationReadSchema } from "./types";
 export class NotificationController {
     static async getNotifications(req, res) {
         try {

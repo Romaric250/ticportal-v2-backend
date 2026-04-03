@@ -1,6 +1,6 @@
-import { verifyAccessToken } from "../../shared/utils/jwt.js";
-import { db } from "../../config/database.js";
-import { logger } from "../../shared/utils/logger.js";
+import { verifyAccessToken } from "../../shared/utils/jwt";
+import { db } from "../../config/database";
+import { logger } from "../../shared/utils/logger";
 /**
  * Setup feed WebSocket handlers
  */

@@ -4,12 +4,12 @@ export declare class BadgeController {
      * GET /api/badges/my-badges
      * Get current user's earned badges
      */
-    static getMyBadges(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getMyBadges(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/badges/progress
      * Get badge progress for current user
      */
-    static getBadgeProgress(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getBadgeProgress(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/badges/all
      * Get all available badges
@@ -24,27 +24,27 @@ export declare class BadgeController {
      * POST /api/badges/check
      * Manually trigger badge check for current user
      */
-    static checkBadges(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static checkBadges(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/badges/user/:userId
      * Get badges for specific user (public)
      */
-    static getUserBadges(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getUserBadges(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/badges/admin/award
      * Manually award badge to user (Admin only)
      */
-    static adminAwardBadge(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminAwardBadge(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/badges/admin/revoke
      * Revoke badge from user (Admin only)
      */
-    static adminRevokeBadge(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminRevokeBadge(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/badges/admin/:badgeId
      * Update badge information (Admin only)
      */
-    static adminUpdateBadge(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminUpdateBadge(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/badges/admin/stats
      * Get badge statistics (Admin only)
@@ -59,7 +59,7 @@ export declare class BadgeController {
      * GET /api/badges/admin/user-badges/:userId
      * Get detailed badge info for specific user (Admin only)
      */
-    static adminGetUserBadges(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminGetUserBadges(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/badges/admin/all
      * Get all badges with full database details (Admin only)
@@ -69,6 +69,6 @@ export declare class BadgeController {
      * GET /api/badges/admin/badge/:badgeId
      * Get specific badge details (Admin only)
      */
-    static adminGetBadge(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static adminGetBadge(req: Request, res: Response): Promise<any>;
 }
 //# sourceMappingURL=controller.d.ts.map

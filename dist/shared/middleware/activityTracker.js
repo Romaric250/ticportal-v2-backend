@@ -1,5 +1,5 @@
-import { activityService } from "../services/activity.js";
-import { logger } from "../utils/logger.js";
+import { activityService } from "../services/activity";
+import { logger } from "../utils/logger";
 /**
  * Middleware to track all authenticated user activities
  * Should be placed after authentication middleware

@@ -1,4 +1,4 @@
-import { AdminService } from "./service.js";
+import { AdminService } from "./service";
 import { UserRole, UserStatus } from "@prisma/client";
 export class AdminController {
     /**

@@ -1,6 +1,6 @@
-import { db } from "../../config/database.js";
+import { db } from "../../config/database";
 import { UserRole, UserStatus, TeamRole, PaymentStatus, PaymentMethod } from "@prisma/client";
-import { DELIVERABLES_COMPLETE_TARGET } from "../grading/service.js";
+import { DELIVERABLES_COMPLETE_TARGET } from "../grading/service";
 export class AdminService {
     /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
     static normalizeRegionName(region) {

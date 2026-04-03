@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { DefaultsController } from "./controller.js";
-import { authenticate } from "../../shared/middleware/auth.js";
+import { DefaultsController } from "./controller";
+import { authenticate } from "../../shared/middleware/auth";
 const router = Router();
 /**
  * @swagger

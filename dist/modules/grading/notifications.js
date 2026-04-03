@@ -1,6 +1,6 @@
-import { sendEmail } from "../../shared/utils/email.js";
-import { env } from "../../config/env.js";
-import { logger } from "../../shared/utils/logger.js";
+import { sendEmail } from "../../shared/utils/email";
+import { env } from "../../config/env";
+import { logger } from "../../shared/utils/logger";
 const portalBase = () => env.clientUrl?.replace(/\/$/, "") || "https://portal.ticsummit.org";
 export async function notifyReviewerStatusGranted(email, firstName, granted) {
     const subject = granted ? "You are now a TIC Summit reviewer" : "Reviewer access updated";

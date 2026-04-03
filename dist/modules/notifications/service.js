@@ -1,9 +1,9 @@
-import { db } from "../../config/database.js";
+import { db } from "../../config/database";
 import { NotificationType } from "@prisma/client";
-import { POINT_MILESTONES, isPointMilestone } from "./types.js";
-import { logger } from "../../shared/utils/logger.js";
-import { io } from "../../server.js";
-import { emitNotification, emitUnreadCountUpdate } from "../../socket/events/notifications.js";
+import { POINT_MILESTONES, isPointMilestone } from "./types";
+import { logger } from "../../shared/utils/logger";
+import { io } from "../../server";
+import { emitNotification, emitUnreadCountUpdate } from "../../socket/events/notifications";
 export class NotificationService {
     /**
      * Create a new notification

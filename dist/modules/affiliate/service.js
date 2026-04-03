@@ -1,7 +1,7 @@
-import { db } from "../../config/database.js";
-import { logger } from "../../shared/utils/logger.js";
+import { db } from "../../config/database";
+import { logger } from "../../shared/utils/logger";
 import { UserRole, AffiliateStatus, AffiliateSubRole, AffiliateTier, PaymentMethod, PaymentStatus, ReferralStatus, } from "@prisma/client";
-import { sendRoleChangeEmail, sendAffiliateActivationEmail } from "../../shared/utils/email.js";
+import { sendRoleChangeEmail, sendAffiliateActivationEmail } from "../../shared/utils/email";
 export class AffiliateService {
     static async createCountry(input) {
         // Normalize commission rates: if less than 1, convert from decimal to percentage

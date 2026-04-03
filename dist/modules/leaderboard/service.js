@@ -1,5 +1,5 @@
-import { db } from "../../config/database.js";
-import { logger } from "../../shared/utils/logger.js";
+import { db } from "../../config/database";
+import { logger } from "../../shared/utils/logger";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 export class LeaderboardService {
     static async getUserRank(userId) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authenticate } from "../../shared/middleware/auth.js";
-import { LeaderboardController } from "./controller.js";
+import { authenticate } from "../../shared/middleware/auth";
+import { LeaderboardController } from "./controller";
 const router = Router();
 // ==================== USER ROUTES ====================
 // Get current user's rank and stats

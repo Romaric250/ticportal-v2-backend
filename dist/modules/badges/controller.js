@@ -1,5 +1,5 @@
-import { BadgeService } from "./service.js";
-import { logger } from "../../shared/utils/logger.js";
+import { BadgeService } from "./service";
+import { logger } from "../../shared/utils/logger";
 export class BadgeController {
     /**
      * GET /api/badges/my-badges

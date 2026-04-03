@@ -4,92 +4,92 @@ export declare class FeedController {
      * GET /api/feed/posts
      * Get posts with smart algorithm (no duplicates)
      */
-    static getPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPosts(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/posts/quota/daily
      * Student daily post limit (1/day UTC); non-students get applies: false.
      */
-    static getDailyPostQuota(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getDailyPostQuota(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/posts/:postId
      * Get single post
      */
-    static getPostById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPostById(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts
      * Create a new post
      */
-    static createPost(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static createPost(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/feed/posts/:postId
      * Update a post
      */
-    static updatePost(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updatePost(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/feed/posts/:postId
      * Delete a post
      */
-    static deletePost(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deletePost(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/pin
      * Pin or unpin a post (Admin only)
      */
-    static pinPost(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static pinPost(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/like
      * Toggle like on a post
      */
-    static togglePostLike(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static togglePostLike(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/posts/:postId/likes
      * Get users who liked a post
      */
-    static getPostLikes(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getPostLikes(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/posts/:postId/comments
      * Get comments for a post
      */
-    static getComments(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getComments(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/comments
      * Create a comment
      */
-    static createComment(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static createComment(req: Request, res: Response): Promise<any>;
     /**
      * PUT /api/feed/comments/:commentId
      * Update a comment
      */
-    static updateComment(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static updateComment(req: Request, res: Response): Promise<any>;
     /**
      * DELETE /api/feed/comments/:commentId
      * Delete a comment
      */
-    static deleteComment(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static deleteComment(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/comments/:commentId/like
      * Toggle like on a comment
      */
-    static toggleCommentLike(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static toggleCommentLike(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/view
      * Record a view
      */
-    static recordView(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static recordView(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/bookmark
      * Toggle bookmark
      */
-    static toggleBookmark(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static toggleBookmark(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/bookmarks
      * Get user's bookmarked posts
      */
-    static getBookmarks(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getBookmarks(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/report
      * Report content
      */
-    static reportContent(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static reportContent(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/trending-tags
      * Get trending tags
@@ -99,26 +99,26 @@ export declare class FeedController {
      * GET /api/feed/trending
      * Get trending posts (last 7 days, high engagement)
      */
-    static getTrendingPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getTrendingPosts(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/latest
      * Get latest posts
      */
-    static getLatestPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getLatestPosts(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/search
      * Search posts
      */
-    static searchPosts(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static searchPosts(req: Request, res: Response): Promise<any>;
     /**
      * POST /api/feed/posts/:postId/record-view
      * Record view when user scrolls to post (frontend triggered)
      */
-    static recordPostView(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static recordPostView(req: Request, res: Response): Promise<any>;
     /**
      * GET /api/feed/points/summary
      * Get user's feed points summary
      */
-    static getFeedPointsSummary(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static getFeedPointsSummary(req: Request, res: Response): Promise<any>;
 }
 //# sourceMappingURL=controller.d.ts.map

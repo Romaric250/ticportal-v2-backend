@@ -1,6 +1,6 @@
-import { PaymentService } from "./service.js";
-import { logger } from "../../shared/utils/logger.js";
-import { fapshiService } from "../../shared/utils/fapshi.js";
+import { PaymentService } from './service';
+import { logger } from '../../shared/utils/logger';
+import { fapshiService } from '../../shared/utils/fapshi';
 import crypto from 'crypto';
 /**
  * Payment Controller

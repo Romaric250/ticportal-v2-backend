@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { AuthController } from "./controller.js";
-import { authRateLimit } from "../../shared/middleware/rateLimit.js";
+import { AuthController } from "./controller";
+import { authRateLimit } from "../../shared/middleware/rateLimit";
 const router = Router();
 router.use(authRateLimit);
 /**

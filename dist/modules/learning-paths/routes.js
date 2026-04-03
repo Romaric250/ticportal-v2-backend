@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authenticate } from "../../shared/middleware/auth.js";
-import { LearningPathController } from "./controller.js";
+import { authenticate } from "../../shared/middleware/auth";
+import { LearningPathController } from "./controller";
 const router = Router();
 // Student routes with authentication
 router.get("/learning-paths", authenticate, LearningPathController.getPathsForUser);

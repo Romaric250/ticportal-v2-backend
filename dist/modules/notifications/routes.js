@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { NotificationController } from "./controller.js";
-import { authenticate } from "../../shared/middleware/auth.js";
+import { NotificationController } from "./controller";
+import { authenticate } from "../../shared/middleware/auth";
 const router = Router();
 /**
  * @swagger

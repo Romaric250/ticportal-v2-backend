@@ -1,4 +1,4 @@
-import { db } from "../../config/database.js";
+import { db } from "../../config/database";
 import { UserRole } from "@prisma/client";
 export async function requireReviewerOrAdmin(req, res, next) {
     try {

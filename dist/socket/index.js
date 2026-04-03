@@ -1,8 +1,8 @@
 import { Server } from "socket.io";
-import { socketAuthMiddleware } from "./middleware/auth.js";
-import { registerTeamChatHandlers } from "./events/teamChat.js";
-import { registerNotificationHandlers } from "./events/notifications.js";
-import { logger } from "../shared/utils/logger.js";
+import { socketAuthMiddleware } from "./middleware/auth";
+import { registerTeamChatHandlers } from "./events/teamChat";
+import { registerNotificationHandlers } from "./events/notifications";
+import { logger } from "../shared/utils/logger";
 /**
  * Initialize Socket.io with authentication and event handlers
  */
@@ -46,6 +46,6 @@ export const initializeSocket = (io) => {
     logger.info("✅ [SOCKET] Socket.io initialized with team chat and notification handlers");
 };
 // Export event emitters for use in controllers
-export { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "./events/teamChat.js";
-export * from "./events/notifications.js";
+export { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "./events/teamChat";
+export * from "./events/notifications";
 //# sourceMappingURL=index.js.map

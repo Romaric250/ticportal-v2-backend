@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
-import { TeamService } from "../../modules/teams/service.js";
-import { logger } from "../../shared/utils/logger.js";
-import { db } from "../../config/database.js";
+import { TeamService } from "../../modules/teams/service";
+import { logger } from "../../shared/utils/logger";
+import { db } from "../../config/database";
 /**
  * Register team chat event handlers
  */
