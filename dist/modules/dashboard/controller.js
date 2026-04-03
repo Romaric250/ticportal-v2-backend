@@ -1,5 +1,5 @@
-import { DashboardService } from "./service";
-import { logger } from "../../shared/utils/logger";
+import { DashboardService } from "./service.js";
+import { logger } from "../../shared/utils/logger.js";
 export class DashboardController {
     /**
      * GET /api/dashboard/overview

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { env } from "../../config/env";
+import { env } from "../../config/env.js";
 import { TeamRole } from "@prisma/client";
 const resend = new Resend(env.resendApiKey);
 // Professional email template with TIC Portal branding
@@ -169,6 +169,24 @@ export const sendPasswordResetEmail = async (email, firstName, otp) => {
         console.error(`❌ Failed to send password reset email to ${email}:`, error);
         throw error;
     }
+};
+/** TIC Community launch / welcome — same branding as password reset & verification. */
+export const sendTicCommunityWelcomeEmail = async (email, firstName) => {
+    const communityUrl = `${env.clientUrl}/en/student/community`;
+    const content = `
+    <p>Hello ${firstName},</p>
+    <p>We've been inspired by how eager you are to connect with each other on the TIC feed — thank you for bringing that energy.</p>
+    <p>We're excited to introduce <strong>TIC Community</strong>: a dedicated space where you can get to know each other better, share ideas, and keep the conversation going beyond the feed.</p>
+    <div class="info-box">
+      <p><strong>What you can do</strong></p>
+      <p>• Join the global channel and reply in threads<br>
+      • Share updates and images (respecting community guidelines)<br>
+      • Stay in the loop with pinned announcements from the team</p>
+    </div>
+    <p>We're glad you're part of this. Jump in and say hello.</p>
+    <a href="${communityUrl}" class="button">Open TIC Community</a>
+  `;
+    await sendEmail(email, "Welcome to TIC Community — TIC Portal", emailTemplate(content));
 };
 // Email: Welcome Email (after verification)
 export const sendWelcomeEmail = async (email, firstName) => {

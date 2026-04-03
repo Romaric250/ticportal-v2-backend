@@ -1,4 +1,4 @@
-import { SquadService } from "./service";
+import { SquadService } from "./service.js";
 export class SquadController {
     static async getSquads(req, res) {
         try {

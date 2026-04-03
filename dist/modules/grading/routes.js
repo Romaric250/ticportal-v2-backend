@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authenticate } from "../../shared/middleware/auth";
-import { GradingController } from "./controller";
-import { requireAdmin, requireReviewer, requireReviewerOrAdmin } from "./middleware";
+import { authenticate } from "../../shared/middleware/auth.js";
+import { GradingController } from "./controller.js";
+import { requireAdmin, requireReviewer, requireReviewerOrAdmin } from "./middleware.js";
 const router = Router();
 router.use(authenticate);
 // Rubric (reviewers + admins read; admins write)

@@ -4,7 +4,7 @@ export declare class LeaderboardController {
      * GET /api/leaderboard/me
      * Get current user's rank and stats
      */
-    static getMyRank(req: Request, res: Response): Promise<any>;
+    static getMyRank(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/leaderboard/students
      * Get students leaderboard

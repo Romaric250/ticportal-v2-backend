@@ -1,5 +1,5 @@
 import axios from "axios";
-import { logger } from "../../shared/utils/logger";
+import { logger } from "../../shared/utils/logger.js";
 const GDRIVE_FILE_PATTERNS = [
     /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
     /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,

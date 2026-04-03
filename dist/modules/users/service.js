@@ -1,8 +1,8 @@
-import { db } from "../../config/database";
-import { activityService } from "../../shared/services/activity";
+import { db } from "../../config/database.js";
+import { activityService } from "../../shared/services/activity.js";
 import { UserRole } from "@prisma/client";
-import { uploadBase64ToUploadThing, validateBase64Image, generateProfilePhotoFilename, } from "../../shared/utils/uploadthing";
-import { logger } from "../../shared/utils/logger";
+import { uploadBase64ToUploadThing, validateBase64Image, generateProfilePhotoFilename, } from "../../shared/utils/uploadthing.js";
+import { logger } from "../../shared/utils/logger.js";
 export class UserService {
     static async getProfile(userId) {
         return await db.user.findUnique({

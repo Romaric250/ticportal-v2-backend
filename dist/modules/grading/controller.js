@@ -1,5 +1,5 @@
-import { logger } from "../../shared/utils/logger";
-import * as GradingService from "./service";
+import { logger } from "../../shared/utils/logger.js";
+import * as GradingService from "./service.js";
 function uid(req) {
     const u = req.user;
     return u?.id || u?.userId;

@@ -1,11 +1,11 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus, DeliverableContentType } from "@prisma/client";
-import { POINTS_CONFIG } from "../../shared/constants/points";
-import { logger } from "../../shared/utils/logger";
-import { checkGDriveAccess, isGoogleDriveUrl, bulkCheckGDriveAccess } from "./gdrive-checker";
-import { sendEmail } from "../../shared/utils/email";
-import { env } from "../../config/env";
-// import { sendNotification } from "../../shared/utils/notifications";
+import { POINTS_CONFIG } from "../../shared/constants/points.js";
+import { logger } from "../../shared/utils/logger.js";
+import { checkGDriveAccess, isGoogleDriveUrl, bulkCheckGDriveAccess } from "./gdrive-checker.js";
+import { sendEmail } from "../../shared/utils/email.js";
+import { env } from "../../config/env.js";
+// import { sendNotification } from "../../shared/utils/notifications.js";
 // Temporary inline notification function until module is properly resolved
 async function sendNotification(data) {
     try {

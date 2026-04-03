@@ -1,9 +1,9 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
-import { activityService } from "../../shared/services/activity";
-import { FeedSocketEmitter } from "./socket";
-import { FeedPointsService } from "./points.service";
-import { BadgeService } from "../badges/service";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
+import { activityService } from "../../shared/services/activity.js";
+import { FeedSocketEmitter } from "./socket.js";
+import { FeedPointsService } from "./points.service.js";
+import { BadgeService } from "../badges/service.js";
 import { UserRole } from "@prisma/client";
 /** Students only: max feed posts per UTC calendar day. */
 const STUDENT_POSTS_PER_DAY = 1;

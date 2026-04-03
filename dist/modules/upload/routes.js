@@ -1,8 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
-import { env } from "../../config/env";
-import { logger } from "../../shared/utils/logger";
-import { uploadBufferWithUploadThing } from "./uploadthingService";
+import { env } from "../../config/env.js";
+import { logger } from "../../shared/utils/logger.js";
+import { uploadBufferWithUploadThing } from "./uploadthingService.js";
 const router = Router();
 const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12 MB
 const upload = multer({

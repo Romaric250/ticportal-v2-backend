@@ -7,19 +7,19 @@ export declare class DeliverableController {
     /**
      * GET /api/admin/deliverable-templates/:templateId
      */
-    static getTemplateById(req: Request, res: Response): Promise<any>;
+    static getTemplateById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/admin/deliverable-templates
      */
-    static createTemplate(req: Request, res: Response): Promise<any>;
+    static createTemplate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * PUT /api/admin/deliverable-templates/:templateId
      */
-    static updateTemplate(req: Request, res: Response): Promise<any>;
+    static updateTemplate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * DELETE /api/admin/deliverable-templates/:templateId
      */
-    static deleteTemplate(req: Request, res: Response): Promise<any>;
+    static deleteTemplate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/admin/teams/deliverables
      */
@@ -27,15 +27,15 @@ export declare class DeliverableController {
     /**
      * POST /api/admin/teams/:teamId/deliverables
      */
-    static uploadDeliverable(req: Request, res: Response): Promise<any>;
+    static uploadDeliverable(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/admin/teams/deliverables/:deliverableId/approve
      */
-    static approveDeliverable(req: Request, res: Response): Promise<any>;
+    static approveDeliverable(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/admin/teams/deliverables/:deliverableId/reject
      */
-    static rejectDeliverable(req: Request, res: Response): Promise<any>;
+    static rejectDeliverable(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/teams/deliverable-templates
      */
@@ -43,27 +43,27 @@ export declare class DeliverableController {
     /**
      * GET /api/deliverables/team/:teamId
      */
-    static getTeamDeliverables(req: Request, res: Response): Promise<any>;
+    static getTeamDeliverables(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/deliverables/:deliverableId
      */
-    static getDeliverableById(req: Request, res: Response): Promise<any>;
+    static getDeliverableById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/deliverables/:deliverableId/submit
      */
-    static submitDeliverable(req: Request, res: Response): Promise<any>;
+    static submitDeliverable(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/deliverables/:deliverableId/deadline
      */
-    static checkDeadline(req: Request, res: Response): Promise<any>;
+    static checkDeadline(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * DELETE /api/deliverables/:deliverableId (Student/Team)
      */
-    static deleteSubmission(req: Request, res: Response): Promise<any>;
+    static deleteSubmission(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * DELETE /api/admin/deliverables/:deliverableId (Admin)
      */
-    static adminDeleteSubmission(req: Request, res: Response): Promise<any>;
+    static adminDeleteSubmission(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * GET /api/admin/deliverables/access-check
      * Bulk-check GDrive access for all submitted URL deliverables.
@@ -73,16 +73,16 @@ export declare class DeliverableController {
      * GET /api/admin/deliverables/:deliverableId/access-check
      * Check GDrive access for a single deliverable.
      */
-    static checkSingleAccess(req: Request, res: Response): Promise<any>;
+    static checkSingleAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/admin/deliverables/:deliverableId/reject-access
      * Reject a deliverable for access issues — un-submits + emails team.
      */
-    static rejectForAccess(req: Request, res: Response): Promise<any>;
+    static rejectForAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * POST /api/deliverables/check-url-access
      * Check if a Google Drive URL is publicly accessible (any authenticated user).
      */
-    static checkUrlAccess(req: Request, res: Response): Promise<any>;
+    static checkUrlAccess(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=controller.d.ts.map

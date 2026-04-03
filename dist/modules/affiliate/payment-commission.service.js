@@ -1,7 +1,7 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 import { PaymentStatus, CommissionStatus, CommissionType, ReferralStatus, AffiliateSubRole } from "@prisma/client";
-import { sendCommissionEarnedEmail } from "../../shared/utils/email";
+import { sendCommissionEarnedEmail } from "../../shared/utils/email.js";
 /**
  * Payment and Commission Service
  * Handles payment confirmation and commission calculation/distribution

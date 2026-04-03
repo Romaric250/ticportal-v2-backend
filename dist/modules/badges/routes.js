@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authenticate } from "../../shared/middleware/auth";
-import { authorizeRoles } from "../../shared/middleware/authorize";
-import { BadgeController } from "./controller";
+import { authenticate } from "../../shared/middleware/auth.js";
+import { authorizeRoles } from "../../shared/middleware/authorize.js";
+import { BadgeController } from "./controller.js";
 const router = Router();
 // ==================== PUBLIC/USER ROUTES ====================
 // Get all available badges

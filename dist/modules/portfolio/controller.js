@@ -1,5 +1,5 @@
-import { PortfolioService } from "./service";
-import { logger } from "../../shared/utils/logger";
+import { PortfolioService } from "./service.js";
+import { logger } from "../../shared/utils/logger.js";
 export class PortfolioController {
     /**
      * GET /api/portfolio

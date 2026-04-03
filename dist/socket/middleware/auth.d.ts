@@ -1,11 +1,13 @@
 import { Socket } from "socket.io";
 import type { ExtendedError } from "socket.io/dist/namespace";
+import type { UserRole } from "@prisma/client";
 export interface AuthenticatedSocket extends Socket {
     userId?: string;
     user?: {
         id: string;
         email: string;
         fullName: string;
+        role: UserRole;
     };
 }
 /**

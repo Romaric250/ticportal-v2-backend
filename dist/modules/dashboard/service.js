@@ -1,5 +1,5 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 export class DashboardService {
     /**
      * Get complete dashboard overview for user

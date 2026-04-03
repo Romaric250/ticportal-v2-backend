@@ -1,6 +1,7 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 import { UserRole, UserStatus, TeamRole, PaymentStatus, PaymentMethod } from "@prisma/client";
-import { DELIVERABLES_COMPLETE_TARGET } from "../grading/service";
+import { DELIVERABLES_COMPLETE_TARGET } from "../grading/service.js";
+import { sendTicCommunityWelcomeEmail } from "../../shared/utils/email.js";
 export class AdminService {
     /** Normalize region names to consolidate variants (North West→Northwest, Center→Centre) */
     static normalizeRegionName(region) {
@@ -948,6 +949,43 @@ export class AdminService {
             orderBy: { submittedAt: "desc" },
         });
         return submissions;
+    }
+    static async sendTicCommunityWelcomeToUser(userId) {
+        const user = await db.user.findUnique({
+            where: { id: userId },
+            select: { email: true, firstName: true, status: true },
+        });
+        if (!user) {
+            throw new Error("User not found");
+        }
+        if (user.status === UserStatus.SUSPENDED) {
+            throw new Error("Cannot send email to a suspended user");
+        }
+        await sendTicCommunityWelcomeEmail(user.email, user.firstName);
+        return { sent: true, email: user.email };
+    }
+    /** Sends the TIC Community welcome email to all active, verified users (batched with small delays). */
+    static async broadcastTicCommunityWelcome() {
+        const users = await db.user.findMany({
+            where: {
+                status: UserStatus.ACTIVE,
+                isVerified: true,
+            },
+            select: { email: true, firstName: true },
+        });
+        let sent = 0;
+        let failed = 0;
+        for (const u of users) {
+            try {
+                await sendTicCommunityWelcomeEmail(u.email, u.firstName);
+                sent++;
+                await new Promise((r) => setTimeout(r, 150));
+            }
+            catch {
+                failed++;
+            }
+        }
+        return { sent, failed, total: users.length };
     }
 }
 AdminService.MANUAL_PAYMENT_METHODS = [

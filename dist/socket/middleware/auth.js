@@ -1,7 +1,7 @@
 import { Socket } from "socket.io";
-import { verifyAccessToken } from "../../shared/utils/jwt";
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { verifyAccessToken } from "../../shared/utils/jwt.js";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 /**
  * Socket.io authentication middleware
  * Verifies JWT token from handshake auth or query
@@ -31,6 +31,7 @@ export const socketAuthMiddleware = async (socket, next) => {
                 email: true,
                 firstName: true,
                 lastName: true,
+                role: true,
             },
         });
         if (!user) {
@@ -43,6 +44,7 @@ export const socketAuthMiddleware = async (socket, next) => {
             id: user.id,
             email: user.email,
             fullName: `${user.firstName} ${user.lastName}`,
+            role: user.role,
         };
         logger.info({
             socketId: socket.id,

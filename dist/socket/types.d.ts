@@ -1,3 +1,4 @@
+import type { UserRole } from "@prisma/client";
 import { Socket } from "socket.io";
 export interface AuthenticatedSocket extends Socket {
     userId?: string;
@@ -5,6 +6,7 @@ export interface AuthenticatedSocket extends Socket {
         id: string;
         email: string;
         fullName: string;
+        role: UserRole;
     };
 }
 export interface TeamChatMessage {

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authenticate } from "../../shared/middleware/auth";
-import { FeedController } from "./controller";
+import { authenticate } from "../../shared/middleware/auth.js";
+import { FeedController } from "./controller.js";
 const router = Router();
 // ==================== PUBLIC/STUDENT ROUTES ====================
 // Discovery routes

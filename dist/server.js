@@ -1,12 +1,12 @@
 import http from "http";
 import { Server } from "socket.io";
-import app from "./app";
-import { env } from "./config/env";
-import { logger } from "./shared/utils/logger";
-import { initializeSocket } from "./socket/index";
-import { startNotificationCleanup } from "./jobs/notificationCleanup";
-import { startCommissionProcessor } from "./jobs/commissionProcessor";
-import { startBadgeProcessor } from "./jobs/badgeProcessor";
+import app from "./app.js";
+import { env } from "./config/env.js";
+import { logger } from "./shared/utils/logger.js";
+import { initializeSocket } from "./socket/index.js";
+import { startNotificationCleanup } from "./jobs/notificationCleanup.js";
+import { startCommissionProcessor } from "./jobs/commissionProcessor.js";
+import { startBadgeProcessor } from "./jobs/badgeProcessor.js";
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {

@@ -1,9 +1,9 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
-import { fapshiService } from "../../shared/utils/fapshi";
-import { PaymentCommissionService } from "../affiliate/payment-commission.service";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
+import { fapshiService } from "../../shared/utils/fapshi.js";
+import { PaymentCommissionService } from "../affiliate/payment-commission.service.js";
 import { PaymentStatus, PaymentMethod, CommissionStatus, CommissionType, ReferralStatus, UserRole, } from "@prisma/client";
-import { sendPaymentSuccessEmail, sendPaymentFailedEmail, sendPaymentPendingEmail } from "../../shared/utils/email";
+import { sendPaymentSuccessEmail, sendPaymentFailedEmail, sendPaymentPendingEmail } from "../../shared/utils/email.js";
 /**
  * Payment Service
  * Handles payment processing, verification, and integration with commission system

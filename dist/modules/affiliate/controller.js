@@ -1,6 +1,6 @@
-import { AffiliateService } from './service';
+import { AffiliateService } from "./service.js";
 import { UserRole } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
+import { logger } from "../../shared/utils/logger.js";
 /**
  * Affiliate System Controller
  * Handles HTTP requests for affiliate, regional, and national coordinator operations

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { AdminController } from "./controller";
+import { AdminController } from "./controller.js";
 import { UserRole } from "@prisma/client";
-import { authenticate } from "../../shared/middleware/auth";
-import { GradingController } from "../grading/controller";
-import { requireAdmin } from "../grading/middleware";
+import { authenticate } from "../../shared/middleware/auth.js";
+import { GradingController } from "../grading/controller.js";
+import { requireAdmin } from "../grading/middleware.js";
 const router = Router();
 // TEMPORARY: Bypass authentication for testing
 // TODO: Add proper authentication middleware
@@ -48,6 +48,8 @@ router.get("/stats", AdminController.getDashboardStats);
  *         description: Detailed statistics
  */
 router.get("/dashboard-stats", AdminController.getDetailedDashboardStats);
+router.post("/emails/tic-community-welcome", authenticate, requireAdmin, AdminController.sendTicCommunityWelcomeEmail);
+router.post("/emails/tic-community-welcome/broadcast", authenticate, requireAdmin, AdminController.broadcastTicCommunityWelcomeEmail);
 // User Management
 /**
  * @swagger

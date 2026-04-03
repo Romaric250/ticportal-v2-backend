@@ -501,5 +501,15 @@ export declare class AdminService {
         fileUrls: string[];
         submittedAt: Date;
     }[]>;
+    static sendTicCommunityWelcomeToUser(userId: string): Promise<{
+        sent: true;
+        email: string;
+    }>;
+    /** Sends the TIC Community welcome email to all active, verified users (batched with small delays). */
+    static broadcastTicCommunityWelcome(): Promise<{
+        sent: number;
+        failed: number;
+        total: number;
+    }>;
 }
 //# sourceMappingURL=service.d.ts.map

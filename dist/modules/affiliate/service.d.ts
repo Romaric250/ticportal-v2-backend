@@ -253,6 +253,19 @@ export declare class AffiliateService {
                 mobileMoneyNumber: string | null;
                 mobileMoneyProvider: string | null;
             }) | null;
+            payoutBatch: {
+                id: string;
+                createdAt: Date;
+                status: import(".prisma/client").$Enums.PayoutBatchStatus;
+                batchNumber: string;
+                totalAmount: number;
+                commissionCount: number;
+                createdBy: string;
+                processedBy: string | null;
+                exportUrl: string | null;
+                notes: string | null;
+                processedAt: Date | null;
+            } | null;
             referral: {
                 student: {
                     email: string;
@@ -276,19 +289,6 @@ export declare class AffiliateService {
                 firstActionAt: Date | null;
                 firstActionType: string | null;
             };
-            payoutBatch: {
-                id: string;
-                createdAt: Date;
-                status: import(".prisma/client").$Enums.PayoutBatchStatus;
-                batchNumber: string;
-                totalAmount: number;
-                commissionCount: number;
-                createdBy: string;
-                processedBy: string | null;
-                exportUrl: string | null;
-                notes: string | null;
-                processedAt: Date | null;
-            } | null;
         } & {
             userId: string;
             id: string;

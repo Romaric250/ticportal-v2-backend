@@ -1,12 +1,15 @@
 import { Server } from "socket.io";
-import { socketAuthMiddleware } from "./middleware/auth";
-import { registerTeamChatHandlers } from "./events/teamChat";
-import { registerNotificationHandlers } from "./events/notifications";
-import { logger } from "../shared/utils/logger";
+import { socketAuthMiddleware } from "./middleware/auth.js";
+import { registerTeamChatHandlers } from "./events/teamChat.js";
+import { registerNotificationHandlers } from "./events/notifications.js";
+import { registerCommunityHandlers } from "./events/community.js";
+import { registerSocketServer } from "./ioHolder.js";
+import { logger } from "../shared/utils/logger.js";
 /**
  * Initialize Socket.io with authentication and event handlers
  */
 export const initializeSocket = (io) => {
+    registerSocketServer(io);
     logger.info("🚀 [SOCKET] Initializing Socket.io server");
     // Apply authentication middleware
     io.use(socketAuthMiddleware);
@@ -22,6 +25,7 @@ export const initializeSocket = (io) => {
         // Register handlers
         registerTeamChatHandlers(io, socket);
         registerNotificationHandlers(io, socket);
+        registerCommunityHandlers(io, socket);
         logger.info({ socketId: socket.id, userId: socket.userId }, "✅ [SOCKET] Handlers registered for client");
         // Debug: Log ALL events received from client
         socket.onAny((eventName, ...args) => {
@@ -43,9 +47,9 @@ export const initializeSocket = (io) => {
             }, "❌ [SOCKET] Socket error occurred");
         });
     });
-    logger.info("✅ [SOCKET] Socket.io initialized with team chat and notification handlers");
+    logger.info("✅ [SOCKET] Socket.io initialized with team chat, notifications, and community");
 };
 // Export event emitters for use in controllers
-export { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "./events/teamChat";
-export * from "./events/notifications";
+export { emitTeamUpdate, emitTeamMemberAdded, emitTeamMemberRemoved, emitTeamMemberRoleUpdated, } from "./events/teamChat.js";
+export * from "./events/notifications.js";
 //# sourceMappingURL=index.js.map

@@ -1,4 +1,4 @@
-import { AdminService } from "./service";
+import { AdminService } from "./service.js";
 import { UserRole, UserStatus } from "@prisma/client";
 export class AdminController {
     /**
@@ -644,6 +644,43 @@ export class AdminController {
             res.status(500).json({
                 success: false,
                 message: error.message || "Failed to get team submissions",
+            });
+        }
+    }
+    /**
+     * POST /api/admin/emails/tic-community-welcome
+     * Body: { userId: string }
+     */
+    static async sendTicCommunityWelcomeEmail(req, res) {
+        try {
+            const { userId } = req.body;
+            if (!userId || typeof userId !== "string") {
+                return res.status(400).json({
+                    success: false,
+                    message: "userId is required",
+                });
+            }
+            const data = await AdminService.sendTicCommunityWelcomeToUser(userId);
+            res.json({ success: true, data });
+        }
+        catch (error) {
+            const msg = error?.message || "Failed to send email";
+            const statusCode = msg === "User not found" ? 404 : msg.includes("suspended") ? 400 : 500;
+            res.status(statusCode).json({ success: false, message: msg });
+        }
+    }
+    /**
+     * POST /api/admin/emails/tic-community-welcome/broadcast
+     */
+    static async broadcastTicCommunityWelcomeEmail(_req, res) {
+        try {
+            const data = await AdminService.broadcastTicCommunityWelcome();
+            res.json({ success: true, data });
+        }
+        catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message || "Failed to broadcast email",
             });
         }
     }

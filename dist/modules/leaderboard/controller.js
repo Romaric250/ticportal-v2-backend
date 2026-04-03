@@ -1,5 +1,5 @@
-import { LeaderboardService } from "./service";
-import { logger } from "../../shared/utils/logger";
+import { LeaderboardService } from "./service.js";
+import { logger } from "../../shared/utils/logger.js";
 export class LeaderboardController {
     /**
      * GET /api/leaderboard/me

@@ -34,5 +34,9 @@ export const env = {
     fapshiWebhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",
     // Google Drive API (for checking public access on deliverable links)
     googleApiKey: process.env.GOOGLE_API_KEY ?? "",
+    /** Web Push (VAPID) — optional; push endpoints noop if unset */
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
+    vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:hello@ticsummit.org",
 };
 //# sourceMappingURL=env.js.map

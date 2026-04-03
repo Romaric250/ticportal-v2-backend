@@ -3,11 +3,11 @@ export declare class DefaultsController {
     /**
      * Get defaults by type (school or region)
      */
-    static getDefaults(req: Request, res: Response): Promise<any>;
+    static getDefaults(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * Search defaults by type and query
      */
-    static searchDefaults(req: Request, res: Response): Promise<any>;
+    static searchDefaults(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * Get all schools
      */
@@ -19,10 +19,10 @@ export declare class DefaultsController {
     /**
      * Create school (admin only)
      */
-    static createSchool(req: Request, res: Response): Promise<any>;
+    static createSchool(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
      * Create region (admin only)
      */
-    static createRegion(req: Request, res: Response): Promise<any>;
+    static createRegion(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
 //# sourceMappingURL=controller.d.ts.map

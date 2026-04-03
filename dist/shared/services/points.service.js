@@ -1,7 +1,7 @@
-import { db } from "../../config/database";
-import { logger } from "../utils/logger";
-import { POINTS_CONFIG, ACTIVITY_COOLDOWN, DAILY_LIMITS } from "../constants/points";
-import { NotificationService } from "../../modules/notifications/service";
+import { db } from "../../config/database.js";
+import { logger } from "../utils/logger.js";
+import { POINTS_CONFIG, ACTIVITY_COOLDOWN, DAILY_LIMITS } from "../constants/points.js";
+import { NotificationService } from "../../modules/notifications/service.js";
 export class PointsService {
     /**
      * Award points to a user for completing an activity

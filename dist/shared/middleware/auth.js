@@ -1,5 +1,5 @@
-import { verifyAccessToken } from "../utils/jwt";
-import { logger } from "../utils/logger";
+import { verifyAccessToken } from "../utils/jwt.js";
+import { logger } from "../utils/logger.js";
 export const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

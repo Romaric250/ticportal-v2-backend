@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { PaymentController } from './controller';
-import { authenticate, authorize } from '../../shared/middleware/auth';
+import { PaymentController } from "./controller.js";
+import { authenticate, authorize } from "../../shared/middleware/auth.js";
 import { UserRole } from '@prisma/client';
 const router = Router();
 const paymentController = new PaymentController();

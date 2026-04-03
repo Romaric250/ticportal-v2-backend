@@ -1,5 +1,6 @@
 import { Socket } from "socket.io";
 import type { ExtendedError } from "socket.io/dist/namespace";
+import type { UserRole } from "@prisma/client";
 import { verifyAccessToken } from "../../shared/utils/jwt";
 import { db } from "../../config/database";
 import { logger } from "../../shared/utils/logger";
@@ -10,6 +11,7 @@ export interface AuthenticatedSocket extends Socket {
     id: string;
     email: string;
     fullName: string;
+    role: UserRole;
   };
 }
 
@@ -68,6 +70,7 @@ export const socketAuthMiddleware = async (
         email: true,
         firstName: true,
         lastName: true,
+        role: true,
       },
     });
 
@@ -85,6 +88,7 @@ export const socketAuthMiddleware = async (
       id: user.id,
       email: user.email,
       fullName: `${user.firstName} ${user.lastName}`,
+      role: user.role,
     };
 
     logger.info(

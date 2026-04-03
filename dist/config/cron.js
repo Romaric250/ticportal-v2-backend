@@ -1,6 +1,6 @@
 import { CronJob } from "cron";
 import https from "https";
-import { logger } from "../shared/utils/logger";
+import { logger } from "../shared/utils/logger.js";
 /**
  * Health Check Job - Every 14 minutes
  * Keeps the server alive on free hosting

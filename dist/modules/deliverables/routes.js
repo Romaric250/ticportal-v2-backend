@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { DeliverableController } from "./controller";
-import { DeliverableFileController } from "./file-controller";
+import { DeliverableController } from "./controller.js";
+import { DeliverableFileController } from "./file-controller.js";
 import multer from "multer";
 const router = Router();
 // Configure multer for file uploads

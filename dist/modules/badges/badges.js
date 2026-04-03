@@ -1,4 +1,4 @@
-import { BadgeCategory, BadgeTier } from "./types";
+import { BadgeCategory, BadgeTier } from "./types.js";
 /**
  * All available badges in the system
  */

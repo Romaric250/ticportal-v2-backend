@@ -3,8 +3,8 @@
  * Test Badge Cron Job
  * Run this to test if the badge award cron is working
  */
-import { BadgeService } from '../modules/badges/service';
-import { logger } from '../shared/utils/logger';
+import { BadgeService } from "../modules/badges/service.js";
+import { logger } from "../shared/utils/logger.js";
 async function testBadgeCron() {
     try {
         console.log('🧪 Testing Badge Award Cron...\n');

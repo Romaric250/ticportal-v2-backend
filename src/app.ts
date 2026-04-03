@@ -30,6 +30,7 @@ import portfolioRoutes from "./modules/portfolio/routes";
 import affiliateRoutes from "./modules/affiliate/routes";
 import paymentRoutes from "./modules/payment/routes";
 import gradingRoutes from "./modules/grading/routes";
+import communityRoutes from "./modules/community/routes";
 
 const app = express();
 
@@ -151,6 +152,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/hackathons", hackathonRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api", gradingRoutes);
+app.use("/api", communityRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", deliverableRoutes);
 app.use("/api", learningPathRoutes);

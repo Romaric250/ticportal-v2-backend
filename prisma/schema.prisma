@@ -77,7 +77,50 @@ model User {
   reviewerTeamAssignments  TeamAssignment[] @relation("ReviewerTeamAssignment")
   assignedTeamAssignments  TeamAssignment[] @relation("TeamAssignmentAssigner")
 
+  communityMessages        CommunityMessage[] @relation("CommunityMessageAuthor")
+  communityPinsSet         CommunityMessage[] @relation("CommunityMessagePinnedBy")
+  pushSubscriptions        PushSubscription[]
+
   @@index([username(sort: Desc)], map: "User_username_idx")
+}
+
+/// Global TIC Community channel (Slack-style threads: replies use parentId = root message id).
+model CommunityMessage {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  channelId  String    @default("global")
+  authorId   String    @db.ObjectId
+  body       String
+  imageUrls  String[]
+  parentId   String?   @db.ObjectId
+  isPinned   Boolean   @default(false)
+  pinnedAt   DateTime?
+  pinnedById String?   @db.ObjectId
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  author   User  @relation("CommunityMessageAuthor", fields: [authorId], references: [id])
+  pinnedBy User? @relation("CommunityMessagePinnedBy", fields: [pinnedById], references: [id])
+  parent   CommunityMessage?  @relation("CommunityThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies  CommunityMessage[] @relation("CommunityThread")
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([parentId, createdAt(sort: Asc)])
+  @@index([channelId, isPinned])
+}
+
+/// Web Push subscriptions (VAPID) — used for Community notifications, not email.
+model PushSubscription {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
 }
 
 enum UserRole {

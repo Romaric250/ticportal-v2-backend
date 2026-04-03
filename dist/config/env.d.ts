@@ -24,5 +24,9 @@ export declare const env: {
     fapshiBaseUrl: string;
     fapshiWebhookSecret: string;
     googleApiKey: string;
+    /** Web Push (VAPID) — optional; push endpoints noop if unset */
+    vapidPublicKey: string;
+    vapidPrivateKey: string;
+    vapidSubject: string;
 };
 //# sourceMappingURL=env.d.ts.map

@@ -2,6 +2,8 @@ import { Server } from "socket.io";
 import { socketAuthMiddleware } from "./middleware/auth";
 import { registerTeamChatHandlers } from "./events/teamChat";
 import { registerNotificationHandlers } from "./events/notifications";
+import { registerCommunityHandlers } from "./events/community";
+import { registerSocketServer } from "./ioHolder";
 import { logger } from "../shared/utils/logger";
 import type { AuthenticatedSocket, ServerToClientEvents, ClientToServerEvents } from "./types";
 
@@ -9,6 +11,7 @@ import type { AuthenticatedSocket, ServerToClientEvents, ClientToServerEvents } 
  * Initialize Socket.io with authentication and event handlers
  */
 export const initializeSocket = (io: Server) => {
+  registerSocketServer(io);
   logger.info("🚀 [SOCKET] Initializing Socket.io server");
 
   // Apply authentication middleware
@@ -30,6 +33,7 @@ export const initializeSocket = (io: Server) => {
     // Register handlers
     registerTeamChatHandlers(io, socket);
     registerNotificationHandlers(io, socket);
+    registerCommunityHandlers(io, socket);
     logger.info(
       { socketId: socket.id, userId: socket.userId },
       "✅ [SOCKET] Handlers registered for client"
@@ -60,7 +64,7 @@ export const initializeSocket = (io: Server) => {
     });
   });
 
-  logger.info("✅ [SOCKET] Socket.io initialized with team chat and notification handlers");
+  logger.info("✅ [SOCKET] Socket.io initialized with team chat, notifications, and community");
 };
 
 // Export event emitters for use in controllers

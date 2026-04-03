@@ -58,6 +58,19 @@ router.get("/stats", AdminController.getDashboardStats);
  */
 router.get("/dashboard-stats", AdminController.getDetailedDashboardStats);
 
+router.post(
+  "/emails/tic-community-welcome",
+  authenticate,
+  requireAdmin,
+  AdminController.sendTicCommunityWelcomeEmail,
+);
+router.post(
+  "/emails/tic-community-welcome/broadcast",
+  authenticate,
+  requireAdmin,
+  AdminController.broadcastTicCommunityWelcomeEmail,
+);
+
 // User Management
 /**
  * @swagger

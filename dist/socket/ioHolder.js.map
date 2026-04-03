@@ -1,0 +1,1 @@
+{"version":3,"file":"ioHolder.js","sourceRoot":"","sources":["../../src/socket/ioHolder.ts"],"names":[],"mappings":"AAEA,IAAI,UAAU,GAAkB,IAAI,CAAC;AAErC,MAAM,UAAU,oBAAoB,CAAC,EAAU;IAC7C,UAAU,GAAG,EAAE,CAAC;AAClB,CAAC;AAED,MAAM,UAAU,KAAK;IACnB,OAAO,UAAU,CAAC;AACpB,CAAC"}

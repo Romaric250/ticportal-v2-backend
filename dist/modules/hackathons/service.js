@@ -1,4 +1,4 @@
-import { db } from "../../config/database";
+import { db } from "../../config/database.js";
 export class HackathonService {
     static async getHackathons() {
         return await db.hackathon.findMany({

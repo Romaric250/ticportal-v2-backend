@@ -692,4 +692,42 @@ export class AdminController {
       });
     }
   }
+
+  /**
+   * POST /api/admin/emails/tic-community-welcome
+   * Body: { userId: string }
+   */
+  static async sendTicCommunityWelcomeEmail(req: Request, res: Response) {
+    try {
+      const { userId } = req.body as { userId?: string };
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "userId is required",
+        });
+      }
+      const data = await AdminService.sendTicCommunityWelcomeToUser(userId);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      const msg = error?.message || "Failed to send email";
+      const statusCode =
+        msg === "User not found" ? 404 : msg.includes("suspended") ? 400 : 500;
+      res.status(statusCode).json({ success: false, message: msg });
+    }
+  }
+
+  /**
+   * POST /api/admin/emails/tic-community-welcome/broadcast
+   */
+  static async broadcastTicCommunityWelcomeEmail(_req: Request, res: Response) {
+    try {
+      const data = await AdminService.broadcastTicCommunityWelcome();
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to broadcast email",
+      });
+    }
+  }
 }

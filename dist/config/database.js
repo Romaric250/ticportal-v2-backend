@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { env } from "./env";
+import { env } from "./env.js";
 // Initialize Prisma Client for MongoDB
 /** Avoid logging every query in dev — it can slow large admin lists and flood I/O. */
 export const db = new PrismaClient({

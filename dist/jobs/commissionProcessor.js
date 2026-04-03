@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { PaymentCommissionService } from "../modules/affiliate/payment-commission.service";
-import { logger } from "../shared/utils/logger";
+import { PaymentCommissionService } from "../modules/affiliate/payment-commission.service.js";
+import { logger } from "../shared/utils/logger.js";
 /**
  * Process failed commission calculations every 30 minutes
  * This ensures commissions are calculated for payments that may have failed initially

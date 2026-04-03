@@ -1,5 +1,5 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 export class PortfolioService {
     /**
      * Get complete portfolio overview for user

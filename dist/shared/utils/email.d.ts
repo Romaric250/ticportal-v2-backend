@@ -2,6 +2,8 @@ import { TeamRole } from "@prisma/client";
 export declare const sendEmail: (to: string, subject: string, html: string) => Promise<import("resend").CreateEmailResponse>;
 export declare const sendVerificationEmail: (email: string, firstName: string, otp: string) => Promise<import("resend").CreateEmailResponse>;
 export declare const sendPasswordResetEmail: (email: string, firstName: string, otp: string) => Promise<import("resend").CreateEmailResponse>;
+/** TIC Community launch / welcome — same branding as password reset & verification. */
+export declare const sendTicCommunityWelcomeEmail: (email: string, firstName: string) => Promise<void>;
 export declare const sendWelcomeEmail: (email: string, firstName: string) => Promise<void>;
 export declare const sendTeamCreatedEmail: (email: string, firstName: string, teamName: string) => Promise<void>;
 export declare const sendTeamInviteEmail: (email: string, firstName: string, teamName: string, inviterName: string) => Promise<void>;

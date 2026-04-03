@@ -1,5 +1,5 @@
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
 /**
  * Migrate existing posts from imageUrl (single) to imageUrls (array)
  * Run this script once after updating the schema

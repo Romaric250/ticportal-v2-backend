@@ -1,7 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
-import { env } from '../../config/env';
-import { logger } from '../../shared/utils/logger';
+import { env } from "../../config/env.js";
+import { logger } from "../../shared/utils/logger.js";
 /**
  * Fapshi Payment Gateway Integration
  * Supports MTN Mobile Money and Orange Money payments in Cameroon

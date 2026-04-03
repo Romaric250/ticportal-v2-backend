@@ -16,8 +16,8 @@ export declare class LearningPathService {
             createdAt: Date;
             title: string;
             updatedAt: Date;
-            content: string;
             quiz: Prisma.JsonValue | null;
+            content: string;
             order: number;
             pathId: string;
         }[];
@@ -40,8 +40,8 @@ export declare class LearningPathService {
             createdAt: Date;
             title: string;
             updatedAt: Date;
-            content: string;
             quiz: Prisma.JsonValue | null;
+            content: string;
             order: number;
             pathId: string;
         }[];
@@ -118,8 +118,8 @@ export declare class LearningPathService {
         createdAt: Date;
         title: string;
         updatedAt: Date;
-        content: string;
         quiz: Prisma.JsonValue | null;
+        content: string;
         order: number;
         pathId: string;
     }>;
@@ -136,8 +136,8 @@ export declare class LearningPathService {
         createdAt: Date;
         title: string;
         updatedAt: Date;
-        content: string;
         quiz: Prisma.JsonValue | null;
+        content: string;
         order: number;
         pathId: string;
     }>;
@@ -168,8 +168,8 @@ export declare class LearningPathService {
             createdAt: Date;
             title: string;
             updatedAt: Date;
-            content: string;
             quiz: Prisma.JsonValue | null;
+            content: string;
             order: number;
             pathId: string;
         }[];

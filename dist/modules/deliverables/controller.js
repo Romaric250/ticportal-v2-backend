@@ -1,6 +1,6 @@
-import { DeliverableService } from "./service";
+import { DeliverableService } from "./service.js";
 import { DeliverableType, SubmissionStatus, ReviewStatus } from "@prisma/client";
-import { checkGDriveAccess } from "./gdrive-checker";
+import { checkGDriveAccess } from "./gdrive-checker.js";
 export class DeliverableController {
     /**
      * GET /api/admin/deliverable-templates

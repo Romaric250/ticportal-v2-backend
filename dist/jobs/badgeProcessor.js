@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { BadgeService } from "../modules/badges/service";
-import { logger } from "../shared/utils/logger";
+import { BadgeService } from "../modules/badges/service.js";
+import { logger } from "../shared/utils/logger.js";
 /**
  * Process failed payment badge awards every 30 minutes
  * This ensures users with confirmed payments receive the "Paid Student" badge

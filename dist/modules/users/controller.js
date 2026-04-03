@@ -1,6 +1,6 @@
-import { UserService } from "./service";
-import { UpdateUserSchema, UpdateProfilePhotoSchema, SearchUsersSchema } from "./types";
-import { logger } from "../../shared/utils/logger";
+import { UserService } from "./service.js";
+import { UpdateUserSchema, UpdateProfilePhotoSchema, SearchUsersSchema } from "./types.js";
+import { logger } from "../../shared/utils/logger.js";
 export class UserController {
     static async getProfile(req, res) {
         try {

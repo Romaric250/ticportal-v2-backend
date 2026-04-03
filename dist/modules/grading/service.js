@@ -1,8 +1,8 @@
 import { GradeStatus, Prisma, SubmissionStatus, TeamRole } from "@prisma/client";
-import { db } from "../../config/database";
-import { logger } from "../../shared/utils/logger";
-import { buildEmptySectionScores, computeTotalScore, parseRubricSections, } from "./scoring";
-import { notifyGradeFinalized, notifyPeerReviewSubmitted, notifyReviewerStatusGranted, notifyTeamAssignment, } from "./notifications";
+import { db } from "../../config/database.js";
+import { logger } from "../../shared/utils/logger.js";
+import { buildEmptySectionScores, computeTotalScore, parseRubricSections, } from "./scoring.js";
+import { notifyGradeFinalized, notifyPeerReviewSubmitted, notifyReviewerStatusGranted, notifyTeamAssignment, } from "./notifications.js";
 const REVIEWERS_PER_TEAM = 3;
 /** Prisma default interactive tx timeout is 5s; bulk unassign / slow DB can exceed it. */
 const ASSIGNMENT_TX = { maxWait: 15000, timeout: 60000 };
